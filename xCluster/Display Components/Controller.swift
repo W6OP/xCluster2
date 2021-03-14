@@ -410,6 +410,10 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     }
   }
   
+  
+  /// Convert a frequency to a band.
+  /// - Parameter frequency: string describing a frequency
+  /// - Returns: band
   func convertFrequencyToBand(frequency: String) -> Int {
     var band: Int
     let frequencyMajor = frequency.prefix(while: {$0 != "."})

@@ -82,7 +82,7 @@ class SpotProcessor {
         
         var spot = ClusterSpot(id: 0, dxStation: "", frequency: "", spotter: "", dateTime: "", comment: "", grid: "")
 
-      print(rawSpot)
+        print("Spot: \(rawSpot)")
       
         if rawSpot.count < 65 {
             print("\(rawSpot.count) -- \(rawSpot)")

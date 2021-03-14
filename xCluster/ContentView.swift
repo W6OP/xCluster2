@@ -328,6 +328,6 @@ struct ClusterControlView: View {
 
 struct ContentView_Previews: PreviewProvider {
   static var previews: some View {
-    ContentView(controller: Controller())//.environmentObject(Controller())
+    ContentView(controller: Controller())
   }
 }

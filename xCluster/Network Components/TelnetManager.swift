@@ -87,6 +87,8 @@ class TelnetManager {
   /// - Parameter state: state description
   private func stateDidChange(to state: NWConnection.State) {
    
+    print("stateDidChange \(state)")
+    
     switch state {
     
     case .ready:
