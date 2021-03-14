@@ -17,7 +17,7 @@ struct ClusterDisplayView: View {
         HStack{
           ListDisplayView(controller: controller)
           
-          StatusDisplayView(controller: controller)
+          //StatusDisplayView(controller: controller)
         }
         .frame(maxWidth: .infinity, minHeight: 200, maxHeight: 200)// , maxHeight: 300
         .padding(.vertical,0)

@@ -90,13 +90,13 @@ extension Map {
 // MARK: - Content View ------------------------------------------------------------.
 
 struct ContentView: View {
-  //@EnvironmentObject
-  @StateObject var controller = Controller()
+  //@StateObject var controller = Controller()
+  @EnvironmentObject var controller: Controller
   @ObservedObject var userSettings = UserSettings()
-
+  @State private var showPreferences = false
   var bands: [BandIdentifier] = bandData
   var clusters: [ClusterIdentifier] = clusterData
-  @State private var showPreferences = false
+ 
   
   // -------------------
   @State private var coordinateRegion = MKCoordinateRegion(
@@ -125,8 +125,8 @@ struct ContentView: View {
           
           return PreferencesView()
         }
-        
-        BandViewToggle(bands: bands)
+
+        BandViewToggle(controller: controller, bands: bands)
       }
       .padding(.top, -2).padding(.bottom, 2)
       .frame(maxWidth: .infinity, minHeight: 30, maxHeight: 30)
@@ -241,7 +241,8 @@ struct SpotRow: View {
 
 // https://stackoverflow.com/questions/60994255/swiftui-get-toggle-state-from-items-inside-a-list
 struct BandViewToggle: View {
-  @EnvironmentObject var controller: Controller
+  //@EnvironmentObject var controller: Controller
+  @ObservedObject var controller: Controller
   @State var bands: [BandIdentifier]
   
   var body: some View {
@@ -265,9 +266,9 @@ struct BandViewToggle: View {
 // MARK: - Picker of Cluster Names
 
 struct ClusterControlView: View {
-  
-  //@EnvironmentObject
   var controller: Controller
+  
+  @Environment(\.openURL) var openURL
   @State private var selectedCluster = "Select DX Spider Node"
   @State private var callFilter = ""
   @State private var showSpots = true
@@ -286,9 +287,9 @@ struct ClusterControlView: View {
           .onReceive([selectedCluster].publisher.first()) { value in
             if self.selectedCluster != "Select DX Spider Node" {
               if self.controller.connectedCluster != value {
+                controller.spots = [ClusterSpot]()
                 self.controller.connectedCluster = value
               }
-              //print("value: \(value)")
             }
         }
       }
@@ -298,6 +299,11 @@ struct ClusterControlView: View {
       Spacer()
       
       HStack{
+        Button("Display Status") {
+            if let url = URL(string: "xClusterApp://viewer") {
+                 openURL(url)
+            }
+        }
         
         TextField("Call Filter", text: $callFilter)
           .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -328,6 +334,8 @@ struct ClusterControlView: View {
 
 struct ContentView_Previews: PreviewProvider {
   static var previews: some View {
-    ContentView(controller: Controller())
+    ContentView()
+      .environmentObject(Controller())
   }
 }
+

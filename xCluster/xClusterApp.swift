@@ -11,18 +11,16 @@ import SwiftUI
 struct xClusterApp: App {
   @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
   
+  let controller = Controller()
+  
     var body: some Scene {
-      
-      //let controller = Controller()
-      
         WindowGroup {
-            ContentView()
-              //.environmentObject(controller)
+          ContentView().environmentObject(controller)
         }
-//      WindowGroup("Viewer") { // other scene
-//                  Viewer()
-//              }
-//              .handlesExternalEvents(matching: Set(arrayLiteral: "*"))
+        WindowGroup("Viewer") { // other scene
+          StatusDisplayView(controller: controller)
+        }
+        .handlesExternalEvents(matching: Set(arrayLiteral: "*"))
     }
 }
 
