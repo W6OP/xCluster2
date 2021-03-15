@@ -19,7 +19,7 @@ struct ClusterDisplayView: View {
           
           StatusDisplayView(controller: controller)
         }
-        .frame(maxWidth: .infinity, minHeight: 200, maxHeight: 200)// , maxHeight: 300
+        .frame(maxWidth: .infinity, minHeight: 800, maxHeight: 1000)// , maxHeight: 300
         .padding(.vertical,0)
     }
 }
