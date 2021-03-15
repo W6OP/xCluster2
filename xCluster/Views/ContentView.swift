@@ -89,6 +89,8 @@ extension Map {
 
 // MARK: - Content View ------------------------------------------------------------.
 
+
+/// Main entry point
 struct ContentView: View {
   //@StateObject var controller = Controller()
   @EnvironmentObject var controller: Controller
@@ -163,85 +165,22 @@ struct ContentView: View {
       
       // MARK: - Cluster display and status messages.
       
-      ClusterDisplayView(controller: controller)
+      //ClusterDisplayView(controller: controller)
      
     } // end outer VStack
     .frame(minWidth: 1300)
   }
 } // end ContentView
 
-// MARK: - Spot Header
 
-struct SpotHeader: View {
-  var body: some View {
-    
-    HStack{
-      Text("DX")
-        .frame(minWidth: 75)
-      Text("Frequency")
-        .frame(minWidth: 90)
-      Text("Spotter")
-        .frame(minWidth: 75)
-      Text("Time")
-        .frame(minWidth: 60)
-      Text("Comment")
-        .padding(.leading, 20)
-        .frame(minWidth: 250, alignment: .leading)
-      Text("Grid")
-        .frame(minWidth: 50)
-      Spacer()
-    }
-    .foregroundColor(Color.red)
-    .font(.system(size: 14))
-    .padding(0)
-  }
-}
-
-// MARK: - Spot Row
-
-struct SpotRow: View {
-  var spot: ClusterSpot
-  
-  var body: some View {
-    VStack{
-      HStack{
-        Text(spot.dxStation)
-          .frame(minWidth: 75,alignment: .leading)
-          .padding(.leading, 5)
-        Text(spot.frequency)
-          .frame(minWidth: 90,alignment: .leading)
-        Text(spot.spotter)
-          .frame(minWidth: 75,alignment: .leading)
-        Text(spot.dateTime)
-          .frame(minWidth: 60,alignment: .leading)
-        Text(spot.comment)
-          .frame(minWidth: 250,alignment: .leading)
-          .padding(.leading, 5)
-          .padding(.trailing, 5)
-        Text(spot.grid)
-          .frame(minWidth: 50,alignment: .leading)
-        Spacer()
-      }
-      .frame(maxWidth: .infinity, maxHeight: 15)
-      .padding(.leading, 5)
-      .padding(.top, -5)
-      .padding(.bottom, -5)
-      
-      VStack{
-        Divider()
-          .frame(maxHeight: 1)
-          .padding(-5)
-      }
-      .frame(maxWidth: .infinity, maxHeight: 1)
-    }
-  }
-}
 
 // MARK: -  List of band toggles
 
 // https://stackoverflow.com/questions/60994255/swiftui-get-toggle-state-from-items-inside-a-list
+
+
+/// Band filter buttons at top of display
 struct BandViewToggle: View {
-  //@EnvironmentObject var controller: Controller
   @ObservedObject var controller: Controller
   @State var bands: [BandIdentifier]
   
@@ -265,6 +204,8 @@ struct BandViewToggle: View {
 
 // MARK: - Picker of Cluster Names
 
+
+/// Cluster name picker
 struct ClusterControlView: View {
   var controller: Controller
   
@@ -325,7 +266,7 @@ struct ClusterControlView: View {
       .padding(.leading)
       .padding(.vertical,2)
       .onAppear {
-        if let url = URL(string: "xClusterApp://status") {
+        if let url = URL(string: "xClusterApp://spots") {
              openURL(url)
         }
 //        if let url2 = URL(string: "xClusterApp://spots") {
@@ -341,6 +282,8 @@ struct ClusterControlView: View {
 
 // MARK: - Content Preview
 
+
+/// Main content preview
 struct ContentView_Previews: PreviewProvider {
   static var previews: some View {
     ContentView()
