@@ -92,7 +92,7 @@ extension Map {
 
 /// Main entry point
 struct ContentView: View {
-  //@StateObject var controller = Controller()
+  @Environment(\.openURL) var openURL
   @EnvironmentObject var controller: Controller
   @ObservedObject var userSettings = UserSettings()
   @State private var showPreferences = false
@@ -169,6 +169,11 @@ struct ContentView: View {
      
     } // end outer VStack
     .frame(minWidth: 1300)
+    .onAppear { // comment out for debugging and designing
+      if let url = URL(string: "xClusterApp://spots") {
+           openURL(url)
+      }
+    }
   }
 } // end ContentView
 
@@ -209,7 +214,7 @@ struct BandViewToggle: View {
 struct ClusterControlView: View {
   var controller: Controller
   
-  @Environment(\.openURL) var openURL
+//  @Environment(\.openURL) var openURL
   @State private var selectedCluster = "Select DX Spider Node"
   @State private var callFilter = ""
   @State private var showSpots = true
@@ -240,12 +245,6 @@ struct ClusterControlView: View {
       Spacer()
       
       HStack{
-//        Button("Display Status") {
-//            if let url = URL(string: "xClusterApp://status") {
-//                 openURL(url)
-//            }
-//        }
-        
         TextField("Call Filter", text: $callFilter)
           .textFieldStyle(RoundedBorderTextFieldStyle())
           .frame(maxWidth: 100)
@@ -265,14 +264,11 @@ struct ClusterControlView: View {
       .frame(minWidth: 500)
       .padding(.leading)
       .padding(.vertical,2)
-      .onAppear {
-        if let url = URL(string: "xClusterApp://spots") {
-             openURL(url)
-        }
-//        if let url2 = URL(string: "xClusterApp://spots") {
-//             openURL(url2)
+//      .onAppear {
+//        if let url = URL(string: "xClusterApp://spots") {
+//             openURL(url)
 //        }
-      }
+//      }
       
       Spacer()
     }

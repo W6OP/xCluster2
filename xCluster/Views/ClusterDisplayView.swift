@@ -14,12 +14,12 @@ struct ClusterDisplayView: View {
     var body: some View {
         // MARK: - Spot list display.
         
-        HStack{
+        VStack{
           ListDisplayView(controller: controller)
           
           StatusDisplayView(controller: controller)
         }
-        .frame(maxWidth: .infinity, minHeight: 800, maxHeight: 1000)// , maxHeight: 300
+        .frame(maxWidth: 600, minHeight: 1000, maxHeight: .infinity)// , maxHeight: 300
         .padding(.vertical,0)
     }
 }
@@ -40,10 +40,11 @@ struct ListDisplayView: View {
               SpotRow(spot: spot)
             }
           }
-            .frame(minWidth: 0, maxWidth: .infinity, minHeight: 30, maxHeight: .infinity, alignment: .topLeading) // minHeight: 300, maxHeight: 300,
+            .frame( alignment: .topLeading) // minWidth: 0, maxWidth: .infinity, minHeight: 600, maxHeight: .infinity,
           .background(Color(red: 209 / 255, green: 215 / 255, blue: 226 / 255))
         }
       }
+      .frame(minHeight: 700)
       .border(Color.gray)
     }
 }
@@ -56,18 +57,23 @@ struct SpotHeader: View {
     HStack{
       Text("DX")
         .frame(minWidth: 75)
+        .border(width: 1, edges: [.trailing], color: .gray)
       Text("Frequency")
         .frame(minWidth: 90)
+        .border(width: 1, edges: [.trailing], color: .gray)
       Text("Spotter")
         .frame(minWidth: 75)
+        .border(width: 1, edges: [.trailing], color: .gray)
       Text("Time")
         .frame(minWidth: 60)
+        .border(width: 1, edges: [.trailing], color: .gray)
       Text("Comment")
         .padding(.leading, 20)
-        .frame(minWidth: 250, alignment: .leading)
+        .frame(minWidth: 200, maxWidth: 200, alignment: .leading)
+        .border(width: 1, edges: [.trailing], color: .gray)
       Text("Grid")
         .frame(minWidth: 50)
-      Spacer()
+      //Spacer()
     }
     .foregroundColor(Color.red)
     .font(.system(size: 14))
@@ -86,19 +92,25 @@ struct SpotRow: View {
         Text(spot.dxStation)
           .frame(minWidth: 75,alignment: .leading)
           .padding(.leading, 5)
+          .border(width: 1, edges: [.trailing], color: .gray)
         Text(spot.frequency)
           .frame(minWidth: 90,alignment: .leading)
+          .border(width: 1, edges: [.trailing], color: .gray)
         Text(spot.spotter)
           .frame(minWidth: 75,alignment: .leading)
+          .border(width: 1, edges: [.trailing], color: .gray)
         Text(spot.dateTime)
           .frame(minWidth: 60,alignment: .leading)
+          .border(width: 1, edges: [.trailing], color: .gray)
         Text(spot.comment)
-          .frame(minWidth: 250,alignment: .leading)
+          .frame(minWidth: 200, maxWidth: 200, alignment: .leading)
           .padding(.leading, 5)
           .padding(.trailing, 5)
+          .border(width: 1, edges: [.trailing], color: .gray)
         Text(spot.grid)
           .frame(minWidth: 50,alignment: .leading)
-        Spacer()
+          .border(width: 1, edges: [.trailing], color: .gray)
+        //Spacer()
       }
       .frame(maxWidth: .infinity, maxHeight: 15)
       .padding(.leading, 5)
@@ -135,7 +147,7 @@ struct StatusDisplayView: View {
               .multilineTextAlignment(.leading)
             }
           }
-            .frame(minWidth: 300, maxWidth: .infinity, minHeight: 30, maxHeight: .infinity, alignment: .topLeading) // , minHeight: 300, maxHeight: 300
+            .frame(minHeight: 50, maxHeight: .infinity, alignment: .topLeading) // , minWidth: 300, maxWidth: .infinity, 
           .background(Color(red: 209 / 255, green: 215 / 255, blue: 226 / 255))
         }
       }
@@ -148,5 +160,52 @@ struct StatusDisplayView: View {
 struct ClusterDisplayView_Previews: PreviewProvider {
     static var previews: some View {
       ClusterDisplayView(controller: Controller())
+    }
+}
+
+extension View {
+    func border(width: CGFloat, edges: [Edge], color: Color) -> some View {
+        overlay(EdgeBorder(width: width, edges: edges).foregroundColor(color))
+    }
+}
+
+struct EdgeBorder: Shape {
+
+    var width: CGFloat
+    var edges: [Edge]
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        for edge in edges {
+            var x: CGFloat {
+                switch edge {
+                case .top, .bottom, .leading: return rect.minX
+                case .trailing: return rect.maxX - width
+                }
+            }
+
+            var y: CGFloat {
+                switch edge {
+                case .top, .leading, .trailing: return rect.minY
+                case .bottom: return rect.maxY - width
+                }
+            }
+
+            var w: CGFloat {
+                switch edge {
+                case .top, .bottom: return rect.width
+                case .leading, .trailing: return self.width
+                }
+            }
+
+            var h: CGFloat {
+                switch edge {
+                case .top, .bottom: return self.width
+                case .leading, .trailing: return rect.height
+                }
+            }
+            path.addPath(Path(CGRect(x: x, y: y, width: w, height: h)))
+        }
+        return path
     }
 }

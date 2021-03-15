@@ -17,16 +17,9 @@ struct xClusterApp: App {
         WindowGroup {
           ContentView().environmentObject(controller)
         }
-      
-//        WindowGroup("Status") { // other scene - this is title bar caption - must be single word
-//          StatusDisplayView(controller: controller)
-//        }
-//        .handlesExternalEvents(matching: Set(arrayLiteral: "*"))
-      
+
         WindowGroup("Spots") {
           ClusterDisplayView(controller: controller)
-          //ListDisplayView(controller: controller)
-          //StatusDisplayView(controller: controller)
         }
         .handlesExternalEvents(matching: Set(arrayLiteral: "*"))
     }
