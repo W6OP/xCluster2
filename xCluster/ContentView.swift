@@ -299,11 +299,11 @@ struct ClusterControlView: View {
       Spacer()
       
       HStack{
-        Button("Display Status") {
-            if let url = URL(string: "xClusterApp://viewer") {
-                 openURL(url)
-            }
-        }
+//        Button("Display Status") {
+//            if let url = URL(string: "xClusterApp://status") {
+//                 openURL(url)
+//            }
+//        }
         
         TextField("Call Filter", text: $callFilter)
           .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -324,10 +324,19 @@ struct ClusterControlView: View {
       .frame(minWidth: 500)
       .padding(.leading)
       .padding(.vertical,2)
+      .onAppear {
+        if let url = URL(string: "xClusterApp://status") {
+             openURL(url)
+        }
+//        if let url2 = URL(string: "xClusterApp://spots") {
+//             openURL(url2)
+//        }
+      }
       
       Spacer()
     }
   }
+
 }
 
 // MARK: - Content Preview
