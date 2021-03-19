@@ -74,9 +74,13 @@ let clusterData = [
     ClusterIdentifier(name: "FT8 RBN", address: "telnet.reversebeacon.net", port: "7001", id: 99),
     // telnet.reversebeacon.net port 7000, for CW and RTTY spots
     ClusterIdentifier(name: "CW/RTTY", address: "telnet.reversebeacon.net", port: "7000", id: 100),
+  
+    ClusterIdentifier(name: "DXSummit", address: "http://www.dxsummit.fi/text/dx25.html", port: "80", id: 200),
 ]
 
 /**
+ http://www.dxsummit.fi/DxSpots.aspx?count=25&rsange=1
+ http://www.dxsummit.fi/text/dx25.html
  K0XM-5 dxc.k0xm.net:7300
  K1RFI k1rfi.com:7300
  K1SA sebago.ddns.net:7373

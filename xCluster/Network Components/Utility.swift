@@ -14,6 +14,38 @@ extension String {
     return components.filter { !$0.isEmpty }.joined(separator: " ")
   }
 }
+// https://www.hackingwithswift.com/example-code/strings/how-to-remove-a-prefix-from-a-string
+extension String {
+    func deletingPrefix(_ prefix: String) -> String {
+        guard self.hasPrefix(prefix) else { return self }
+        return String(self.dropFirst(prefix.count))
+    }
+}
+
+// https://stackoverflow.com/questions/32305891/index-of-a-substring-in-a-string-with-swift
+extension StringProtocol {
+    func index<S: StringProtocol>(of string: S, options: String.CompareOptions = []) -> Index? {
+        range(of: string, options: options)?.lowerBound
+    }
+    func endIndex<S: StringProtocol>(of string: S, options: String.CompareOptions = []) -> Index? {
+        range(of: string, options: options)?.upperBound
+    }
+    func indices<S: StringProtocol>(of string: S, options: String.CompareOptions = []) -> [Index] {
+        ranges(of: string, options: options).map(\.lowerBound)
+    }
+    func ranges<S: StringProtocol>(of string: S, options: String.CompareOptions = []) -> [Range<Index>] {
+        var result: [Range<Index>] = []
+        var startIndex = self.startIndex
+        while startIndex < endIndex,
+            let range = self[startIndex...]
+                .range(of: string, options: options) {
+                result.append(range)
+                startIndex = range.lowerBound < range.upperBound ? range.upperBound :
+                    index(range.lowerBound, offsetBy: 1, limitedBy: endIndex) ?? endIndex
+        }
+        return result
+    }
+}
 
 // find all items in an array that match a given predicate
 // https://learnappmaking.com/find-item-in-array-swift/#finding-all-items-in-an-array-with-allwhere
@@ -120,6 +152,7 @@ enum TelnetManagerMessage : String {
   case loginCompleted = "Logon complete"
   case showDxSpots = "Show DX received"
   case spotReceived = "Spot received"
+  case htmlSpotReceived = "HTML Spot received"
   case waiting = "Waiting"
   case callSignRequested = "Your call"
   case qthRequested = "Your QTH"

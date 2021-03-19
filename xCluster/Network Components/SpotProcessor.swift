@@ -18,7 +18,7 @@ class SpotProcessor {
     
     //      12 chars
     // DX de LY3AB:     1887.0  LY2RJ        cq cq cq                       1743Z KO25
-    func processRawSpot(rawSpot: String) throws -> ClusterSpot  {
+    func processSpot(rawSpot: String) throws -> ClusterSpot  {
         
       var spot = ClusterSpot(id: 0, dxStation: "", frequency: "", spotter: "", dateTime: "",comment: "",grid: "")
         
@@ -72,13 +72,15 @@ class SpotProcessor {
     // "24048940.0  GB3PKT      24-Feb-2019 2340Z  <tr>S9+ !!                   <G4BAO>\r\n"
     // 432174.0  DH9OK       24-Feb-2019 2035Z  JO01FQ<TR>JO51AQ 660km       <G3YDY>
     // 1840.0  UA3LNM      24-Feb-2019 2036Z  FT8,CLG HS1                 <JA3SWL>
-    /**
+    
+  // TODO: I think there is a command to get these as regular spots
+  /**
      Process a telnet packet from a show/dx command.
      - parameters:
      - rawSpot: the string received via telnet.
      - returns:
      */
-    func processRawShowDxSpot(rawSpot: String) throws ->  ClusterSpot {
+    func processShowDxSpot(rawSpot: String) throws ->  ClusterSpot {
         
         var spot = ClusterSpot(id: 0, dxStation: "", frequency: "", spotter: "", dateTime: "", comment: "", grid: "")
 
@@ -131,7 +133,57 @@ class SpotProcessor {
         
         return spot
     }
+  
+  /*
+   spotter
+   FR8TG      14032.5 LA4EJA     Tks for Qso Chris 73 cw       1558 19 Mar
+   R0AT-@      7009.0 LA1MFA     tnx QSO                       1558 19 Mar
+   DL4CH      14080.0 VA3EKG                                   1558 19 Mar
+   CT1ASM     14237.0 VU3WEW     5/9 20db STRONG tnks QSO      1558 19 Mar
+   LZ3YG       7165.0 YU1JW      TNX FOR qso 5/9 73 Lazare     1558 19 Mar
+   R9XM        3647.0 RA3RNB                                   1558 19 Mar
+   */
+  
+  func processHtmlSpot(rawSpot: String) throws -> ClusterSpot  {
     
+    var spot = ClusterSpot(id: 0, dxStation: "", frequency: "", spotter: "", dateTime: "",comment: "",grid: "")
+    
+    // first strip first 6 chars (<html>)
+    var tempSpot = rawSpot.dropFirst(6)
+    
+    let beginning = tempSpot.components(separatedBy: " ").first
+//    var startIndex = tempSpot.index(tempSpot.startIndex, offsetBy: beginning!.count + 1)
+    var endIndex = tempSpot.endIndex
+//    var balance = convertStringSliceToString(String(tempSpot[startIndex..<endIndex]).trimmingCharacters(in: .whitespaces))
+    
+    spot.spotter = beginning ?? "???????"
+    
+    tempSpot = tempSpot.dropFirst(11)
+    endIndex = tempSpot.index(tempSpot.startIndex, offsetBy: 8)
+    let frequency = convertStringSliceToString(String(tempSpot[tempSpot.startIndex..<endIndex]))
+    guard Float(frequency) != nil else {
+        print(frequency)
+        throw SpotError.spotError("processRawShowDxSpot: unable to parse frequency")
+    }
+    spot.frequency = convertFrequencyToDecimalString(frequency:frequency)
+    
+    tempSpot = tempSpot.dropFirst(8)
+    endIndex = tempSpot.index(tempSpot.startIndex, offsetBy: 10)
+    
+    spot.dxStation = convertStringSliceToString(String(tempSpot[tempSpot.startIndex..<endIndex]))
+    
+    tempSpot = tempSpot.dropFirst(11)
+    endIndex = tempSpot.index(tempSpot.startIndex, offsetBy: 30)
+    
+    spot.comment = convertStringSliceToString(String(tempSpot[tempSpot.startIndex..<endIndex]))
+    
+    tempSpot = tempSpot.dropFirst(30)
+    endIndex = tempSpot.index(tempSpot.startIndex, offsetBy: 4)
+    
+    spot.dateTime = convertStringSliceToString(String(tempSpot[tempSpot.startIndex..<endIndex]))
+
+    return spot
+  }
     /**
      Read handler.
      - parameters:
@@ -224,3 +276,33 @@ class SpotProcessor {
 // DX de F4FGC:     14074.0  K7QXG        FT8 Tnx                        1630Z\u{07}\u{07}\r\n
 // CC11^14173.0^AA3B^27-Feb-2019^1625Z^^IU7EKB^226^85^OH8X-12^8^5^28^15^^^DC-K^Italy-I^FN20^
 // 14197.0  R7DN        27-Feb-2019 1628Z  59+9                         <PI3CQ>
+
+/* DXSummit Text output
+ data: <META HTTP-EQUIV="Pragma" CONTENT="no-cache"><META HTTP-EQUIV="Refresh" CONTENT=60><CENTER><PRE>
+ DK4YJ       3623.5 DL5LYM                                   2020 18 Mar
+ TF4M        1825.5 VK3NX      Hears well                    2020 18 Mar
+ SP3DOF      7074.0 G8RZ       FT8 73 gl                     2019 18 Mar
+ DF1LX       3748.6 DL9EE      bcc party LSB                 2019 18 Mar
+ DJ7YP       7076.1 US0UB      tnx good dx my Tx Freq 2141Hz 2019 18 Mar
+ AA0DX      14278.0 DL1KFS                                   2019 18 Mar
+ DK4YJ       3705.1 DL6NCY                                   2019 18 Mar
+ LZ2GS       5352.4 LA8HGA                                   2019 18 Mar
+ EI8IU       3709.0 EI2SBC                                   2019 18 Mar
+ F4UJU      10136.0 KO4DO      FT8 -12dB from FM07 1530Hz    2018 18 Mar
+ DK4YJ       3741.9 DL8LAS                                   2018 18 Mar
+ DK4YJ       3767.9 DO4OD                                    2018 18 Mar
+ PP5RT       7105.0 ZZ5FLORIPA Certificate                   2018 18 Mar
+ HA4XG-@     7022.0 SX7A       Pse 40m CW 60m CW/SSB         2018 18 Mar
+ DK4YJ       3752.2 DB7BN                                    2018 18 Mar
+ SP3DOF      7074.0 SZ21AD     FT8 73 gl                     2018 18 Mar
+ DF1LX       3592.5 DL5LYM     bcc party RTTY                2017 18 Mar
+ IU3KGO      7023.0 LY11LY     SES tks 73                    2017 18 Mar
+ PD0LK      14080.0 K2JWD      -18 TNX FT4 QSO 73 from Leen  2017 18 Mar
+ DK4YJ       3773.6 DC1MUS                                   2017 18 Mar
+ F5IND       7105.0 EI7JN                                    2017 18 Mar
+ RN3QRY     10136.0 F5ADE      KO91OH JN06VU FT8 +2db 73!    2017 18 Mar
+ VA3EBM     14319.0 K5DGR      FN03EK DM68RV SSB             2017 18 Mar
+ PT2OP-@    14074.0 PA3FQK     TKS 73                        2017 18 Mar
+ WB2FVR     14075.8 IK2SAR                                   2017 18 Mar
+ </PRE></CENTER><H4>DX-Summit: Last 25 DX-spots - reloaded every minute</H4><BODY></HTML>
+ */

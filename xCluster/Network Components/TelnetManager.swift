@@ -72,11 +72,13 @@ class TelnetManager {
     
     connectedHost = host
 
+    if host.contains("www") { // change to ENUM
+      createHttpSession(host: host)
+    } else {
     connection = NWConnection(host: NWEndpoint.Host(host), port: NWEndpoint.Port(port) ?? defaultPort, using: .tcp)
-    
     connection.stateUpdateHandler = stateDidChange(to:)
-    
     start()
+    }
   }
   
   func start() {
@@ -123,7 +125,121 @@ class TelnetManager {
   }
   
   
+  /// Use http to get data
+  /// - Parameter host: host address
+  func createHttpSession(host: String) {
+    
+    let session = URLSession.shared
+    let url = URL(string: host)!
+    
+    let task = session.dataTask(with: url, completionHandler: { data, response, error in
+//      print("response")
+//      print("data: \(data)")
+//      print("response: \(response)")
+//      print("error: \(error)")
+      
+      if error != nil {
+        print("error: \(String(describing: error))")
+          // OH NO! An error occurred...
+          //self.handleClientError(error)
+          return
+      }
+      
+      guard let httpResponse = response as? HTTPURLResponse,
+            (200...299).contains(httpResponse.statusCode) else {
+          //self.handleServerError(response)
+          return
+      }
+      
+      guard let mime = response?.mimeType, mime == "application/json" else {
+          print("Wrong MIME type!")
+          let str = String(decoding: data!, as: UTF8.self)
+        // this is where to start
+          print("data: \(str)")
+          self.removeHeaderAndFooter(html: str)
+          return
+      }
+      
+      do {
+          let json = try JSONSerialization.jsonObject(with: data!, options: [])
+          print(json)
+      } catch {
+          print("JSON error: \(error.localizedDescription)")
+      }
+      
+    })
+    
+    task.resume()
+  }
+  
+  
+  /// Remove the header and footer from the html
+  /// - Parameter html: html received
+  func removeHeaderAndFooter(html: String) {
+    
+    if html.contains("<PRE>") {
+     
+      guard let startIndex = html.index(of: "<PRE>") else { return }
+      guard let startIndex2 = html.index(of: "</PRE>") else { return }
+     
+      let range = html.index(startIndex, offsetBy: 5)..<startIndex2
+      
+      let substring = String(html[range])
+      print(substring)
+      
+      let lines = substring.split(whereSeparator: \.isNewline)
+      
+      for line in lines {
+        if !line.isEmpty {
+          determineMessageType(message: "<html>" + line.trimmingCharacters(in: .whitespaces))
+        }
+      }
+      //let a = lines.count
+      //for line in lines {
+       // print(line)
+        // LZ3YG       7165.0 YU1JW      TNX FOR qso 5/9 73 Lazare     1558 19 Mar
+        // AE7KI-@    18151.0 MW0NLG     59 in Tennessee               1557 19 Mar
+        // F5UOU      21074.0 WP4J       FT8 -11dB from FK67 1353Hz    1559 19 Mar
+      }
+      //let range2 = range.index(range.startIndex..<range.endIndex)
+      
+      //let end = String.Index(utf16Offset: endIndex, in: html)
+      
+      //let substring = String(html[startIndex..<end])
+      //print(substring)
+      //guard let index2 = substring.index(of: "</PRE>") else { return }
+      //let substring2 = html[..<index2]
+      
+      //print(substring2)
+      //let end = html.l
+//      let startIndex = spot.spotter.startIndex
+//      spot.spotter = convertStringSliceToString(String(spot.spotter[startIndex..<index!])).condenseWhitespace()
+    //}
+    // <META HTTP-EQUIV="Pragma" CONTENT="no-cache"><META HTTP-EQUIV="Refresh" CONTENT=60><CENTER><PRE>
+    
+  }
+  
+  /*
+   let str = "abcde"
+   if let index = str.index(of: "cd") {
+       let substring = str[..<index]   // ab
+       let string = String(substring)
+       print(string)  // "ab\n"
+   }
+   let str = "Hello, playground, playground, playground"
+   str.index(of: "play")      // 7
+   str.endIndex(of: "play")   // 11
+   str.indices(of: "play")    // [7, 19, 31]
+   str.ranges(of: "play")     // [{lowerBound 7, upperBound 11}, {lowerBound 19, upperBound 23}, {lowerBound 31, upperBound 35}]
+   */
+  
   /**
+   
+   <A href="http://www.qrz.com/db/PD0LK" class="qrz" target="_blank">PD0LK     </A>
+   14080.0
+   <A href="http://www.qrz.com/db/AI4FR" class="qrz" target="_blank">AI4FR       </A>
+   -15 TNX FT4 QSO 73 from leen       2007 18 Mar   United States
+   
    timer fired.
    sequence 22 Invalid command
    sequence 5 W6OP de WW1R-9  2-Aug-2020 1619Z dxspider >
@@ -498,6 +614,9 @@ class TelnetManager {
       
     case _ where message.contains("DX de"):
       self.telnetManagerDelegate?.telnetManagerDataReceived(self, messageKey: .spotReceived, message: message)
+      
+    case _ where message.contains("<html>"):
+      self.telnetManagerDelegate?.telnetManagerDataReceived(self, messageKey: .htmlSpotReceived, message: message)
 
     case _ where message.contains("Is this correct"):
       send("Y", commandType: .yes)
@@ -570,4 +689,5 @@ class TelnetManager {
   }
   
 } // end class
+
 

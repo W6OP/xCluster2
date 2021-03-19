@@ -169,10 +169,13 @@ struct ContentView: View {
      
     } // end outer VStack
     .frame(minWidth: 1300)
+   
     .onAppear { // comment out for debugging and designing
+      #if !DEBUG
       if let url = URL(string: "xClusterApp://spots") {
            openURL(url)
       }
+      #endif
     }
   }
 } // end ContentView
@@ -214,7 +217,8 @@ struct BandViewToggle: View {
 struct ClusterControlView: View {
   var controller: Controller
   
-//  @Environment(\.openURL) var openURL
+  @Environment(\.openURL) var openURL
+  
   @State private var selectedCluster = "Select DX Spider Node"
   @State private var callFilter = ""
   @State private var showSpots = true
@@ -225,7 +229,7 @@ struct ClusterControlView: View {
       HStack{
         Picker(selection: $selectedCluster, label: Text("")) {
           ForEach(clusters) { cluster in
-            Text("\(cluster.name):\(cluster.address):\(cluster.port)").tag(cluster.name)
+            Text("\(cluster.name): \(cluster.address):\(cluster.port)").tag(cluster.name)
           }
         }.frame(minWidth: 400, maxWidth: 400)
           // onReceive is fired when anything on the GUI is changed.
@@ -245,6 +249,13 @@ struct ClusterControlView: View {
       Spacer()
       
       HStack{
+        
+        Button("Open Spots") {
+            if let url = URL(string: "xClusterApp://spots") {
+                 openURL(url)
+            }
+        }
+        
         TextField("Call Filter", text: $callFilter)
           .textFieldStyle(RoundedBorderTextFieldStyle())
           .frame(maxWidth: 100)

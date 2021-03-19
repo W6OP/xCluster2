@@ -205,7 +205,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
       }
     }
   }
-  
 
    /// Telnet Manager protocol - Process information messages from the Telnet Manager
   ///
@@ -243,6 +242,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
         self.parseClusterSpot(message: message, messageType: messageKey)
         /// "DX de W3EX:      28075.6  N9AMI                                       1912Z FN20\a\a"
       }
+    case.htmlSpotReceived: // DO I WANT TO DO THIS HERE??
+      self.parseClusterSpot(message: message, messageType: messageKey)
     case .showDxSpots:
       DispatchQueue.main.async {
         self.parseClusterSpot(message: message, messageType: messageKey)
@@ -373,10 +374,13 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
       
       switch messageType {
       case .showDxSpots:
-        spot = try self.spotProcessor.processRawShowDxSpot(rawSpot: message)
+        spot = try self.spotProcessor.processShowDxSpot(rawSpot: message)
         break
       case .spotReceived:
-        spot = try self.spotProcessor.processRawSpot(rawSpot: message)
+        spot = try self.spotProcessor.processSpot(rawSpot: message)
+        lastSpotReceivedTime = Date()
+      case .htmlSpotReceived:
+        spot = try self.spotProcessor.processHtmlSpot(rawSpot: message)
         lastSpotReceivedTime = Date()
       default:
         return
@@ -499,9 +503,11 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
       _ = printDateTime(message: "Last spot received: \(lastSpotReceivedTime) - Time now: ")
       //lastSpotReceivedTime = date
       
-      let bs = "show/time" //" " + String(UnicodeScalar(8)) //"(space)BACKSPACE"
+      //let bs = "show/time" //" " + String(UnicodeScalar(8)) //"(space)BACKSPACE"
       // show/moon
-      sendClusterCommand(message: bs, commandType: CommandType.keepAlive)
+      //sendClusterCommand(message: bs, commandType: CommandType.keepAlive)
+      // this should work for the VE7CC cluster
+      sendClusterCommand(message: "|5", commandType: CommandType.keepAlive)
     }
     
     // if over 15 minutes, disconnect and reconnect
