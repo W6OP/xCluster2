@@ -149,38 +149,34 @@ class SpotProcessor {
     var spot = ClusterSpot(id: 0, dxStation: "", frequency: "", spotter: "", dateTime: "",comment: "",grid: "")
     
     // first strip first 6 chars (<html>)
-    var tempSpot = rawSpot.dropFirst(6)
+    var balance = rawSpot.dropFirst(6)
+    var endIndex = balance.endIndex
+
+    spot.spotter = balance.components(separatedBy: " ").first ?? "???????"
     
-    let beginning = tempSpot.components(separatedBy: " ").first
-//    var startIndex = tempSpot.index(tempSpot.startIndex, offsetBy: beginning!.count + 1)
-    var endIndex = tempSpot.endIndex
-//    var balance = convertStringSliceToString(String(tempSpot[startIndex..<endIndex]).trimmingCharacters(in: .whitespaces))
-    
-    spot.spotter = beginning ?? "???????"
-    
-    tempSpot = tempSpot.dropFirst(11)
-    endIndex = tempSpot.index(tempSpot.startIndex, offsetBy: 8)
-    let frequency = convertStringSliceToString(String(tempSpot[tempSpot.startIndex..<endIndex]))
+    balance = balance.dropFirst(11)
+    endIndex = balance.index(balance.startIndex, offsetBy: 8)
+    let frequency = convertStringSliceToString(String(balance[balance.startIndex..<endIndex]))
     guard Float(frequency) != nil else {
         print(frequency)
         throw SpotError.spotError("processRawShowDxSpot: unable to parse frequency")
     }
     spot.frequency = convertFrequencyToDecimalString(frequency:frequency)
     
-    tempSpot = tempSpot.dropFirst(8)
-    endIndex = tempSpot.index(tempSpot.startIndex, offsetBy: 10)
+    balance = balance.dropFirst(8)
+    endIndex = balance.index(balance.startIndex, offsetBy: 10)
     
-    spot.dxStation = convertStringSliceToString(String(tempSpot[tempSpot.startIndex..<endIndex]))
+    spot.dxStation = convertStringSliceToString(String(balance[balance.startIndex..<endIndex]))
     
-    tempSpot = tempSpot.dropFirst(11)
-    endIndex = tempSpot.index(tempSpot.startIndex, offsetBy: 30)
+    balance = balance.dropFirst(11)
+    endIndex = balance.index(balance.startIndex, offsetBy: 30)
     
-    spot.comment = convertStringSliceToString(String(tempSpot[tempSpot.startIndex..<endIndex]))
+    spot.comment = convertStringSliceToString(String(balance[balance.startIndex..<endIndex]))
     
-    tempSpot = tempSpot.dropFirst(30)
-    endIndex = tempSpot.index(tempSpot.startIndex, offsetBy: 4)
+    balance = balance.dropFirst(30)
+    endIndex = balance.index(balance.startIndex, offsetBy: 4)
     
-    spot.dateTime = convertStringSliceToString(String(tempSpot[tempSpot.startIndex..<endIndex]))
+    spot.dateTime = convertStringSliceToString(String(balance[balance.startIndex..<endIndex]))
 
     return spot
   }

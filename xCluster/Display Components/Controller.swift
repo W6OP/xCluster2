@@ -73,18 +73,20 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   let qrzPassword = UserDefaults.standard.string(forKey: "password") ?? ""
   
   // mapping
-  let MAX_SPOTS = 1000
-  let MAX_MAP_LINES = 50
-  let REGION_RADIUS: CLLocationDistance = 10000000
-  let CENTER_LATITUDE = 28.282778
-  let CENTER_LONGITUDE = -40.829444
-  let KEEP_ALIVE = 300 // 5 minutes
+  let maxNumberOfSpots = 1000
+  let maxNumberOfMapLines = 50
+  let regionRadius: CLLocationDistance = 10000000
+  let centerLatitude = 28.282778
+  let centerLongitude = -40.829444
+  let keepAliveInterval = 300 // 5 minutes
+  let dxSummitRefreshInterval = 60 // 1 minute
   
-  let STANDARD_STROKE_COLOR = NSColor.blue
-  let FT8_STROKE_COLOR = NSColor.red
-  let LINE_WIDTH: Float = 5.0 //1.0
+  let standardStrokeColor = NSColor.blue
+  let ft8StrokeColor = NSColor.red
+  let lineWidth: Float = 5.0 //1.0
   
   weak var keepAliveTimer: Timer!
+  weak var webRefreshTimer: Timer!
   
   var bandFilters = [Int: Int]()
   
@@ -102,7 +104,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     //let initialLocation = CLLocation(latitude: CENTER_LATITUDE, longitude: CENTER_LONGITUDE)
     //centerMapOnLocation(location: initialLocation)
     
-    keepAliveTimer = Timer.scheduledTimer(timeInterval: TimeInterval(KEEP_ALIVE), target: self, selector: #selector(tickleServer), userInfo: nil, repeats: true)
+    keepAliveTimer = Timer.scheduledTimer(timeInterval: TimeInterval(keepAliveInterval), target: self, selector: #selector(tickleServer), userInfo: nil, repeats: true)
+    
+    webRefreshTimer = Timer.scheduledTimer(timeInterval: TimeInterval(dxSummitRefreshInterval), target: self, selector: #selector(refreshWeb), userInfo: nil, repeats: true)
     
     getQRZSessionKey()
   }
@@ -496,18 +500,21 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   
   // MARK: - Keep Alive Timer ----------------------------------------------------------------------------
   
+  @objc func refreshWeb() {
+    sendClusterCommand(message: "", commandType: .refreshWeb)
+  }
+  
+  
   @objc func tickleServer() {
     // if its been 5 minutes since last spot send keep alive
-    //let date = Date()
     if minutesBetweenDates(lastSpotReceivedTime , Date()) > 5 {
       _ = printDateTime(message: "Last spot received: \(lastSpotReceivedTime) - Time now: ")
-      //lastSpotReceivedTime = date
-      
+     
       //let bs = "show/time" //" " + String(UnicodeScalar(8)) //"(space)BACKSPACE"
-      // show/moon
       //sendClusterCommand(message: bs, commandType: CommandType.keepAlive)
+      
       // this should work for the VE7CC cluster
-      sendClusterCommand(message: "|5", commandType: CommandType.keepAlive)
+      sendClusterCommand(message: "|5", commandType: .keepAlive)
     }
     
     // if over 15 minutes, disconnect and reconnect

@@ -133,6 +133,7 @@ enum CommandType : String {
   case yes = "Yes"
   case message = "Message to send"
   case keepAlive = "Keep alive"
+  case refreshWeb = "Web Refresh"
   case setQth = "Your QTH"
 }
 
@@ -167,10 +168,11 @@ enum QRZManagerMessage : String {
 }
 
 enum ClusterType : String {
-  case arcluster = "AR-Cluster"
-  case cccluster = "CC-Cluster"
-  case dxspider = "DXSpider"
+  case arCluster = "AR-Cluster"
+  case ccCluster = "CC-Cluster"
+  case dxSpider = "DXSpider"
   case ve7cc = "VE7CC"
+  case html = "HTML"
   case unknown = "Unknown"
 }
 
