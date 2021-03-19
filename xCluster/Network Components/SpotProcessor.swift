@@ -186,8 +186,8 @@ class SpotProcessor {
      - s: Initialize a new string instance from a slice of a string.
      Otherwise the reference to the string will never go away.
      */
-    func convertStringSliceToString(_ s: String) -> String {
-        return s.trimmingCharacters(in: .whitespaces)
+    func convertStringSliceToString(_ slice: String) -> String {
+        return slice.trimmingCharacters(in: .whitespaces)
     }
     
     /**

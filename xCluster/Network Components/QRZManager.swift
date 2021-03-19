@@ -29,7 +29,7 @@ class QRZManager: NSObject {
   
   // MARK: - Field Definitions
   
-  static let model_log = OSLog(subsystem: "com.w6op.TelnetManager", category: "Model")
+  static let modelLog = OSLog(subsystem: "com.w6op.TelnetManager", category: "Model")
   // delegate to pass messages back to viewcontroller
   weak var qrzManagerDelegate:QRZManagerDelegate?
   let callParser = PrefixFileParser()

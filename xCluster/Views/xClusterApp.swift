@@ -8,7 +8,7 @@
 import SwiftUI
 
 @main
-struct xClusterApp: App {
+struct XClusterApp: App {
   @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
   
   let controller = Controller()

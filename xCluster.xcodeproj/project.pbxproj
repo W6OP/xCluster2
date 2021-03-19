@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		9907B63725FD455700A0859C /* xClusterApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9907B63625FD455700A0859C /* xClusterApp.swift */; };
+		9907B63725FD455700A0859C /* XClusterApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9907B63625FD455700A0859C /* XClusterApp.swift */; };
 		9907B63925FD455700A0859C /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9907B63825FD455700A0859C /* ContentView.swift */; };
 		9907B63B25FD455800A0859C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9907B63A25FD455800A0859C /* Assets.xcassets */; };
 		9907B63E25FD455800A0859C /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9907B63D25FD455800A0859C /* Preview Assets.xcassets */; };
@@ -20,11 +20,12 @@
 		9907B66225FD4AB100A0859C /* TelnetManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9907B65E25FD4AB100A0859C /* TelnetManager.swift */; };
 		9907B66625FD4BA400A0859C /* CallParser in Frameworks */ = {isa = PBXBuildFile; productRef = 9907B66525FD4BA400A0859C /* CallParser */; };
 		9907B66925FD503C00A0859C /* ClusterDisplayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9907B66825FD503C00A0859C /* ClusterDisplayView.swift */; };
+		9936D64D260547C30079D49C /* SwiftLintFramework in Frameworks */ = {isa = PBXBuildFile; productRef = 9936D64C260547C30079D49C /* SwiftLintFramework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		9907B63325FD455700A0859C /* xCluster.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = xCluster.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		9907B63625FD455700A0859C /* xClusterApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = xClusterApp.swift; sourceTree = "<group>"; };
+		9907B63625FD455700A0859C /* XClusterApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XClusterApp.swift; sourceTree = "<group>"; };
 		9907B63825FD455700A0859C /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		9907B63A25FD455800A0859C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		9907B63D25FD455800A0859C /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
@@ -45,6 +46,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9936D64D260547C30079D49C /* SwiftLintFramework in Frameworks */,
 				9907B66625FD4BA400A0859C /* CallParser in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -93,7 +95,7 @@
 		9907B64D25FD47AC00A0859C /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				9907B63625FD455700A0859C /* xClusterApp.swift */,
+				9907B63625FD455700A0859C /* XClusterApp.swift */,
 				9907B63825FD455700A0859C /* ContentView.swift */,
 				9907B66825FD503C00A0859C /* ClusterDisplayView.swift */,
 				9907B65025FD491700A0859C /* PreferencesView.swift */,
@@ -131,6 +133,7 @@
 				9907B62F25FD455700A0859C /* Sources */,
 				9907B63025FD455700A0859C /* Frameworks */,
 				9907B63125FD455700A0859C /* Resources */,
+				9936D64F2605483A0079D49C /* ShellScript */,
 			);
 			buildRules = (
 			);
@@ -139,6 +142,7 @@
 			name = xCluster;
 			packageProductDependencies = (
 				9907B66525FD4BA400A0859C /* CallParser */,
+				9936D64C260547C30079D49C /* SwiftLintFramework */,
 			);
 			productName = xCluster;
 			productReference = 9907B63325FD455700A0859C /* xCluster.app */;
@@ -169,6 +173,7 @@
 			mainGroup = 9907B62A25FD455700A0859C;
 			packageReferences = (
 				9907B66425FD4BA400A0859C /* XCRemoteSwiftPackageReference "CallParserForMac" */,
+				9936D64B260547C30079D49C /* XCRemoteSwiftPackageReference "SwiftLint" */,
 			);
 			productRefGroup = 9907B63425FD455700A0859C /* Products */;
 			projectDirPath = "";
@@ -191,6 +196,26 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		9936D64F2605483A0079D49C /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if which swiftlint >/dev/null; then\n  swiftlint\nelse\n  echo \"warning: SwiftLint not installed, download from https://github.com/realm/SwiftLint\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		9907B62F25FD455700A0859C /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -203,7 +228,7 @@
 				9907B66925FD503C00A0859C /* ClusterDisplayView.swift in Sources */,
 				9907B65F25FD4AB100A0859C /* Utility.swift in Sources */,
 				9907B65125FD491700A0859C /* PreferencesView.swift in Sources */,
-				9907B63725FD455700A0859C /* xClusterApp.swift in Sources */,
+				9907B63725FD455700A0859C /* XClusterApp.swift in Sources */,
 				9907B65525FD498F00A0859C /* Bindings.swift in Sources */,
 				9907B66225FD4AB100A0859C /* TelnetManager.swift in Sources */,
 			);
@@ -407,6 +432,14 @@
 				minimumVersion = 1.0.7;
 			};
 		};
+		9936D64B260547C30079D49C /* XCRemoteSwiftPackageReference "SwiftLint" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/realm/SwiftLint.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.43.1;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -414,6 +447,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 9907B66425FD4BA400A0859C /* XCRemoteSwiftPackageReference "CallParserForMac" */;
 			productName = CallParser;
+		};
+		9936D64C260547C30079D49C /* SwiftLintFramework */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9936D64B260547C30079D49C /* XCRemoteSwiftPackageReference "SwiftLint" */;
+			productName = SwiftLintFramework;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

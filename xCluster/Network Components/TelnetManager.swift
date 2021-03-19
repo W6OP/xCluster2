@@ -31,7 +31,7 @@ class TelnetManager {
       label: "com.w6op.virtualCluster.telnetQueue",
       attributes: .concurrent)
   
-  static let model_log = OSLog(subsystem: "com.w6op.TelnetManager", category: "Model")
+  static let modelLog = OSLog(subsystem: "com.w6op.TelnetManager", category: "Model")
   
   // delegate to pass messages back to controller
   weak var telnetManagerDelegate:TelnetManagerDelegate?
@@ -136,7 +136,7 @@ class TelnetManager {
       if error != nil {
         print("error: \(String(describing: error))")
         //self.handleClientError(error)
-        self.handleConnectionError(error: error as! NWError)
+        //self.handleConnectionError(error: error as! NWError)
         return
       }
       
@@ -144,7 +144,7 @@ class TelnetManager {
             (200...299).contains(httpResponse.statusCode) else {
         print("error: \(String(describing: error))")
         //self.handleServerError(response)
-        self.handleConnectionError(error: error as! NWError)
+        //self.handleConnectionError(error: error as! NWError)
         return
       }
       
@@ -231,7 +231,7 @@ class TelnetManager {
     }
     
     if isComplete {
-      os_log("Data receive completed.", log: TelnetManager.model_log, type: .info)
+      os_log("Data receive completed.", log: TelnetManager.modelLog, type: .info)
     }
     
     startReceive()
