@@ -144,9 +144,9 @@ class SpotProcessor {
    R9XM        3647.0 RA3RNB                                   1558 19 Mar
    */
   
-  func processHtmlSpot(rawSpot: String) throws -> ClusterSpot  {
+  func processHtmlSpot(rawSpot: String) throws -> ClusterSpot {
     
-    var spot = ClusterSpot(id: 0, dxStation: "", frequency: "", spotter: "", dateTime: "",comment: "",grid: "")
+    var spot = ClusterSpot(id: 0, dxStation: "", frequency: "", spotter: "", dateTime: "", comment: "", grid: "")
     
     // first strip first 6 chars (<html>)
     var balance = rawSpot.dropFirst(6)
@@ -161,7 +161,7 @@ class SpotProcessor {
         print(frequency)
         throw SpotError.spotError("processRawShowDxSpot: unable to parse frequency")
     }
-    spot.frequency = convertFrequencyToDecimalString(frequency:frequency)
+    spot.frequency = convertFrequencyToDecimalString(frequency: frequency)
     
     balance = balance.dropFirst(8)
     endIndex = balance.index(balance.startIndex, offsetBy: 10)

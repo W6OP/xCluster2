@@ -127,14 +127,14 @@ class QRZManager: NSObject {
       
       parser.delegate = self
       if parser.parse() {
-        if (self.results != nil && self.results?.count != 0) {
+        if self.results != nil { //} && self.results?.count != 0 {
           if qrzCallSignPair.count > 1 {
             qrzCallSignPair.removeAll()
-          } else {
-            if qrzCallSignPair.count > 2 {
-              print("Excess CallSignPairCount: \(qrzCallSignPair.count)")
-            }
-          }
+          } //else {
+//            if qrzCallSignPair.count > 2 {
+//              print("Excess CallSignPairCount: \(qrzCallSignPair.count)")
+//            }
+//          }
           populateQRZInfo(frequency: frequency)
         } else {
           // we did not get one or more hits
@@ -159,10 +159,10 @@ class QRZManager: NSObject {
     
     //qrzInfo.call = ("\(qrzInfo.call)/W5") // for debug
     // IF THERE IS A PREFIX OR SUFFIX CALL CALL PARSER AND SKIP SOME OF THIS
-    // ALSO IF WE DON'T GET ANTHING from QRZ
+    // ALSO IF WE DON'T GET ANYTHING from QRZ
     if qrzInfo.call.contains("/") { // process it
       let hitList: [Hit] = callLookup.lookupCall(call: qrzInfo.call)
-      if hitList.count > 0 {
+      if !hitList.isEmpty {
         qrzInfo = populateQRZInfo(hitList: hitList)
       }
     } else {
@@ -218,7 +218,7 @@ class QRZManager: NSObject {
   }
   
   /**
-   Combine the QRZ information and send it to the viewcontroller for a line to be drawn.
+   Combine the QRZ information and send it to the view controller for a line to be drawn.
    - parameters:
    - qrzCallSignPairCopy: the pair of QRZInfo to be combined
    - frequency: frequency to add to structure

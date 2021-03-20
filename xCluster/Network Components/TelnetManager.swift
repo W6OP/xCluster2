@@ -220,7 +220,7 @@ class TelnetManager {
     }
     
     let lines = response.components(separatedBy: "\r\n")
-    if lines.count == 0 {
+    if lines.isEmpty {
       print("nil response: \(response)")
     }
     

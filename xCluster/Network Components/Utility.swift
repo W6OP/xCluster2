@@ -59,7 +59,7 @@ extension StringProtocol {
 // let x = Float(0.123456789).roundTo(places: 4)
 // https://www.uraimo.com/swiftbites/rounding-doubles-to-specific-decimal-places/
 extension Float {
-  func roundTo(places:Int) -> Float {
+  func roundTo(places: Int) -> Float {
     let divisor = pow(10.0, Float(places))
     return (self * divisor).rounded() / divisor
   }

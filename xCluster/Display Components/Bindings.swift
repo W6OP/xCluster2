@@ -5,14 +5,13 @@
 //  Created by Peter Bourget on 3/13/21.
 //
 
-
 import Foundation
 import SwiftUI
 import Combine
 
 // MARK: - Band Definition
 
-struct BandIdentifier : Identifiable, Hashable {
+struct BandIdentifier: Identifiable, Hashable {
     var band: String
     var id: Int
     var isSelected: Bool
@@ -27,17 +26,17 @@ struct BandIdentifier : Identifiable, Hashable {
 }
 
 let bandData = [
-    BandIdentifier(band: "160m",id: 160, isSelected: true),
-    BandIdentifier(band: "80m",id: 80, isSelected: true),
-    BandIdentifier(band: "60m",id: 60, isSelected: true),
-    BandIdentifier(band: "40m",id: 40, isSelected: true),
-    BandIdentifier(band: "30m",id: 30, isSelected: true),
-    BandIdentifier(band: "20m",id: 20, isSelected: true),
-    BandIdentifier(band: "18m",id: 18, isSelected: true),
-    BandIdentifier(band: "15m",id: 15, isSelected: true),
-    BandIdentifier(band: "12m",id: 12, isSelected: true),
-    BandIdentifier(band: "10m",id: 10, isSelected: true),
-    BandIdentifier(band: "6m",id: 6, isSelected: true),
+    BandIdentifier(band: "160m", id: 160, isSelected: true),
+    BandIdentifier(band: "80m", id: 80, isSelected: true),
+    BandIdentifier(band: "60m", id: 60, isSelected: true),
+    BandIdentifier(band: "40m", id: 40, isSelected: true),
+    BandIdentifier(band: "30m", id: 30, isSelected: true),
+    BandIdentifier(band: "20m", id: 20, isSelected: true),
+    BandIdentifier(band: "18m", id: 18, isSelected: true),
+    BandIdentifier(band: "15m", id: 15, isSelected: true),
+    BandIdentifier(band: "12m", id: 12, isSelected: true),
+    BandIdentifier(band: "10m", id: 10, isSelected: true),
+    BandIdentifier(band: "6m", id: 6, isSelected: true)
 ]
 
 // MARK: - Cluster Definition

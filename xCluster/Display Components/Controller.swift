@@ -510,11 +510,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     if minutesBetweenDates(lastSpotReceivedTime , Date()) > 5 {
       _ = printDateTime(message: "Last spot received: \(lastSpotReceivedTime) - Time now: ")
      
-      //let bs = "show/time" //" " + String(UnicodeScalar(8)) //"(space)BACKSPACE"
-      //sendClusterCommand(message: bs, commandType: CommandType.keepAlive)
-      
-      // this should work for the VE7CC cluster
-      sendClusterCommand(message: "|5", commandType: .keepAlive)
+      let backSpace = "show/time" //" " + String(UnicodeScalar(8)) //"(space)BACKSPACE"
+      sendClusterCommand(message: backSpace, commandType: CommandType.keepAlive)
     }
     
     // if over 15 minutes, disconnect and reconnect
