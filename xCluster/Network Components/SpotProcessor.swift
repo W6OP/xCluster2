@@ -11,22 +11,24 @@
 import Foundation
 
 class SpotProcessor {
-    
+
      init() {
-        
+
     }
-    
+
     //      12 chars
     // DX de LY3AB:     1887.0  LY2RJ        cq cq cq                       1743Z KO25
-    func processSpot(rawSpot: String) throws -> ClusterSpot  {
-        
-      var spot = ClusterSpot(id: 0, dxStation: "", frequency: "", spotter: "", dateTime: "",comment: "",grid: "")
-        
+    func processSpot(rawSpot: String) throws -> ClusterSpot {
+
+      var spot = ClusterSpot(id: 0, dxStation: "", frequency: "", spotter: "", dateTime: "", comment: "", grid: "")
+
+      //print("processSpot: \(rawSpot)")
+
         if rawSpot.count < 75 {
             print("\(rawSpot.count) -- \(rawSpot)")
             throw SpotError.spotError("processRawSpot: spot length too short")
         }
-       
+
         let spotter = rawSpot.components(separatedBy: ":")
         // replacing -# for AE5E - don't know why he does that "W6OP-#" and "W6OP-2-#"
         spot.spotter =  convertStringSliceToString(spotter[0].components(separatedBy: " ")[2])
@@ -35,31 +37,31 @@ class SpotProcessor {
           let startIndex = spot.spotter.startIndex
           spot.spotter = convertStringSliceToString(String(spot.spotter[startIndex..<index!])).condenseWhitespace()
         }
-        
+
         var startIndex = rawSpot.index(rawSpot.startIndex, offsetBy: 16)
         var endIndex = rawSpot.index(startIndex, offsetBy: 9)
         let frequency = convertStringSliceToString(String(rawSpot[startIndex..<endIndex])).condenseWhitespace()
         guard Float(frequency) != nil else {
             throw SpotError.spotError("processRawSpot: unable to parse frequency")
         }
-        spot.frequency = convertFrequencyToDecimalString(frequency:frequency)
-        
+        spot.frequency = convertFrequencyToDecimalString(frequency: frequency)
+
         startIndex = rawSpot.index(rawSpot.startIndex, offsetBy: 26)
         endIndex = rawSpot.index(startIndex, offsetBy: 11)
         spot.dxStation = convertStringSliceToString(String(rawSpot[startIndex..<endIndex]))
-        
+
         startIndex = rawSpot.index(rawSpot.startIndex, offsetBy: 39)
         endIndex = rawSpot.index(startIndex, offsetBy: 30)
         spot.comment = convertStringSliceToString(String(rawSpot[startIndex..<endIndex]))
-        
+
         startIndex = rawSpot.index(rawSpot.startIndex, offsetBy: 70)
         endIndex = rawSpot.index(startIndex, offsetBy: 5)
         // clean of junk on end so it displays correctly when no grid supplied
         spot.dateTime = convertStringSliceToString(String(rawSpot[startIndex..<endIndex])).condenseWhitespace()
-        
+
         endIndex = rawSpot.endIndex
         startIndex = rawSpot.index(rawSpot.startIndex, offsetBy: 75)
-        
+
         // clean of junk on end so it displays correctly
         spot.grid = convertStringSliceToString(String(rawSpot[startIndex..<endIndex])).condenseWhitespace()
         // remove /a/a at end
@@ -68,34 +70,35 @@ class SpotProcessor {
 
         return spot
     }
-    
-    // "24048940.0  GB3PKT      24-Feb-2019 2340Z  <tr>S9+ !!                   <G4BAO>\r\n"
-    // 432174.0  DH9OK       24-Feb-2019 2035Z  JO01FQ<TR>JO51AQ 660km       <G3YDY>
-    // 1840.0  UA3LNM      24-Feb-2019 2036Z  FT8,CLG HS1                 <JA3SWL>
-    
-  // TODO: I think there is a command to get these as regular spots
+
   /**
      Process a telnet packet from a show/dx command.
+     real or rt - Format the output the same as for real time spots. The
+                      formats are deliberately different (so you can tell
+                      one sort from the other). This is useful for some
+                      logging programs that can't cope with normal sh/dx
+                      output. An alias of SHOW/FDX is available.
      - parameters:
      - rawSpot: the string received via telnet.
      - returns:
      */
     func processShowDxSpot(rawSpot: String) throws ->  ClusterSpot {
-        
+
         var spot = ClusterSpot(id: 0, dxStation: "", frequency: "", spotter: "", dateTime: "", comment: "", grid: "")
 
-        print("Spot: \(rawSpot)")
-      
+        //print("processShowDxSpot: \(rawSpot)")
+
         if rawSpot.count < 65 {
             print("\(rawSpot.count) -- \(rawSpot)")
             throw SpotError.spotError("processRawShowDxSpot: spot length too short")
         }
-        
+
         // grab the frequency off the front some we can get exact lengths
         let beginning = rawSpot.components(separatedBy: " ").first
         var startIndex = rawSpot.index(rawSpot.startIndex, offsetBy: beginning!.count + 1)
         var endIndex = rawSpot.endIndex
-        let balance = convertStringSliceToString(String(rawSpot[startIndex..<endIndex]).trimmingCharacters(in: .whitespaces))
+        let balance = convertStringSliceToString(String(rawSpot[startIndex..<endIndex])
+                                                  .trimmingCharacters(in: .whitespaces))
 
         let frequency = convertStringSliceToString(beginning!).condenseWhitespace()
         // first see if the first chunk is numeric (frequency) otherwise it is a status message, probably all spots
@@ -104,16 +107,16 @@ class SpotProcessor {
             print(frequency)
             throw SpotError.spotError("processRawShowDxSpot: unable to parse frequency")
         }
-        spot.frequency = convertFrequencyToDecimalString(frequency:frequency)
+        spot.frequency = convertFrequencyToDecimalString(frequency: frequency)
 
         startIndex = balance.startIndex
         endIndex = balance.index(startIndex, offsetBy: 12)
         spot.dxStation = convertStringSliceToString(String(balance[startIndex..<endIndex]))
-       
+
         startIndex = balance.index(balance.startIndex, offsetBy: 13)
         endIndex = balance.index(startIndex, offsetBy: 17)
         spot.dateTime = String(balance[startIndex..<endIndex])
-        
+
         startIndex = balance.index(balance.startIndex, offsetBy: 30)
         endIndex = balance.index(startIndex, offsetBy: 30)
         spot.comment = convertStringSliceToString(String(balance[startIndex..<endIndex]))
@@ -130,10 +133,10 @@ class SpotProcessor {
           let startIndex = spot.spotter.startIndex
           spot.spotter = convertStringSliceToString(String(spot.spotter[startIndex..<index!])).condenseWhitespace()
         }
-        
+
         return spot
     }
-  
+
   /*
    spotter
    FR8TG      14032.5 LA4EJA     Tks for Qso Chris 73 cw       1558 19 Mar
@@ -143,17 +146,17 @@ class SpotProcessor {
    LZ3YG       7165.0 YU1JW      TNX FOR qso 5/9 73 Lazare     1558 19 Mar
    R9XM        3647.0 RA3RNB                                   1558 19 Mar
    */
-  
+
   func processHtmlSpot(rawSpot: String) throws -> ClusterSpot {
-    
+
     var spot = ClusterSpot(id: 0, dxStation: "", frequency: "", spotter: "", dateTime: "", comment: "", grid: "")
-    
+
     // first strip first 6 chars (<html>)
     var balance = rawSpot.dropFirst(6)
     var endIndex = balance.endIndex
 
     spot.spotter = balance.components(separatedBy: " ").first ?? "???????"
-    
+
     balance = balance.dropFirst(11)
     endIndex = balance.index(balance.startIndex, offsetBy: 8)
     let frequency = convertStringSliceToString(String(balance[balance.startIndex..<endIndex]))
@@ -162,20 +165,20 @@ class SpotProcessor {
         throw SpotError.spotError("processRawShowDxSpot: unable to parse frequency")
     }
     spot.frequency = convertFrequencyToDecimalString(frequency: frequency)
-    
+
     balance = balance.dropFirst(8)
     endIndex = balance.index(balance.startIndex, offsetBy: 10)
-    
+
     spot.dxStation = convertStringSliceToString(String(balance[balance.startIndex..<endIndex]))
-    
+
     balance = balance.dropFirst(11)
     endIndex = balance.index(balance.startIndex, offsetBy: 30)
-    
+
     spot.comment = convertStringSliceToString(String(balance[balance.startIndex..<endIndex]))
-    
+
     balance = balance.dropFirst(30)
     endIndex = balance.index(balance.startIndex, offsetBy: 4)
-    
+
     spot.dateTime = convertStringSliceToString(String(balance[balance.startIndex..<endIndex]))
 
     return spot
@@ -189,30 +192,30 @@ class SpotProcessor {
     func convertStringSliceToString(_ slice: String) -> String {
         return slice.trimmingCharacters(in: .whitespaces)
     }
-    
+
     /**
      Convert the frequency (10136000) to a string with a decimal place (10136.000)
      Use an extension to String to format frequency correctly. This is used to
      display the frequency formatted in the tableview.
      */
     func convertFrequencyToDecimalString (frequency: String) -> String {
-        
+
         var converted: String
-       
+
         var components = frequency.trimmingCharacters(in: .whitespaces).components(separatedBy: ".")
         let frequencyString = components[0]
-        
+
         if components.count == 1 {
             components.append("0")
         }
-        
+
         if components[1] == "" {
             components[1] = "0"
         }
-        
+
         var startIndex = frequencyString.startIndex
         var endIndex = frequencyString.endIndex
-        
+
         switch frequencyString.count {
         case 8: // 24048940.0 - 2404.894.00
             startIndex = frequencyString.startIndex
@@ -257,14 +260,14 @@ class SpotProcessor {
         default:
             return frequency
         }
-        
+
         if components[1] != "0" {
             converted += (".\(components[1])")
         }
-        
+
         return converted
     }
-    
+
 } // end class
 
 //send("set/ve7cc")

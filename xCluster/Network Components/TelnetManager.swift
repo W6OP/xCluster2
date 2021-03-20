@@ -11,11 +11,11 @@ import Network
 import os
 
 protocol TelnetManagerDelegate: class {
-  
+
   func connect(clusterName: String)
-  
+
   func telnetManagerStatusMessageReceived(_ telnetManager: TelnetManager, messageKey: TelnetManagerMessage, message: String)
-  
+
   func telnetManagerDataReceived(_ telnetManager: TelnetManager, messageKey: TelnetManagerMessage, message: String)
 }
 
@@ -23,44 +23,44 @@ protocol TelnetManagerDelegate: class {
 // https://rderik.com/blog/building-a-server-client-aplication-using-apple-s-network-framework/
 
 class TelnetManager {
-  
+
   // MARK: - Field Definitions ----------------------------------------------------------------------------
-  
+
   private let concurrentTelnetQueue =
     DispatchQueue(
       label: "com.w6op.virtualCluster.telnetQueue",
       attributes: .concurrent)
-  
+
   static let modelLog = OSLog(subsystem: "com.w6op.TelnetManager", category: "Model")
-  
+
   // delegate to pass messages back to controller
-  weak var telnetManagerDelegate:TelnetManagerDelegate?
-  
+  weak var telnetManagerDelegate: TelnetManagerDelegate?
+
   var connection: NWConnection!
   let defaultPort = NWEndpoint.Port(23)
-  
+
   var connected: Bool
   var connectionChanged: Bool
-  var isLoggedOn : Bool
+  var isLoggedOn: Bool
   var connectedHost = ""
-  
+
   var clusterType: ClusterType
   var currentCommandType: CommandType
-  
+
   // MARK: - init Overrides ----------------------------------------------------------------------------
-  
+
   init() {
-    
+
     self.connected = false
     self.currentCommandType = .ignore
     self.clusterType = ClusterType.unknown
     self.connectionChanged = false
     self.isLoggedOn = false
-    
+
   }
-  
+
   // MARK: - Network Implementation ----------------------------------------------------------------------------
-  
+
   /**
    Connect to the cluster server.
    - parameters:
@@ -68,9 +68,9 @@ class TelnetManager {
    - port: The port to connect to.
    */
   func connect(host: String, port: String) {
-    
+
     connectedHost = host
-    
+
     if host.contains("www") { // change to ENUM
       createHttpSession(host: host)
     } else {
@@ -79,59 +79,61 @@ class TelnetManager {
       start()
     }
   }
-  
-  
+
   /// Start the telnet connection.
   func start() {
     connection.start(queue: concurrentTelnetQueue)
   }
-  
+
   /// Handle state changes to the connection.
   /// - Parameter state: state description.
   private func stateDidChange(to state: NWConnection.State) {
-    
+
     switch state {
-    
+
     case .ready:
       self.connected = true
       self.connectionChanged = true
       self.clusterType = .unknown
-      
-      self.telnetManagerDelegate?.telnetManagerStatusMessageReceived(self, messageKey: .connected, message: "Connected to \(connectedHost)")
-      
-      self.telnetManagerDelegate?.telnetManagerDataReceived(self, messageKey: .clusterType, message: "Connected")
+
+      self.telnetManagerDelegate?.telnetManagerStatusMessageReceived(self,
+        messageKey: .connected, message: "Connected to \(connectedHost)")
+
+      self.telnetManagerDelegate?.telnetManagerDataReceived(self,
+        messageKey: .clusterType, message: "Connected")
+
       self.startReceive()
-      
+
     case .waiting(let error):
       self.connection.restart()
-      print ("Restarted: \(error)")
-      
+      print("Restarted: \(error)")
+
     case .failed(let error):
       self.handleConnectionError(error: error)
-      
+
     case .cancelled:
-      print ("Connection Cancelled")
-      
+      print("Connection Cancelled")
+
     case .setup:
-      print ("Connection Setup")
-      
+      print("Connection Setup")
+
     case .preparing:
-      print ("Connection Preparing")
-      
+      print("Connection Preparing")
+
     @unknown default:
-      print ("Connection State Unknown")
+      print("Connection State Unknown")
     }
   }
-  
+
   /// Use http to get data from a web site.
   /// - Parameter host: host address.
   func createHttpSession(host: String) {
-    
+
     let session = URLSession.shared
     let url = URL(string: host)!
-    
+
     connectedHost = host
-    
+
     let task = session.dataTask(with: url, completionHandler: { data, response, error in
       if error != nil {
         print("error: \(String(describing: error))")
@@ -139,7 +141,7 @@ class TelnetManager {
         //self.handleConnectionError(error: error as! NWError)
         return
       }
-      
+
       guard let httpResponse = response as? HTTPURLResponse,
             (200...299).contains(httpResponse.statusCode) else {
         print("error: \(String(describing: error))")
@@ -147,50 +149,47 @@ class TelnetManager {
         //self.handleConnectionError(error: error as! NWError)
         return
       }
-      
+
       guard let mime = response?.mimeType, mime == "application/json" else {
         // if not json
         let html = String(decoding: data!, as: UTF8.self)
         self.removeHeaderAndFooter(html: html)
         return
       }
-      
+
       do { // for future use
         let json = try JSONSerialization.jsonObject(with: data!, options: [])
         print(json)
       } catch {
         print("JSON error: \(error.localizedDescription)")
       }
-      
+
     })
-    
+
     task.resume()
   }
-  
-  
+
   /// Remove the header and footer from the html.
   /// - Parameter html: html received.
   func removeHeaderAndFooter(html: String) {
-    
+
     if html.contains("<PRE>") {
-      
+
       guard let startIndex = html.index(of: "<PRE>") else { return }
       guard let startIndex2 = html.index(of: "</PRE>") else { return }
-      
+
       // remove the header and footer
       let range = html.index(startIndex, offsetBy: 5)..<startIndex2
-      
+
       let substring = String(html[range])
       let lines = substring.split(whereSeparator: \.isNewline)
-      
-      for line in lines {
-        if !line.isEmpty {
+
+      for line in lines where !line.isEmpty {
           determineMessageType(message: "<html>" + line.trimmingCharacters(in: .whitespaces))
         }
-      }
     }
   }
-  
+
   /// Start receiving data.
   func startReceive() {
     connection.receive(minimumIncompleteLength: 1, maximumLength: Int(UINT32_MAX), completion: receiveMessage)
@@ -205,47 +204,45 @@ class TelnetManager {
    - error:
    */
   func receiveMessage(data: Data?, context: NWConnection.ContentContext?, isComplete: Bool, error: NWError?) {
-    
+
     if let error = error {
       print("receiveMessage: \(error)")
       handleConnectionError(error: error)
     }
-    
+
     // ignore nil messages
     guard data != nil else { return }
     if currentCommandType == .keepAlive {currentCommandType = .ignore}
-    
+
     guard let response = String(data: data!, encoding: .utf8)?.trimmingCharacters(in: .whitespaces) else {
       return
     }
-    
+
     let lines = response.components(separatedBy: "\r\n")
     if lines.isEmpty {
       print("nil response: \(response)")
     }
-    
-    for line in lines {
-      if !line.isEmpty {
+
+    for line in lines where !line.isEmpty {
         determineMessageType(message: line.trimmingCharacters(in: .whitespaces))
-      }
     }
-    
+
     if isComplete {
       os_log("Data receive completed.", log: TelnetManager.modelLog, type: .info)
     }
-    
+
     startReceive()
   }
-  
+
   ///Send a message or command to the cluster server.
   ///
   ///- parameters:
   ///- message: The data sent.
   ///- commandType: The type of command received.
   func send(_ message: String, commandType: CommandType) {
-    
+
     self.currentCommandType = commandType
-    
+
     switch commandType {
     case .refreshWeb:
       if self.clusterType == .html {
@@ -254,12 +251,13 @@ class TelnetManager {
     default:
       if connected {
         let newMessage = message + "\r\n"
-        
+
         if let data = newMessage.data(using: .utf8) {
           connection.send(content: data, completion: .contentProcessed({(error) in
             if let error = error {
               print("send: \(error)")
-              self.telnetManagerDelegate?.telnetManagerStatusMessageReceived(self, messageKey: .error, message: "SEND ERROR: \(error)")
+              self.telnetManagerDelegate?.telnetManagerStatusMessageReceived(self,
+                              messageKey: .error, message: "SEND ERROR: \(error)")
               self.handleConnectionError(error: error)
             }
           }))
@@ -267,7 +265,7 @@ class TelnetManager {
       }
     }
   }
-  
+
   /// Disconnect from the telnet session and break the connection.
   func disconnect() {
     if connected && clusterType != .html {
@@ -275,50 +273,57 @@ class TelnetManager {
       connection.cancel()
     }
   }
-  
+
   /// Determine if the message is a spot or a status message.
   /// - Parameter message: The message text.
   func determineMessageType(message: String) {
-    
+
     switch message.description {
     case _ where message.contains("login:"):
-      self.telnetManagerDelegate?.telnetManagerStatusMessageReceived(self, messageKey: .loginRequested, message: message)
-      
+      self.telnetManagerDelegate?.telnetManagerStatusMessageReceived(self,
+                            messageKey: .loginRequested, message: message)
+
     case _ where message.contains("Please enter your call"):
-      self.telnetManagerDelegate?.telnetManagerStatusMessageReceived(self, messageKey: .callSignRequested, message: message)
-      
+      self.telnetManagerDelegate?.telnetManagerStatusMessageReceived(self,
+                          messageKey: .callSignRequested, message: message)
+
     case _ where message.contains("Please enter your name"):
-      self.telnetManagerDelegate?.telnetManagerStatusMessageReceived(self, messageKey: .nameRequested, message: message)
-      
+      self.telnetManagerDelegate?.telnetManagerStatusMessageReceived(self,
+                              messageKey: .nameRequested, message: message)
+
     case _ where message.contains("Please enter your QTH"):
-      self.telnetManagerDelegate?.telnetManagerStatusMessageReceived(self, messageKey: .qthRequested, message: message)
-      
+      self.telnetManagerDelegate?.telnetManagerStatusMessageReceived(self,
+                              messageKey: .qthRequested, message: message)
+
     case _ where message.contains("Please enter your location"):
-      self.telnetManagerDelegate?.telnetManagerStatusMessageReceived(self, messageKey: .location, message: message)
-      
+      self.telnetManagerDelegate?.telnetManagerStatusMessageReceived(self,
+                                  messageKey: .location, message: message)
+
     case _ where message.contains("DX de"):
-      self.telnetManagerDelegate?.telnetManagerDataReceived(self, messageKey: .spotReceived, message: message)
-      
+      self.telnetManagerDelegate?.telnetManagerDataReceived(self,
+                              messageKey: .spotReceived, message: message)
+
     case _ where message.contains("<html>"):
       determineClusterType(message: message)
-      
+
     case _ where message.contains("Is this correct"):
       send("Y", commandType: .yes)
       currentCommandType = .yes
-      
+
     case _ where message.contains("dxspider >"):
       if !isLoggedOn {
         isLoggedOn = true
-        self.telnetManagerDelegate?.telnetManagerStatusMessageReceived(self, messageKey: .loginCompleted, message: message)
+        self.telnetManagerDelegate?.telnetManagerStatusMessageReceived(self,
+                              messageKey: .loginCompleted, message: message)
       }
-      
+
     case _ where Int(message.condenseWhitespace().prefix(4)) != nil:
       self.telnetManagerDelegate?.telnetManagerDataReceived(self, messageKey: .showDxSpots, message: message)
-      
+
     case _ where message.contains("Invalid command"):
       self.telnetManagerDelegate?.telnetManagerDataReceived(self, messageKey: .invalid, message: "")
       print("sequence invalid command \(message)")
-      
+
     default:
       if self.connectionChanged {
         determineClusterType(message: message)
@@ -326,45 +331,50 @@ class TelnetManager {
       self.telnetManagerDelegate?.telnetManagerDataReceived(self, messageKey: .clusterInformation, message: message)
     }
   }
-  
-  
+
   /// Determine what cluster type we connected to.
   /// - Parameter message: string to be parsed.
   func determineClusterType(message: String) {
-    
+
     switch message.description {
     case _ where message.contains("Invalid command"):
       self.telnetManagerDelegate?.telnetManagerDataReceived(self, messageKey: .invalid, message: "")
-      
+
     case _ where message.contains("CC-Cluster"):
       self.clusterType = .ccCluster
       self.connectionChanged = false
-      self.telnetManagerDelegate?.telnetManagerDataReceived(self, messageKey: .clusterType, message: "Connected to CC-Cluster")
-      
+      self.telnetManagerDelegate?.telnetManagerDataReceived(self,
+      messageKey: .clusterType, message: "Connected to CC-Cluster")
+
     case _ where message.contains("CC Cluster"), _ where message.contains("CCC_Commands"):
       self.clusterType = .ccCluster
       self.connectionChanged = false
-      self.telnetManagerDelegate?.telnetManagerDataReceived(self, messageKey: .clusterType, message: "Connected to CC-Cluster")
-      
+      self.telnetManagerDelegate?.telnetManagerDataReceived(self,
+          messageKey: .clusterType, message: "Connected to CC-Cluster")
+
     case _ where message.contains("AR-Cluster"):
       self.clusterType = .arCluster
       self.connectionChanged = false
-      self.telnetManagerDelegate?.telnetManagerDataReceived(self, messageKey: .clusterType, message: "Connected to AR-Cluster")
-      
+      self.telnetManagerDelegate?.telnetManagerDataReceived(self,
+          messageKey: .clusterType, message: "Connected to AR-Cluster")
+
     case _ where message.contains("DXSpider"):
       self.clusterType = .dxSpider
       self.connectionChanged = false
-      self.telnetManagerDelegate?.telnetManagerDataReceived(self, messageKey: .clusterType, message: "Connected to DXSpider")
-      
+      self.telnetManagerDelegate?.telnetManagerDataReceived(self,
+          messageKey: .clusterType, message: "Connected to DXSpider")
+
     case _ where message.uppercased().contains("VE7CC"):
       self.clusterType = .ve7cc
       self.connectionChanged = false
-      self.telnetManagerDelegate?.telnetManagerDataReceived(self, messageKey: .clusterType, message: "Connected to VE7CC Cluster")
-      
+      self.telnetManagerDelegate?.telnetManagerDataReceived(self,
+          messageKey: .clusterType, message: "Connected to VE7CC Cluster")
+
     case _ where message.contains("<html>"):
       self.clusterType = .html
-      self.telnetManagerDelegate?.telnetManagerDataReceived(self, messageKey: .htmlSpotReceived, message: message)
-      
+      self.telnetManagerDelegate?.telnetManagerDataReceived(self,
+                  messageKey: .htmlSpotReceived, message: message)
+
     default:
       self.clusterType = .unknown
     }
@@ -375,16 +385,16 @@ class TelnetManager {
   func handleConnectionError(error: NWError) {
 
     switch error {
-    
+
     case .posix(.ECONNREFUSED):
       print("Posix .ECONNREFUSED")
-      
+
     case .posix(.EPERM):
       print("Posix .EPERM")
-      
+
     case .posix(.ENOENT):
       print("Posix .ENOENT")
-      
+
     //    case .posix(.ESRCH):
     //      break
     //    case .posix(.EINTR):
@@ -562,7 +572,6 @@ class TelnetManager {
     case .posix(.ECANCELED):
       print("Posix .ECANCELED")
       self.telnetManagerDelegate?.telnetManagerStatusMessageReceived(self, messageKey: .cancelled, message: "")
-      break
     //    case .posix(.EIDRM):
     //      break
     //    case .posix(.ENOMSG):
@@ -595,18 +604,16 @@ class TelnetManager {
     //      break
     //    case .posix(.EQFULL):
     //      break
-    case .posix(_):
+    case .posix:
       print("Posix .posix")
       print("Connection Error: \(error) Localized: \(error.localizedDescription)")
       self.telnetManagerDelegate?.telnetManagerStatusMessageReceived(self, messageKey: .disconnected, message: "")
-    case .dns(_):
+    case .dns:
       print("Posix .dns")
-    case .tls(_):
+    case .tls:
       print("Posix .tls")
     @unknown default:
       print("Posix @unknown default: \(String(describing: error))")
     }
   }
 } // end class
-
-

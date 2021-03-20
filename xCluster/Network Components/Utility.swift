@@ -67,17 +67,17 @@ extension Float {
 
 // https://stackoverflow.com/questions/31083348/parsing-xml-from-url-in-swift/31084545#31084545
 extension QRZManager: XMLParserDelegate {
-  
+
   // initialize results structure
   func parserDidStartDocument(_ parser: XMLParser) {
     results = []
   }
-  
+
   // start element
   //
   // - If we're starting a "Session" create the dictionary that will hold the results
   // - If we're starting one of our dictionary keys, initialize `currentValue` (otherwise leave `nil`)
-  func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String : String]) {
+  func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String: String]) {
     if elementName == recordKey {
       sessionDictionary = [:]
     } else if elementName == "Error" {
@@ -86,7 +86,7 @@ extension QRZManager: XMLParserDelegate {
       currentValue = ""
     }
   }
-  
+
   // found characters
   //
   // - If this is an element we care about, append those characters.
@@ -94,7 +94,7 @@ extension QRZManager: XMLParserDelegate {
   func parser(_ parser: XMLParser, foundCharacters string: String) {
     currentValue? += string
   }
-  
+
   // end element
   //
   // - If we're at the end of the whole dictionary, then save that dictionary in our array
@@ -107,22 +107,22 @@ extension QRZManager: XMLParserDelegate {
       currentValue = nil
     }
   }
-  
+
   func parserDidEndDocument(_ parser: XMLParser) {
     //print("document finished")
   }
-  
+
   // Just in case, if there's an error, report it. (We don't want to fly blind here.)
   func parser(_ parser: XMLParser, parseErrorOccurred parseError: Error) {
     print(parseError)
-    
+
     currentValue = nil
     sessionDictionary = nil
     results = nil
   }
 }
 
-enum CommandType : String {
+enum CommandType: String {
   case announce = "Announcement"
   case callsign = "Callsign"
   case connect = "Connect"
@@ -140,7 +140,7 @@ enum CommandType : String {
 /**
  Unify message nouns going to the view controller
  */
-enum TelnetManagerMessage : String {
+enum TelnetManagerMessage: String {
   case announcement = "Announcement"
   case cancelled = "Cancelled"
   case clusterType = "Cluster Type"
@@ -161,13 +161,13 @@ enum TelnetManagerMessage : String {
   case location = "Your grid"
 }
 
-enum QRZManagerMessage : String {
+enum QRZManagerMessage: String {
   case session = "Session key available"
   case qrzInformation = "Call sign information"
-  
+
 }
 
-enum ClusterType : String {
+enum ClusterType: String {
   case arCluster = "AR-Cluster"
   case ccCluster = "CC-Cluster"
   case dxSpider = "DXSpider"
@@ -217,61 +217,61 @@ struct QRZInfo {
   var error = false
 }
 
-struct QRZInfoCombined  { //: Hashable
+struct QRZInfoCombined { //: Hashable
   var spotterCall = ""
   var spotterCountry = ""
   var spotterLatitude: Double = 00
   var spotterLongitude: Double = 00
   var spotterGrid = ""
   var spotterLotw = false
-  
+
   var dxCall = ""
   var dxCountry = ""
   var dxLatitude: Double = 00
   var dxLongitude: Double = 00
   var dxGrid = ""
   var dxLotw = false
-  
+
   var error = false
   var identifier = "0"
   var expired = false
-  
+
   var frequency = "0.0"
   var formattedFrequency: Float = 0.0
   var band = 0
   var mode = ""
-  
+
   init() {
     self.identifier = UUID().uuidString
   }
-  
+
   // need to convert 3.593.4 to 3.5934
   mutating func setFrequency(frequency: String) {
     self.frequency = frequency
     self.formattedFrequency = QRZInfoCombined.formatFrequency(frequency: frequency)
     self.band = QRZInfoCombined.setBand(frequency: self.formattedFrequency)
   }
-  
+
   static func formatFrequency(frequency: String) -> Float {
-    
+
     let components = frequency.trimmingCharacters(in: .whitespaces).components(separatedBy: ".")
     var suffix = ""
-    
+
     // TRY THIS
     // frequency.trimmingCharacters(in: .whitespaces).components(separatedBy: ".")[1]
     let prefix = components[0]
-    
+
     for index in 1..<components.count {
       suffix += components[index]
     }
-    
+
     let result = Float(("\(prefix).\(suffix)"))?.roundTo(places: 4)
-    
+
     return result ?? 0.0
   }
-  
+
   static func setBand(frequency: Float) -> Int {
-    
+
     switch frequency {
     case 1.8...2.0:
       return 160
@@ -304,4 +304,3 @@ struct QRZInfoCombined  { //: Hashable
     }
   }
 } // end
-

@@ -50,34 +50,35 @@ struct ClusterIdentifier: Identifiable, Hashable {
 
 let clusterData = [
     ClusterIdentifier(name: "Select DX Spider Node", address: "", port: "", id: 9999),
-  
+
     ClusterIdentifier(name: "WW1R_9", address: "dxc.ww1r.com", port: "7300", id: 0),
     ClusterIdentifier(name: "VE7CC", address: "dxc.ve7cc.net", port: "23", id: 1),
     ClusterIdentifier(name: "dxc_middlebrook_ca", address: "dxc.middlebrook.ca", port: "8000", id: 2),
     ClusterIdentifier(name: "WA9PIE", address: "dxc.wa9pie.net", port: "8000", id: 3),
     ClusterIdentifier(name: "WA9PIE-2", address: "hrd.wa9pie.net", port: "8000", id: 4),
-    
+
     ClusterIdentifier(name: "AE5E", address: "dxspots.com", port: "23", id: 5),
     ClusterIdentifier(name: "W6CUA", address: "w6cua.no-ip.org", port: "7300", id: 6),
     ClusterIdentifier(name: "W6KK", address: "w6kk.zapto.org", port: "7300", id: 7),
-    
+
     ClusterIdentifier(name: "N5UXT", address: "dxc.n5uxt.org", port: "23", id: 8),
     ClusterIdentifier(name: "GB7DXS", address: "81.149.0.149", port: "7300", id: 9),
-    
+
     ClusterIdentifier(name: "K1TTT", address: "k1ttt.net", port: "7373", id: 10),
     ClusterIdentifier(name: "K0XM-5", address: "dxc.k0xm.net", port: "7300", id: 11),
     ClusterIdentifier(name: "K1RFI", address: "k1rfi.com", port: "7300", id: 12),
     ClusterIdentifier(name: "K1SA", address: "sebago.ddns.net", port: "7373", id: 13),
-    
+
     // telnet.reversebeacon.net port 7001, for FT8 spots
     ClusterIdentifier(name: "FT8 RBN", address: "telnet.reversebeacon.net", port: "7001", id: 99),
     // telnet.reversebeacon.net port 7000, for CW and RTTY spots
     ClusterIdentifier(name: "CW/RTTY", address: "telnet.reversebeacon.net", port: "7000", id: 100),
-  
-    ClusterIdentifier(name: "DXSummit", address: "http://www.dxsummit.fi/text/dx25.html", port: "80", id: 200),
+
+    ClusterIdentifier(name: "DXSummit", address: "http://www.dxsummit.fi/text/dx25.html", port: "80", id: 200)
 ]
 
 /**
+ http://www.dxcluster.info/telnet/index.php
  http://www.dxsummit.fi/DxSpots.aspx?count=25&rsange=1
  http://www.dxsummit.fi/text/dx25.html
  K0XM-5 dxc.k0xm.net:7300

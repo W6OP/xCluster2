@@ -10,9 +10,9 @@ import SwiftUI
 @main
 struct XClusterApp: App {
   @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-  
+
   let controller = Controller()
-  
+
     var body: some Scene {
         WindowGroup {
           ContentView().environmentObject(controller)
