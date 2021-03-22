@@ -27,7 +27,9 @@ class QRZManager: NSObject {
 
   // MARK: - Field Definitions
 
-  static let modelLog = OSLog(subsystem: "com.w6op.TelnetManager", category: "Model")
+  //static let modelLog = OSLog(subsystem: "com.w6op.TelnetManager", category: "Model")
+  let logger = Logger(subsystem: "com.w6op.xCluster", category: "QRZManager")
+
   // delegate to pass messages back to viewcontroller
   weak var qrZedManagerDelegate: QRZManagerDelegate?
   let callParser = PrefixFileParser()
@@ -111,48 +113,53 @@ class QRZManager: NSObject {
 
     // this dies if session key is missing
     guard let urlString = URL(string: "https://xmldata.qrz.com/xml/current/?s=\(String(self.sessionKey));callsign=\(callSign)") else {
-      print("Invalid call sign: \(callSign)") // 'PY2OT  05'
+      //print("Invalid call sign: \(callSign)") // 'PY2OT  05'
+      logger.info("Invalid call sign: \(callSign)")
       return
     }
 
     // first check to see if I have the info cached already
     if let qrzInfo = qrZedCallSignCache[callSign] {
       combineQRZInfo(qrzInfo: qrzInfo, frequency: frequency)
-      //print ("cache hit for: \(callSign)")
-      //print("cache contains \(qrzCallSignCache.count) call signs.")
     } else {
       let parser = XMLParser(contentsOf: urlString)!
 
       parser.delegate = self
       if parser.parse() {
         if self.results != nil { //} && self.results?.count != 0 {
-          if qrZedCallSignPair.count > 1 {
-            qrZedCallSignPair.removeAll()
-          } //else {
-//            if qrzCallSignPair.count > 2 {
-//              print("Excess CallSignPairCount: \(qrzCallSignPair.count)")
+          switch qrZedCallSignPair.count {
+          case 0:
+            return
+          case 1:
+            populateQRZInfo(frequency: frequency)
+          default:
+            print("Excess CallSignPairCount: \(qrZedCallSignPair.count)")
+          }
+//          if qrZedCallSignPair.count > 1 {
+//            qrZedCallSignPair.removeAll()
+//          } else {
+//            if qrZedCallSignPair.count > 2 {
+//              print("Excess CallSignPairCount: \(qrZedCallSignPair.count)")
 //            }
 //          }
-          populateQRZInfo(frequency: frequency)
+//          populateQRZInfo(frequency: frequency)
         } else {
           // we did not get one or more hits
           // will move this to CallParser and call it there
-
+          logger.info("Use CallParser: \(callSign)") // above I think
         }
-
       }
     }
   }
 
-  /**
-   Populate the qrzInfo with lat. lon, etc. If there is a pair
-   send them to the viewcontroller for a line to be drawn.
-   - parameters: frequency represented as a string
-   */
+  /// Populate the qrzInfo with latitude, longitude, etc. If there is a pair
+  /// send them to the view controller for a line to be drawn.
+  /// - Parameter frequency: frequency represented as a string
   func populateQRZInfo(frequency: String) {
 
     qrZedInfo = QRZInfo()
 
+    // maybe check if dictionary is empty
     qrZedInfo.call = sessionDictionary["call"] ?? ""
 
     //qrzInfo.call = ("\(qrzInfo.call)/W5") // for debug
@@ -167,13 +174,15 @@ class QRZManager: NSObject {
       qrZedInfo.latitude = Double(sessionDictionary["lat"] ?? "0.0") ?? 00
       if qrZedInfo.latitude == 00 {
         qrZedInfo.error = true
-        print("latitude error: \(qrZedInfo.call)")
+        //print("latitude error: \(qrZedInfo.call)")
+        logger.info("Latitude error: \(self.qrZedInfo.call)")
       }
 
       qrZedInfo.longitude = Double(sessionDictionary["lon"] ?? "0.0") ?? 00
       if qrZedInfo.longitude == 00 {
         qrZedInfo.error = true
-        print("longitude error: \(qrZedInfo.call)")
+        //print("longitude error: \(qrZedInfo.call)")
+        logger.info("Longitude error: \(self.qrZedInfo.call)")
       }
 
       // if there is a prefix or suffix I need to find correct country and lat/lon

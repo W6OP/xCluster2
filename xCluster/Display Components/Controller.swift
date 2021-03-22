@@ -10,6 +10,7 @@ import Foundation
 import SwiftUI
 import MapKit
 import Combine
+import os
 
 // MARK: - ClusterSpots
 
@@ -21,6 +22,12 @@ struct ClusterSpot: Identifiable, Hashable {
   var dateTime: String
   var comment: String
   var grid: String
+}
+
+struct ConnectedCluster: Identifiable {
+  var id: Int
+  var clusterAddress: String
+  var clusterType: ClusterType
 }
 
 // MARK: - Controller Class
@@ -35,6 +42,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     DispatchQueue(
       label: "com.w6op.virtualcluster.spotProcessorQueue",
       attributes: .concurrent)
+
+  //static let modelLog = OSLog(subsystem: "com.w6op.Controller", category: "Model")
+  let logger = Logger(subsystem: "com.w6op.xCluster", category: "Controller")
 
   @Published var spots = [ClusterSpot]()
   @Published var statusMessage = [String]()
@@ -125,6 +135,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
           }
         }
 
+    logger.info("Connecting to: \(clusterName)")
     self.telnetManager.connect(host: cluster!.address, port: cluster!.port)
   }
 
@@ -341,6 +352,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
     switch tag {
     case 20:
+      if connectedCluster. == ClusterType.html {
+
+      }
       telnetManager.send("show/fdx 20", commandType: .getDxSpots)
     case 50:
       telnetManager.send("show/fdx 50", commandType: .getDxSpots)
@@ -405,6 +419,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
       }
     } catch {
       print("Error: \(error)")
+      logger.info("Controller Error: \(error as NSObject)")
       return
     }
   }

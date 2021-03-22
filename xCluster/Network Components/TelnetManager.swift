@@ -31,7 +31,8 @@ class TelnetManager {
       label: "com.w6op.virtualCluster.telnetQueue",
       attributes: .concurrent)
 
-  static let modelLog = OSLog(subsystem: "com.w6op.TelnetManager", category: "Model")
+  //static let modelLog = OSLog(subsystem: "com.w6op.TelnetManager", category: "Model")
+  let logger = Logger(subsystem: "com.w6op.xCluster", category: "TelnetManager")
 
   // delegate to pass messages back to controller
   weak var telnetManagerDelegate: TelnetManagerDelegate?
@@ -228,7 +229,8 @@ class TelnetManager {
     }
 
     if isComplete {
-      os_log("Data receive completed.", log: TelnetManager.modelLog, type: .info)
+      logger.info("Data receive completed.")
+      //os_log("Data receive completed.", log: TelnetManager.modelLog, type: .info)
     }
 
     startReceive()
