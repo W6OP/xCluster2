@@ -14,7 +14,7 @@ import CallParser
 
 protocol QRZManagerDelegate: class {
 
-  func qrzManagerdidGetSessionKey(_ qrzManager: QRZManager, messageKey: QRZManagerMessage, haveSessionKey: Bool)
+  func qrzManagerDidGetSessionKey(_ qrzManager: QRZManager, messageKey: QRZManagerMessage, haveSessionKey: Bool)
 
   func qrzManagerDidGetCallSignData(_ qrzManager: QRZManager, messageKey: QRZManagerMessage, qrzInfoCombined: QRZInfoCombined)
 }
@@ -82,7 +82,7 @@ class QRZManager: NSObject {
       print(self.results ?? "No results")
       self.sessionKey = self.sessionDictionary?["Key"]?.trimmingCharacters(in: .whitespaces)
       self.haveSessionKey = true
-      self.qrZedManagerDelegate?.qrzManagerdidGetSessionKey(self, messageKey: .session, haveSessionKey: true)
+      self.qrZedManagerDelegate?.qrzManagerDidGetSessionKey(self, messageKey: .session, haveSessionKey: true)
     }
   }
 

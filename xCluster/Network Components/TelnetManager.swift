@@ -12,7 +12,7 @@ import os
 
 protocol TelnetManagerDelegate: class {
 
-  func connect(clusterName: ClusterIdentifier)
+  func connect(cluster: ClusterIdentifier)
 
   func telnetManagerStatusMessageReceived(_ telnetManager: TelnetManager, messageKey: TelnetManagerMessage, message: String)
 

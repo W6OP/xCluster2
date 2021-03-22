@@ -210,8 +210,7 @@ struct ClusterControlView: View {
 
   @Environment(\.openURL) var openURL
 
-  //@State private var selectedCluster = "Select DX Spider Node"
-  @State private var selected = clusterData[0]
+  @State private var selectedCluster = clusterData[0]
   @State private var callFilter = ""
   @State private var showSpots = true
   var clusters: [ClusterIdentifier]
@@ -219,13 +218,13 @@ struct ClusterControlView: View {
   var body: some View {
     HStack {
       HStack {
-        Picker(selection: $selected.id, label: Text("")) {
+        Picker(selection: $selectedCluster.id, label: Text("")) {
           ForEach(clusters) { cluster in
             Text("\(cluster.name)") //": \(cluster.address):\(cluster.port)").tag(cluster.name)
           }
         }.frame(minWidth: 200, maxWidth: 200)
-          .onReceive([selected].publisher.first()) { value in
-            print("id: \(value.id), name: \(value.name)")
+          .onReceive([selectedCluster].publisher.first()) { value in
+            //print("id: \(value.id), name: \(value.name)")
             if value.id != 9999 {
               if self.controller.connectedCluster.id != value.id {
                 controller.spots = [ClusterSpot]()

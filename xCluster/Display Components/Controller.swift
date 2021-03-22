@@ -63,7 +63,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     didSet {
       print("controller id: \(connectedCluster.id), name: \(connectedCluster.name)")
       if !connectedCluster.address.isEmpty {
-        connect(clusterName: connectedCluster)
+        connect(cluster: connectedCluster)
       }
     }
   }
@@ -126,20 +126,19 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
   /// Connect to a cluster.
   /// - Parameter clusterName: Name of cluster to connect to.
-  func  connect(clusterName: ClusterIdentifier) {
+  func  connect(cluster: ClusterIdentifier) {
 
     disconnect()
-    //let cluster = clusterData.first(where: {$0.name == clusterName.name})
 
       // clear the status message
     DispatchQueue.main.async {
-        if clusterName.address.isEmpty {
+        if cluster.address.isEmpty {
             self.statusMessage = [String]()
           }
         }
 
-    logger.info("Connecting to: \(clusterName.name)")
-    self.telnetManager.connect(cluster: clusterName)
+    logger.info("Connecting to: \(cluster.name)")
+    self.telnetManager.connect(cluster: cluster)
   }
 
   /// Disconnect on cluster change or application termination.
@@ -282,7 +281,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
    /// - qrzManager: Reference to the class sending the message.
    /// - messageKey: Key associated with this message.
    /// - message: message text.
-  func qrzManagerdidGetSessionKey(_ qrzManager: QRZManager, messageKey: QRZManagerMessage, haveSessionKey: Bool) {
+  func qrzManagerDidGetSessionKey(_ qrzManager: QRZManager, messageKey: QRZManagerMessage, haveSessionKey: Bool) {
     DispatchQueue.main.async {
       self.haveSessionKey = haveSessionKey
     }
@@ -356,11 +355,17 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     switch tag {
     case 20:
       if connectedCluster.clusterProtocol == ClusterProtocol.html {
-
+        telnetManager.createHttpSession(host: connectedCluster)
+      } else {
+        telnetManager.send("show/fdx 20", commandType: .getDxSpots)
       }
-      telnetManager.send("show/fdx 20", commandType: .getDxSpots)
     case 50:
-      telnetManager.send("show/fdx 50", commandType: .getDxSpots)
+      if connectedCluster.clusterProtocol == ClusterProtocol.html {
+        connectedCluster.address = connectedCluster.address.replacingOccurrences(of: "25", with: "50")
+        telnetManager.createHttpSession(host: connectedCluster)
+      } else {
+        telnetManager.send("show/fdx 50", commandType: .getDxSpots)
+      }
     default:
       telnetManager.send(command, commandType: .ignore)
     }
@@ -534,7 +539,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
   //Your function here
   func reconnect() {
-    connect(clusterName: connectedCluster)
+    connect(cluster: connectedCluster)
   }
 
   /**
