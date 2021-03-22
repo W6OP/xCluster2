@@ -217,7 +217,7 @@ struct QRZInfo {
   var error = false
 }
 
-struct QRZInfoCombined { //: Hashable
+struct QRZInfoCombined {
   var spotterCall = ""
   var spotterCountry = ""
   var spotterLatitude: Double = 00

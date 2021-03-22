@@ -210,7 +210,8 @@ struct ClusterControlView: View {
 
   @Environment(\.openURL) var openURL
 
-  @State private var selectedCluster = "Select DX Spider Node"
+  //@State private var selectedCluster = "Select DX Spider Node"
+  @State private var selected = clusterData[0]
   @State private var callFilter = ""
   @State private var showSpots = true
   var clusters: [ClusterIdentifier]
@@ -218,18 +219,17 @@ struct ClusterControlView: View {
   var body: some View {
     HStack {
       HStack {
-        Picker(selection: $selectedCluster, label: Text("")) {
+        Picker(selection: $selected.id, label: Text("")) {
           ForEach(clusters) { cluster in
-            Text("\(cluster.name): \(cluster.address):\(cluster.port)").tag(cluster.name)
+            Text("\(cluster.name)") //": \(cluster.address):\(cluster.port)").tag(cluster.name)
           }
-        }.frame(minWidth: 400, maxWidth: 400)
-          // onReceive is fired when anything on the GUI is changed.
-          // if a spot comes in or a line on map drawn it is fired
-          .onReceive([selectedCluster].publisher.first()) { value in
-            if self.selectedCluster != "Select DX Spider Node" {
-              if self.controller.connectedCluster != value {
+        }.frame(minWidth: 200, maxWidth: 200)
+          .onReceive([selected].publisher.first()) { value in
+            print("id: \(value.id), name: \(value.name)")
+            if value.id != 9999 {
+              if self.controller.connectedCluster.id != value.id {
                 controller.spots = [ClusterSpot]()
-                self.controller.connectedCluster = value
+                self.controller.connectedCluster = clusterData.first {$0.id == value.id}!
               }
             }
         }

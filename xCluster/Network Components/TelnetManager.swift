@@ -12,7 +12,7 @@ import os
 
 protocol TelnetManagerDelegate: class {
 
-  func connect(clusterName: String)
+  func connect(clusterName: ClusterIdentifier)
 
   func telnetManagerStatusMessageReceived(_ telnetManager: TelnetManager, messageKey: TelnetManagerMessage, message: String)
 
@@ -43,7 +43,7 @@ class TelnetManager {
   var connected: Bool
   var connectionChanged: Bool
   var isLoggedOn: Bool
-  var connectedHost = ""
+  var connectedHost = ClusterIdentifier(id: 0, name: "", address: "", port: "", clusterProtocol: ClusterProtocol.none)
 
   var clusterType: ClusterType
   var currentCommandType: CommandType
@@ -68,14 +68,15 @@ class TelnetManager {
    - host: The host name to connect to.
    - port: The port to connect to.
    */
-  func connect(host: String, port: String) {
+  func connect(cluster: ClusterIdentifier) {
 
-    connectedHost = host
+    connectedHost = cluster
 
-    if host.contains("www") { // change to ENUM
-      createHttpSession(host: host)
+    if cluster.clusterProtocol == ClusterProtocol.html { // change to ENUM
+      createHttpSession(host: cluster)
     } else {
-      connection = NWConnection(host: NWEndpoint.Host(host), port: NWEndpoint.Port(port) ?? defaultPort, using: .tcp)
+      connection = NWConnection(host: NWEndpoint.Host(cluster.address),
+                                port: NWEndpoint.Port(cluster.port) ?? defaultPort, using: .tcp)
       connection.stateUpdateHandler = stateDidChange(to:)
       start()
     }
@@ -128,10 +129,10 @@ class TelnetManager {
 
   /// Use http to get data from a web site.
   /// - Parameter host: host address.
-  func createHttpSession(host: String) {
+  func createHttpSession(host: ClusterIdentifier) {
 
     let session = URLSession.shared
-    let url = URL(string: host)!
+    let url = URL(string: host.address)!
 
     connectedHost = host
 

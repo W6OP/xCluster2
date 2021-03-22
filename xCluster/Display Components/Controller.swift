@@ -24,7 +24,7 @@ struct ClusterSpot: Identifiable, Hashable {
   var grid: String
 }
 
-struct ConnectedCluster: Identifiable {
+struct ConnectedCluster: Identifiable, Hashable {
   var id: Int
   var clusterAddress: String
   var clusterType: ClusterType
@@ -35,7 +35,7 @@ struct ConnectedCluster: Identifiable {
 // Good read on clusters
 // https://www.hamradiodeluxe.com/blog/Ham-Radio-Deluxe-Newsletter-April-19-2018--Understanding-DX-Clusters.html
 
-/// <#Description#>
+/// Stub between view and all other classes
 public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDelegate {
 
   private let concurrentSpotProcessorQueue =
@@ -57,9 +57,12 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     }
   }
 
-  @Published var connectedCluster = "" {
+  @Published var connectedCluster = ClusterIdentifier(id: 9999,
+                                                      name: "Select DX Spider Node",
+                                                      address: "", port: "", clusterProtocol: ClusterProtocol.none) {
     didSet {
-      if !connectedCluster.isEmpty {
+      print("controller id: \(connectedCluster.id), name: \(connectedCluster.name)")
+      if !connectedCluster.address.isEmpty {
         connect(clusterName: connectedCluster)
       }
     }
@@ -123,20 +126,20 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
   /// Connect to a cluster.
   /// - Parameter clusterName: Name of cluster to connect to.
-  func  connect(clusterName: String) {
+  func  connect(clusterName: ClusterIdentifier) {
 
     disconnect()
-    let cluster = clusterData.first(where: {$0.name == clusterName})
+    //let cluster = clusterData.first(where: {$0.name == clusterName.name})
 
       // clear the status message
     DispatchQueue.main.async {
-        if !cluster!.address.isEmpty {
+        if clusterName.address.isEmpty {
             self.statusMessage = [String]()
           }
         }
 
-    logger.info("Connecting to: \(clusterName)")
-    self.telnetManager.connect(host: cluster!.address, port: cluster!.port)
+    logger.info("Connecting to: \(clusterName.name)")
+    self.telnetManager.connect(cluster: clusterName)
   }
 
   /// Disconnect on cluster change or application termination.
@@ -352,7 +355,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
     switch tag {
     case 20:
-      if connectedCluster. == ClusterType.html {
+      if connectedCluster.clusterProtocol == ClusterProtocol.html {
 
       }
       telnetManager.send("show/fdx 20", commandType: .getDxSpots)
@@ -531,7 +534,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
   //Your function here
   func reconnect() {
-      connect(clusterName: connectedCluster)
+    connect(clusterName: connectedCluster)
   }
 
   /**
