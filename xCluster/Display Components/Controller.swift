@@ -46,14 +46,16 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   //static let modelLog = OSLog(subsystem: "com.w6op.Controller", category: "Model")
   let logger = Logger(subsystem: "com.w6op.xCluster", category: "Controller")
 
+  // MARK: - Published Properties
+
   @Published var spots = [ClusterSpot]()
   @Published var statusMessage = [String]()
   @Published var haveSessionKey = false
   @Published var overlays = [MKPolyline]()
 
-  @Published var filter = (id: 0, state: false) {
+  @Published var bandFilter = (id: 0, state: false) {
     didSet {
-      setBandButtons(buttonTag: filter.id, state: filter.state)
+      setBandButtons(buttonTag: bandFilter.id, state: bandFilter.state)
     }
   }
 
@@ -74,6 +76,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     }
   }
 
+  // MARK: - Private Properties
+
   var qrzManager = QRZManager()
   var telnetManager = TelnetManager()
   var spotProcessor = SpotProcessor()
@@ -86,7 +90,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   let qrzPassword = UserDefaults.standard.string(forKey: "password") ?? ""
 
   // mapping
-  let maxNumberOfSpots = 1000
+  let maxNumberOfSpots = 200
   let maxNumberOfMapLines = 50
   let regionRadius: CLLocationDistance = 10000000
   let centerLatitude = 28.282778
@@ -102,6 +106,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   weak var webRefreshTimer: Timer!
 
   var bandFilters = [Int: Int]()
+  var spotFilter = ""
 
   var lastSpotReceivedTime = Date()
 
@@ -409,6 +414,10 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
         return
       }
 
+      if !spotFilter.isEmpty && spot.dxStation != spotFilter {
+        return
+      }
+
       DispatchQueue.main.async {
         self.spots.insert(spot, at: 0)
       }
@@ -420,9 +429,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
         }
       }
 
-      DispatchQueue.main.async {
-          if self.spots.count > 100 {
-          self.spots.removeLast()
+      DispatchQueue.main.async { [self] in
+        if spots.count > maxNumberOfSpots {
+          spots.removeLast()
         }
       }
     } catch {
@@ -470,7 +479,16 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     return band
   }
 
-  // MARK: - Button Action Implementation ----------------------------------------------------------------------------
+  // MARK: - Filter Call Signs
+
+  /// Remove call signs that do not match the filter.
+  /// - Parameter callSign: call sign to be filtered
+  func setCallFilter(callSign: String) {
+    spots = spots.filter({$0.dxStation == callSign})
+    spotFilter = callSign
+  }
+
+  // MARK: - Band Button Action Implementation ----------------------------------------------------------------------------
 
   /**
    Manage the band button state.

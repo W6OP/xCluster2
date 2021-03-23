@@ -189,7 +189,7 @@ struct BandViewToggle: View {
       Spacer()
       ForEach(bands.indices) { item in
         Toggle(self.bands[item].band, isOn: self.$bands[item].isSelected.didSet { (state) in
-          self.controller.filter = (self.bands[item].id, state )
+          self.controller.bandFilter = (self.bands[item].id, state )
         })
           .tag(self.bands[item].id)
           .padding(.top, 5)
@@ -207,11 +207,12 @@ struct BandViewToggle: View {
 /// Cluster name picker
 struct ClusterControlView: View {
   var controller: Controller
+  let characterLimit = 10
 
   @Environment(\.openURL) var openURL
 
   @State private var selectedCluster = clusterData[0]
-  @State private var callFilter = ""
+  @State private var callSignFilter = ""
   @State private var showSpots = true
   var clusters: [ClusterIdentifier]
 
@@ -245,10 +246,19 @@ struct ClusterControlView: View {
                  openURL(url)
             }
         }
-
-        TextField("Call Filter", text: $callFilter)
+        Divider()
+        TextField("Call Filter", text: $callSignFilter, onEditingChanged: { _ in // (changed)
+          //print("callSignFilter onEditingChanged - \(changed)")
+          callSignFilter = callSignFilter.uppercased()
+          if callSignFilter.count > characterLimit {
+            callSignFilter = String(callSignFilter.prefix(characterLimit))
+          }
+          }) {
+            //print("callSignFilter onCommit")
+          self.controller.setCallFilter(callSign: callSignFilter.uppercased())
+          }
           .textFieldStyle(RoundedBorderTextFieldStyle())
-          .frame(maxWidth: 100)
+          .frame(maxWidth: 150)
 
         Divider()
 
