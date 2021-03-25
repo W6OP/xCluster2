@@ -64,24 +64,24 @@ import MapKit
 
 // Extension to add overlay on Map()
 extension Map {
-    func mapStyle(_ mapType: MKMapType, showScale: Bool = true, showTraffic: Bool = false) -> some View {
-//      let map = MKMapView.appearance()
-//        map.mapType = mapType
-//        map.showsScale = showScale
-//        map.showsTraffic = showTraffic
-        return self
-    }
+  func mapStyle(_ mapType: MKMapType, showScale: Bool = true, showTraffic: Bool = false) -> some View {
+    //      let map = MKMapView.appearance()
+    //        map.mapType = mapType
+    //        map.showsScale = showScale
+    //        map.showsTraffic = showTraffic
+    return self
+  }
 
-    func addAnnotations(_ annotations: [MKAnnotation]) -> some View {
-        //MKMapView.appearance().addAnnotations(annotations)
-        return self
-    }
+  func addAnnotations(_ annotations: [MKAnnotation]) -> some View {
+    //MKMapView.appearance().addAnnotations(annotations)
+    return self
+  }
 
-    func addOverlay(_ overlay: MKOverlay) -> some View {
-        //MKMapView.appearance().addOverlay(overlay)
+  func addOverlay(_ overlay: MKOverlay) -> some View {
+    //MKMapView.appearance().addOverlay(overlay)
 
-        return self
-    }
+    return self
+  }
 }
 
 // MARK: - Content View ------------------------------------------------------------.
@@ -100,10 +100,10 @@ struct ContentView: View {
     center: CLLocationCoordinate2D(
       latitude: 25.7617,
       longitude: 80
-  ),
-  span: MKCoordinateSpan(
-    latitudeDelta: 100,
-    longitudeDelta: 100))
+    ),
+    span: MKCoordinateSpan(
+      latitudeDelta: 100,
+      longitudeDelta: 100))
 
   // --------------------------------
 
@@ -123,6 +123,9 @@ struct ContentView: View {
           return PreferencesView()
         }
 
+        Divider()
+        ClusterPickerView(controller: controller, clusters: clusters)
+        Divider()
         BandViewToggle(controller: controller, bands: bands)
       }
       .padding(.top, -2).padding(.bottom, 2)
@@ -139,9 +142,9 @@ struct ContentView: View {
           showsUserLocation: true
         ).edgesIgnoringSafeArea(.all)
         // Old version -------------------------
-//        MapView(overlays: controller.overlays)
-//          .edgesIgnoringSafeArea(.all)
-//          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        //        MapView(overlays: controller.overlays)
+        //          .edgesIgnoringSafeArea(.all)
+        //          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         // -------------------------------------
       }
       .border(Color.black)
@@ -151,12 +154,12 @@ struct ContentView: View {
 
       // MARK: - Cluster selection and filtering.
       HStack {
-        ClusterControlView(controller: controller, clusters: clusters)
-        }
-        .background(Color.blue)
-        .opacity(0.70)
-        .frame(maxWidth: .infinity, minHeight: 30, maxHeight: 30)
-        .padding(0)
+        ClusterControlView(controller: controller) //, clusters: clusters
+      }
+      .background(Color.blue)
+      .opacity(0.70)
+      .frame(maxWidth: .infinity, minHeight: 30, maxHeight: 30)
+      .padding(0)
 
       // MARK: - Cluster display and status messages.
 
@@ -168,7 +171,7 @@ struct ContentView: View {
     .onAppear { // comment out for debugging and designing
       #if !DEBUG
       if let url = URL(string: "xClusterApp://spots") {
-           openURL(url)
+        openURL(url)
       }
       #endif
     }
@@ -191,10 +194,9 @@ struct BandViewToggle: View {
         Toggle(self.bands[item].band, isOn: self.$bands[item].isSelected.didSet { (state) in
           self.controller.bandFilter = (self.bands[item].id, state )
         })
-          .tag(self.bands[item].id)
-          .padding(.top, 5)
-          .toggleStyle(SwitchToggleStyle())
-        //.background(isSelected ? Color.orange : Color.purple)
+        .tag(self.bands[item].id)
+        .padding(.top, 5)
+        .toggleStyle(SwitchToggleStyle(tint: Color.red))
         Divider()
       }
       Spacer()
@@ -202,7 +204,36 @@ struct BandViewToggle: View {
   }
 }
 
-// MARK: - Picker of Cluster Names
+// MARK: - Cluster Picker
+
+struct ClusterPickerView: View {
+  var controller: Controller
+
+  @State private var selectedCluster = clusterData[0]
+  var clusters: [ClusterIdentifier]
+  let characterLimit = 10
+
+  var body: some View {
+    HStack {
+      Picker(selection: $selectedCluster.id, label: Text("")) {
+        ForEach(clusters) { cluster in
+          Text("\(cluster.name)")
+        }
+      }.frame(minWidth: 200, maxWidth: 200)
+      .onReceive([selectedCluster].publisher.first()) { value in
+        if value.id != 9999 {
+          if self.controller.connectedCluster.id != value.id {
+            controller.spots = [ClusterSpot]()
+            self.controller.connectedCluster = clusterData.first {$0.id == value.id}!
+          }
+        }
+      }
+    }
+    .padding(.trailing)
+  }
+}
+
+// MARK: - Control Bar
 
 /// Cluster name picker
 struct ClusterControlView: View {
@@ -210,55 +241,33 @@ struct ClusterControlView: View {
   let characterLimit = 10
 
   @Environment(\.openURL) var openURL
-
-  @State private var selectedCluster = clusterData[0]
   @State private var callSignFilter = ""
   @State private var showSpots = true
-  var clusters: [ClusterIdentifier]
 
   var body: some View {
     HStack {
-      HStack {
-        Picker(selection: $selectedCluster.id, label: Text("")) {
-          ForEach(clusters) { cluster in
-            Text("\(cluster.name)") //": \(cluster.address):\(cluster.port)").tag(cluster.name)
-          }
-        }.frame(minWidth: 200, maxWidth: 200)
-          .onReceive([selectedCluster].publisher.first()) { value in
-            //print("id: \(value.id), name: \(value.name)")
-            if value.id != 9999 {
-              if self.controller.connectedCluster.id != value.id {
-                controller.spots = [ClusterSpot]()
-                self.controller.connectedCluster = clusterData.first {$0.id == value.id}!
-              }
-            }
-        }
-      }
-      .padding(.trailing)
 
-      Divider()
       Spacer()
-
       HStack {
 
         Button("Open Spots") {
-            if let url = URL(string: "xClusterApp://spots") {
-                 openURL(url)
-            }
+          if let url = URL(string: "xClusterApp://spots") {
+            openURL(url)
+          }
         }
         Divider()
         TextField("Call Filter", text: $callSignFilter, onEditingChanged: { _ in // (changed)
-          //print("callSignFilter onEditingChanged - \(changed)")
+          // onEditingChanged
           callSignFilter = callSignFilter.uppercased()
           if callSignFilter.count > characterLimit {
             callSignFilter = String(callSignFilter.prefix(characterLimit))
           }
-          }) {
-            //print("callSignFilter onCommit")
+        }) {
+          // onCommit"
           self.controller.setCallFilter(callSign: callSignFilter.uppercased())
-          }
-          .textFieldStyle(RoundedBorderTextFieldStyle())
-          .frame(maxWidth: 150)
+        }
+        .textFieldStyle(RoundedBorderTextFieldStyle())
+        .frame(maxWidth: 150)
 
         Divider()
 
@@ -275,12 +284,12 @@ struct ClusterControlView: View {
       .frame(minWidth: 500)
       .padding(.leading)
       .padding(.vertical, 2)
-//      .onAppear {
-//        if let url = URL(string: "xClusterApp://spots") {
-//             openURL(url)
-//        }
-//      }
-/// https://developer.apple.com/forums/thread/650419
+      //      .onAppear {
+      //        if let url = URL(string: "xClusterApp://spots") {
+      //             openURL(url)
+      //        }
+      //      }
+      /// https://developer.apple.com/forums/thread/650419
       Spacer()
     }
   }
