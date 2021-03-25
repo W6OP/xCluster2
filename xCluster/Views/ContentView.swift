@@ -10,79 +10,57 @@ import CallParser
 import MapKit
 
 // MARK: - Map View
-//struct MapView: NSViewRepresentable {
-//  typealias MapViewType = NSViewType
-//  var overlays: [MKPolyline]
-//
-//  func makeNSView(context: Context) -> MKMapView {
-//    let mapView = MKMapView()
-//    mapView.delegate = context.coordinator
-//
-//    return mapView
-//  }
-//
-//  func updateNSView(_ uiView: MKMapView, context: Context) {
-//    updateOverlays(from: uiView)
-//  }
-//
-//  // https://medium.com/@mauvazquez/decoding-a-polyline-and-drawing-it-with-swiftui-mapkit-611952bd0ecb
-//  public func updateOverlays(from mapView: MKMapView) {
-//    mapView.removeOverlays(mapView.overlays)
-//
-//    for polyline in overlays {
-//      mapView.addOverlay(polyline)
-//    }
-//
-//    //    setMapZoomArea(map: mapView, polyline: polyline, edgeInsets: mapZoomEdgeInsets, animated: true)
-//  }
-//
-//  func makeCoordinator() -> Coordinator {
-//    Coordinator(self)
-//  }
-//} // end struct
+struct MapView: NSViewRepresentable {
+  typealias MapViewType = NSViewType
+  var overlays: [MKPolyline]
+
+  func makeNSView(context: Context) -> MKMapView {
+    let mapView = MKMapView()
+    mapView.delegate = context.coordinator
+
+    return mapView
+  }
+
+  func updateNSView(_ uiView: MKMapView, context: Context) {
+    updateOverlays(from: uiView)
+  }
+
+  // https://medium.com/@mauvazquez/decoding-a-polyline-and-drawing-it-with-swiftui-mapkit-611952bd0ecb
+  public func updateOverlays(from mapView: MKMapView) {
+    mapView.removeOverlays(mapView.overlays)
+
+    for polyline in overlays {
+      mapView.addOverlay(polyline)
+    }
+
+    //    setMapZoomArea(map: mapView, polyline: polyline, edgeInsets: mapZoomEdgeInsets, animated: true)
+  }
+
+  func makeCoordinator() -> Coordinator {
+    Coordinator(self)
+  }
+} // end struct
 
 //https://www.hackingwithswift.com/books/ios-swiftui/communicating-with-a-mapkit-coordinator
-//class Coordinator: NSObject, MKMapViewDelegate {
-//  var parent: MapView
-//
-//  init(_ parent: MapView) {
-//    self.parent = parent
-//  }
-//
-//  func mapViewDidChangeVisibleRegion(_ mapView: MKMapView) {
-//    //print(mapView.centerCoordinate)
-//
-//  }
-//
-//  func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
-//    let renderer = MKPolylineRenderer(overlay: overlay)
-//    renderer.strokeColor = .blue
-//    renderer.lineWidth = 1.0
-//    return renderer
-//  }
-//} // end class
+class Coordinator: NSObject, MKMapViewDelegate {
+  var parent: MapView
 
-// Extension to add overlay on Map()
-extension Map {
-  func mapStyle(_ mapType: MKMapType, showScale: Bool = true, showTraffic: Bool = false) -> some View {
-    //      let map = MKMapView.appearance()
-    //        map.mapType = mapType
-    //        map.showsScale = showScale
-    //        map.showsTraffic = showTraffic
-    return self
+  init(_ parent: MapView) {
+    self.parent = parent
   }
 
-  func addAnnotations(_ annotations: [MKAnnotation]) -> some View {
-    //MKMapView.appearance().addAnnotations(annotations)
-    return self
+  func mapViewDidChangeVisibleRegion(_ mapView: MKMapView) {
+    //print(mapView.centerCoordinate)
+
   }
 
-  func addOverlay(_ overlay: MKOverlay) -> some View {
-    //MKMapView.appearance().addOverlay(overlay)
-
-    return self
+  func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
+    let renderer = MKPolylineRenderer(overlay: overlay)
+    renderer.strokeColor = .blue
+    renderer.lineWidth = 1.0
+    return renderer
   }
-}
+} // end class
 
 // MARK: - Content View ------------------------------------------------------------.
 
@@ -136,15 +114,15 @@ struct ContentView: View {
       // MARK: - mapping container.
 
       HStack {
-        Map(
-          coordinateRegion: $coordinateRegion,
-          interactionModes: MapInteractionModes.all,
-          showsUserLocation: true
-        ).edgesIgnoringSafeArea(.all)
+//        Map(
+//          coordinateRegion: $coordinateRegion,
+//          interactionModes: MapInteractionModes.all,
+//          showsUserLocation: true
+//        ).edgesIgnoringSafeArea(.all)
         // Old version -------------------------
-        //        MapView(overlays: controller.overlays)
-        //          .edgesIgnoringSafeArea(.all)
-        //          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        MapView(overlays: controller.overlays)
+          .edgesIgnoringSafeArea(.all)
+          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         // -------------------------------------
       }
       .border(Color.black)

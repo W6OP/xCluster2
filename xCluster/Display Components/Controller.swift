@@ -135,13 +135,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
     disconnect()
 
-      // clear the status message
-    DispatchQueue.main.async {
-        if cluster.address.isEmpty {
-            self.statusMessage = [String]()
-          }
-        }
-
     logger.info("Connecting to: \(cluster.name)")
     self.telnetManager.connect(cluster: cluster)
   }
@@ -149,13 +142,21 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   /// Disconnect on cluster change or application termination.
   func disconnect() {
     telnetManager.disconnect()
+
+    // clear the status message
+    DispatchQueue.main.async {
+      self.statusMessage = [String]()
+      }
+
   }
 
   /// Reconnect when the connection drops.
   func reconnectCluster() {
-    print("Reconnect attempt")
+
+    logger.info("Reconnect attempt.")
     disconnect()
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
         self.reconnect()
     }
   }
@@ -187,7 +188,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
     case .error:
       DispatchQueue.main.async {
-        print("Error: \(message)")
+        self.logger.info("Error: \(message)")
         self.statusMessage.append(message)
       }
 

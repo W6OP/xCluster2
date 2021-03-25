@@ -7,6 +7,7 @@
 //
 
 import Cocoa
+import os
 
 extension String {
   func condenseWhitespace() -> String {
@@ -68,6 +69,7 @@ extension Float {
 // https://stackoverflow.com/questions/31083348/parsing-xml-from-url-in-swift/31084545#31084545
 extension QRZManager: XMLParserDelegate {
 
+  //let logger = Logger(subsystem: "com.w6op.xCluster", category: "Controller")
   // initialize results structure
   func parserDidStartDocument(_ parser: XMLParser) {
     results = []
@@ -78,10 +80,11 @@ extension QRZManager: XMLParserDelegate {
   // - If we're starting a "Session" create the dictionary that will hold the results
   // - If we're starting one of our dictionary keys, initialize `currentValue` (otherwise leave `nil`)
   func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String: String]) {
+
     if elementName == recordKey {
       sessionDictionary = [:]
     } else if elementName == "Error" {
-      //print(ele)
+      logger.info("Parser error: \(self.currentValue)")
     } else if dictionaryKeys.contains(elementName) {
       currentValue = ""
     }
@@ -92,7 +95,7 @@ extension QRZManager: XMLParserDelegate {
   // - If this is an element we care about, append those characters.
   // - If `currentValue` still `nil`, then do nothing.
   func parser(_ parser: XMLParser, foundCharacters string: String) {
-    currentValue? += string
+    currentValue += string
   }
 
   // end element
@@ -100,23 +103,30 @@ extension QRZManager: XMLParserDelegate {
   // - If we're at the end of the whole dictionary, then save that dictionary in our array
   // - If we're at the end of an element that belongs in the dictionary, then save that value in the dictionary
   func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?) {
+
     if elementName == recordKey {
       results!.append(sessionDictionary!)
     } else if dictionaryKeys.contains(elementName) {
+      logger.info("Append: \(self.currentValue)")
       sessionDictionary![elementName] = currentValue
-      currentValue = nil
+      currentValue = ""
     }
   }
 
   func parserDidEndDocument(_ parser: XMLParser) {
-    //print("document finished")
+
+    if sessionKey != nil {
+      logger.info("Parsing completed. \(self.sessionKey.count)")
+    } else {
+      logger.info("Parsing completed - session key is nil")
+    }
   }
 
   // Just in case, if there's an error, report it. (We don't want to fly blind here.)
   func parser(_ parser: XMLParser, parseErrorOccurred parseError: Error) {
-    print(parseError)
 
-    currentValue = nil
+    logger.info("parser failed: \(parseError as NSObject)")
+    currentValue = ""
     sessionDictionary = nil
     results = nil
   }
@@ -179,26 +189,6 @@ enum ClusterType: String {
 enum SpotError: Error {
   case spotError(String)
 }
-
-///** utility functions to run a UI or background thread
-// // USAGE:
-// BG() {
-// everything in here will execute in the background
-// }
-// https://www.electrollama.net/blog/2017/1/6/updating-ui-from-background-threads-simple-threading-in-swift-3-for-ios
-// */
-//func BG(_ block: @escaping ()->Void) {
-//  DispatchQueue.global(qos: .background).async(execute: block)
-//}
-//
-///**  USAGE:
-// UI() {
-// everything in here will execute on the main thread
-// }
-// */
-//func UI(_ block: @escaping ()->Void) {
-//  DispatchQueue.main.async(execute: block)
-//}
 
 // MARK: - QRZ Structs ----------------------------------------------------------------------------
 

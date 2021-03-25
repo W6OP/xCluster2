@@ -44,7 +44,7 @@ class QRZManager: NSObject {
   var results: [[String: String]]?         // the whole array of dictionaries
   var results2: QRZInfo!
   var sessionDictionary: [String: String]! // the current dictionary
-  var currentValue: String?
+  var currentValue = ""
   var locationDictionary: (spotter: [String: String], dx: [String: String])!
 
   var qrZedCallSignCache = [String: QRZInfo]()
@@ -70,10 +70,12 @@ class QRZManager: NSObject {
    */
   func parseQRZSessionKeyRequest(name: String, password: String) {
 
+    logger.info("Request Session Key.")
+
     recordKey = "Session"
     dictionaryKeys = Set<String>(["Key", "Count", "SubExp", "GMTime", "Remark"])
 
-    let urlString = URL(string: "https://xmldata.qrz.com/xml/current/?username=\(name);password=\(password);VirtualCluster=1.0")
+    let urlString = URL(string: "https://xmldata.qrz.com/xml/current/?username=\(name);password=\(password);xCluster=1.0")
 
     let parser = XMLParser(contentsOf: urlString!)!
 
@@ -94,6 +96,8 @@ class QRZManager: NSObject {
    */
   func getConsolidatedQRZInformation(spotterCall: String, dxCall: String, frequency: String) {
 
+    logger.info("Request QRZ Information: \(spotterCall):\(dxCall)")
+
     serialQRZProcessorQueue.sync(flags: .barrier) { [weak self] in
       self?.parseQRZData(callSign: spotterCall, frequency: frequency)
       self?.parseQRZData(callSign: dxCall, frequency: frequency)
@@ -113,7 +117,6 @@ class QRZManager: NSObject {
 
     // this dies if session key is missing
     guard let urlString = URL(string: "https://xmldata.qrz.com/xml/current/?s=\(String(self.sessionKey));callsign=\(callSign)") else {
-      //print("Invalid call sign: \(callSign)") // 'PY2OT  05'
       logger.info("Invalid call sign: \(callSign)")
       return
     }
@@ -122,19 +125,18 @@ class QRZManager: NSObject {
     if let qrzInfo = qrZedCallSignCache[callSign] {
       combineQRZInfo(qrzInfo: qrzInfo, frequency: frequency)
     } else {
+
       let parser = XMLParser(contentsOf: urlString)!
 
       parser.delegate = self
       if parser.parse() {
         if self.results != nil { //} && self.results?.count != 0 {
-          switch qrZedCallSignPair.count {
-          case 0:
-            return
-          case 1:
-            populateQRZInfo(frequency: frequency)
-          default:
-            print("Excess CallSignPairCount: \(qrZedCallSignPair.count)")
+          if qrZedCallSignPair.count > 1 {
+            qrZedCallSignPair.removeAll()
           }
+
+          populateQRZInfo(frequency: frequency)
+
 //          if qrZedCallSignPair.count > 1 {
 //            qrZedCallSignPair.removeAll()
 //          } else {
@@ -159,8 +161,13 @@ class QRZManager: NSObject {
 
     qrZedInfo = QRZInfo()
 
-    // maybe check if dictionary is empty
+    // need to check if dictionary is empty
+    if sessionDictionary.isEmpty {
+      return
+    }
+
     qrZedInfo.call = sessionDictionary["call"] ?? ""
+
 
     //qrzInfo.call = ("\(qrzInfo.call)/W5") // for debug
     // IF THERE IS A PREFIX OR SUFFIX CALL CALL PARSER AND SKIP SOME OF THIS
