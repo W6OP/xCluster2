@@ -44,7 +44,7 @@ struct ListDisplayView: View {
         .background(Color(red: 209 / 255, green: 215 / 255, blue: 226 / 255))
       }
     }
-    .frame(minHeight: 700)
+    //.frame(minHeight: 700, maxHeight: .infinity)
     .border(Color.gray)
   }
 }
@@ -144,10 +144,11 @@ struct StatusDisplayView: View {
             .multilineTextAlignment(.leading)
           }
         }
-        .frame(minHeight: 50, maxHeight: .infinity, alignment: .topLeading)
+        //.frame(minHeight: 50, maxHeight: 200, alignment: .topLeading)
         .background(Color(red: 209 / 255, green: 215 / 255, blue: 226 / 255))
       }
     }
+    .frame(minHeight: 50, maxHeight: 200, alignment: .topLeading)
     .border(Color.gray)
   }
 }

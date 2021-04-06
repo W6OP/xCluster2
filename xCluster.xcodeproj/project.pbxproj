@@ -21,6 +21,7 @@
 		9907B66625FD4BA400A0859C /* CallParser in Frameworks */ = {isa = PBXBuildFile; productRef = 9907B66525FD4BA400A0859C /* CallParser */; };
 		9907B66925FD503C00A0859C /* ClusterDisplayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9907B66825FD503C00A0859C /* ClusterDisplayView.swift */; };
 		9936D64D260547C30079D49C /* SwiftLintFramework in Frameworks */ = {isa = PBXBuildFile; productRef = 9936D64C260547C30079D49C /* SwiftLintFramework */; };
+		99625D8326122CAF00CC4677 /* Preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99625D8226122CAF00CC4677 /* Preferences.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -39,6 +40,7 @@
 		9907B65D25FD4AB100A0859C /* QRZManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = QRZManager.swift; sourceTree = "<group>"; };
 		9907B65E25FD4AB100A0859C /* TelnetManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TelnetManager.swift; sourceTree = "<group>"; };
 		9907B66825FD503C00A0859C /* ClusterDisplayView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ClusterDisplayView.swift; sourceTree = "<group>"; };
+		99625D8226122CAF00CC4677 /* Preferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preferences.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -108,6 +110,7 @@
 			children = (
 				9907B65425FD498F00A0859C /* Bindings.swift */,
 				9907B65725FD49FD00A0859C /* Controller.swift */,
+				99625D8226122CAF00CC4677 /* Preferences.swift */,
 			);
 			path = "Display Components";
 			sourceTree = "<group>";
@@ -228,6 +231,7 @@
 				9907B66925FD503C00A0859C /* ClusterDisplayView.swift in Sources */,
 				9907B65F25FD4AB100A0859C /* Utility.swift in Sources */,
 				9907B65125FD491700A0859C /* PreferencesView.swift in Sources */,
+				99625D8326122CAF00CC4677 /* Preferences.swift in Sources */,
 				9907B63725FD455700A0859C /* XClusterApp.swift in Sources */,
 				9907B65525FD498F00A0859C /* Bindings.swift in Sources */,
 				9907B66225FD4AB100A0859C /* TelnetManager.swift in Sources */,

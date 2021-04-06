@@ -11,6 +11,7 @@ import Network
 import CoreLocation
 import os
 import CallParser
+import Combine
 
 protocol QRZManagerDelegate: class {
 
@@ -39,7 +40,7 @@ class QRZManager: NSObject {
   var haveSessionKey: Bool = false
 
   // a few variables to hold the results as we parse the XML
-  var recordKey = "Session"
+  var recordKey = ""
   var dictionaryKeys = Set<String>(["Key", "Count", "SubExp", "GMTime", "Remark"])
   var results: [[String: String]]?         // the whole array of dictionaries
   var results2: QRZInfo!
@@ -66,7 +67,7 @@ class QRZManager: NSObject {
    Get a Session Key from QRZ.com.
    - parameters:
    - name: logon name with xml plan.
-   - password: password for account. LetsFindSomeDXToday$56
+   - password: password for account.
    */
   func parseQRZSessionKeyRequest(name: String, password: String) {
 
@@ -96,11 +97,11 @@ class QRZManager: NSObject {
    */
   func getConsolidatedQRZInformation(spotterCall: String, dxCall: String, frequency: String) {
 
-    logger.info("Request QRZ Information: \(spotterCall):\(dxCall)")
+    //logger.info("Request QRZ Information: \(spotterCall):\(dxCall)")
 
     serialQRZProcessorQueue.sync(flags: .barrier) { [weak self] in
-      self?.parseQRZData(callSign: spotterCall, frequency: frequency)
-      self?.parseQRZData(callSign: dxCall, frequency: frequency)
+      self?.requestQRZInformation(callSign: spotterCall, frequency: frequency)
+      self?.requestQRZInformation(callSign: dxCall, frequency: frequency)
     }
   }
 
@@ -109,50 +110,112 @@ class QRZManager: NSObject {
    - parameters:
    - call: call sign to look up.
    */
-  func parseQRZData(callSign: String, frequency: String) {
+//  func parseQRZData(callSign: String, frequency: String) {
+//
+//    recordKey = "Callsign"
+//    sessionDictionary = [String: String]()
+//    dictionaryKeys = Set<String>(["call", "country", "lat", "lon", "grid", "lotw", "aliases"])
+//
+//    // this dies if session key is missing
+//    guard let url = URL(string: "https://xmldata.qrz.com/xml/current/?s=\(String(self.sessionKey));callsign=\(callSign)") else {
+//      logger.info("Invalid call sign: \(callSign)")
+//      return
+//    }
+//
+//    // first check to see if I have the info cached already
+//    if let qrzInfo = qrZedCallSignCache[callSign] {
+//      combineQRZInfo(qrzInfo: qrzInfo, frequency: frequency)
+//    } else {
+//      logger.info("Call QRZ.com")
+//      let parser = XMLParser(contentsOf: url)!
+//
+//      parser.delegate = self
+//      if parser.parse() {
+//        if self.results != nil {
+//          if qrZedCallSignPair.count > 1 {
+//            qrZedCallSignPair.removeAll()
+//          }
+//          //print("Current: \(self.results)")
+//          populateQRZInfo(frequency: frequency)
+//        } else {
+//          // we did not get one or more hits
+//          // will move this to CallParser and call it there
+//          logger.info("Use CallParser: \(callSign)") // above I think
+//        }
+//      }
+//    }
+//  }
+
+  func requestQRZInformation(callSign: String, frequency: String) {
 
     recordKey = "Callsign"
     sessionDictionary = [String: String]()
-    dictionaryKeys = Set<String>(["call", "country", "lat", "lon", "grid", "lotw", "aliases"])
+    dictionaryKeys = Set<String>(["call", "country", "lat", "lon", "grid", "lotw", "aliases", "Error"])
 
     // this dies if session key is missing
-    guard let urlString = URL(string: "https://xmldata.qrz.com/xml/current/?s=\(String(self.sessionKey));callsign=\(callSign)") else {
+    guard let url = URL(string: "https://xmldata.qrz.com/xml/current/?s=\(String(self.sessionKey));callsign=\(callSign)") else {
       logger.info("Invalid call sign: \(callSign)")
       return
     }
 
-    // first check to see if I have the info cached already
-    if let qrzInfo = qrZedCallSignCache[callSign] {
-      combineQRZInfo(qrzInfo: qrzInfo, frequency: frequency)
-    } else {
-
-      let parser = XMLParser(contentsOf: urlString)!
-
-      parser.delegate = self
-      if parser.parse() {
-        if self.results != nil { //} && self.results?.count != 0 {
-          if qrZedCallSignPair.count > 1 {
-            qrZedCallSignPair.removeAll()
-          }
-
-          populateQRZInfo(frequency: frequency)
-
-//          if qrZedCallSignPair.count > 1 {
-//            qrZedCallSignPair.removeAll()
-//          } else {
-//            if qrZedCallSignPair.count > 2 {
-//              print("Excess CallSignPairCount: \(qrZedCallSignPair.count)")
-//            }
-//          }
-//          populateQRZInfo(frequency: frequency)
-        } else {
-          // we did not get one or more hits
-          // will move this to CallParser and call it there
-          logger.info("Use CallParser: \(callSign)") // above I think
+    let task = URLSession.shared.dataTask(with: url) { [self] data, response, error in
+        if let error = error {
+            fatalError("Error: \(error.localizedDescription)")
         }
-      }
+        guard let response = response as? HTTPURLResponse, response.statusCode == 200 else {
+            fatalError("Error: invalid HTTP response code")
+        }
+        guard let data = data else {
+            fatalError("Error: missing response data")
+        }
+
+        do {
+          let parser = XMLParser(data: data)
+          parser.delegate = self
+
+          let stringValue = String(decoding: data, as: UTF8.self)
+          print("DATA: \(stringValue)")
+
+          if parser.parse() {
+            if self.results != nil {
+              if qrZedCallSignPair.count > 1 {
+                qrZedCallSignPair.removeAll()
+              }
+              //print("Current: \(self.results)")
+              populateQRZInfo(frequency: frequency)
+            } else {
+              // we did not get one or more hits
+              // will move this to CallParser and call it there
+              logger.info("Use CallParser: \(callSign)") // above I think
+            }
+          }
+        } catch {
+            print("Error: \(error.localizedDescription)")
+        }
     }
+    task.resume()
+
   }
+
+//  func requestQRZInformation(completionHandler: @escaping (String?, String?, Error?) -> Void) {
+//      let url = URL(string: "http://localhost/jazler/NowOnAir.xml")!
+//      let task = URLSession.shared.dataTask(with: url) { data, _, error in
+//          guard let data = data, error == nil else {
+//              DispatchQueue.main.async {
+//                  completionHandler(nil, nil, error)
+//              }
+//              return
+//          }
+//
+//          let parser = XMLParser(data: data)
+//          print("Data: \(data)")
+//          parser.delegate = self
+////          DispatchQueue.main.async {
+////              completionHandler(delegate.song, delegate.artist, parser.parserError)
+////          }
+//      }
+//      task.resume()
+//  }
 
   /// Populate the qrzInfo with latitude, longitude, etc. If there is a pair
   /// send them to the view controller for a line to be drawn.
@@ -167,7 +230,6 @@ class QRZManager: NSObject {
     }
 
     qrZedInfo.call = sessionDictionary["call"] ?? ""
-
 
     //qrzInfo.call = ("\(qrzInfo.call)/W5") // for debug
     // IF THERE IS A PREFIX OR SUFFIX CALL CALL PARSER AND SKIP SOME OF THIS
@@ -272,6 +334,28 @@ class QRZManager: NSObject {
 } // end class
 
 /*
+
+ <QRZDatabase version="1.34" xmlns="http://xmldata.qrz.com">
+ <Session>
+ <Error>Not found: R0AT</Error>
+ <Key>6c68f99260205b52dfc90dba54f8d059</Key>
+ <Count>9581729</Count>
+ <SubExp>Wed Dec 29 00:00:00 2021</SubExp>
+ <GMTime>Tue Apr  6 17:22:01 2021</GMTime>
+ <Remark>cpu: 0.034s</Remark>
+ </Session>
+ </QRZDatabase>
+
+ <QRZDatabase version="1.33" xmlns="http://xmldata.qrz.com">
+ <Session>
+ <Key>d078471d55aef6e17fb566ef6e381e03</Key>
+ <Count>9465097</Count>
+ <SubExp>Sun Dec 29 00:00:00 2019</SubExp>
+ <GMTime>Thu Feb 28 18:11:31 2019</GMTime>
+ <Remark>cpu: 0.162s</Remark>
+ </Session>
+ </QRZDatabase>
+
  <QRZDatabase version="1.33" xmlns="http://xmldata.qrz.com">
  <Callsign>
  <call>F2JD</call>
@@ -411,17 +495,6 @@ class QRZManager: NSObject {
  <SubExp>Sun Dec 29 00:00:00 2019</SubExp>
  <GMTime>Thu Feb 28 19:12:42 2019</GMTime>
  <Remark>cpu: 0.027s</Remark>
- </Session>
- </QRZDatabase>
- 
- 
- <QRZDatabase version="1.33" xmlns="http://xmldata.qrz.com">
- <Session>
- <Key>d078471d55aef6e17fb566ef6e381e03</Key>
- <Count>9465097</Count>
- <SubExp>Sun Dec 29 00:00:00 2019</SubExp>
- <GMTime>Thu Feb 28 18:11:31 2019</GMTime>
- <Remark>cpu: 0.162s</Remark>
  </Session>
  </QRZDatabase>
  */

@@ -14,7 +14,7 @@ import os
 
 // MARK: - ClusterSpots
 
-struct ClusterSpot: Identifiable, Hashable {
+struct ClusterSpot: Identifiable, Hashable, Encodable {
   var id: Int
   var dxStation: String
   var frequency: String
@@ -55,7 +55,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
   @Published var bandFilter = (id: 0, state: false) {
     didSet {
-      setBandButtons(buttonTag: bandFilter.id, state: bandFilter.state)
+      setBandButtons(band: bandFilter.id, state: bandFilter.state)
     }
   }
 
@@ -91,7 +91,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
   // mapping
   let maxNumberOfSpots = 200
-  let maxNumberOfMapLines = 50
+  let maxNumberOfMapLines = 200
   let regionRadius: CLLocationDistance = 10000000
   let centerLatitude = 28.282778
   let centerLongitude = -40.829444
@@ -114,7 +114,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
   init () {
 
-    bandFilters = [99: 99, 160: 160, 80: 80, 60: 60, 40: 40, 30: 30, 20: 20, 18: 18, 15: 15, 12: 12, 10: 10, 6: 6]
+    bandFilters = [99: 99, 160: 160, 80: 80, 60: 60, 40: 40, 30: 30, 20: 20, 17: 17, 15: 15, 12: 12, 10: 10, 6: 6]
 
     telnetManager.telnetManagerDelegate = self
     qrzManager.qrZedManagerDelegate = self
@@ -419,6 +419,21 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
         return
       }
 
+      // if spot already exists, don't add again ?
+      // update timestamp though
+      if let index = spots.firstIndex(where: { $0.spotter == spot.spotter &&
+            $0.dxStation == spot.dxStation && $0.frequency == spot.frequency
+      }) {
+        DispatchQueue.main.async { [self] in
+          if spots.indices.contains(index) {
+            spots[index].dateTime = spot.dateTime
+          }
+        }
+
+        logger.info("Duplicate spot.")
+        return
+      }
+
       DispatchQueue.main.async {
         self.spots.insert(spot, at: 0)
       }
@@ -433,6 +448,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
       DispatchQueue.main.async { [self] in
         if spots.count > maxNumberOfSpots {
           spots.removeLast()
+          logger.info("Spot removed: \(spot.dxStation)")
         }
       }
     } catch {
@@ -480,6 +496,79 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     return band
   }
 
+  // MARK: - Filter by Time
+
+  /// Remove spots older than 30 minutes
+  /// - Parameter filterState: filter/don't filter
+  func setTimeFilter(filterState: Bool) {
+
+    // TODO: remove spots and overlays by time
+
+    let localDateTime = Date()
+
+    let iso8601DateFormatter = ISO8601DateFormatter()
+    iso8601DateFormatter.formatOptions = [.withFullTime]
+    let string = iso8601DateFormatter.string(from: localDateTime)
+    print("utc_date-->", string.prefix(5).replacingOccurrences(of: ":", with: "")) // 18:35:17Z
+
+    // set the dxcall to "expired"
+    if filterState {
+      for overlay in overlays {
+
+      }
+    }
+  }
+
+  func getGMTTimeDate() -> Date {
+    var comp: DateComponents = Calendar.current.dateComponents([.year, .month, .hour, .minute], from: Date())
+     comp.calendar = Calendar.current
+     comp.timeZone = TimeZone(abbreviation: "UTC")!
+     return Calendar.current.date(from: comp)!
+  }
+
+  func getCurrentUTCTime() {
+
+    let utcDateFormatter = DateFormatter()
+    utcDateFormatter.dateStyle = .medium
+    utcDateFormatter.timeStyle = .medium
+
+    // The default timeZone on DateFormatter is the device’s
+    // local time zone. Set timeZone to UTC to get UTC time.
+    utcDateFormatter.timeZone = TimeZone(abbreviation: "UTC")
+
+    // Printing a Date
+    let date = Date()
+    print(utcDateFormatter.string(from: date))
+
+    // Parsing a string representing a date
+    let dateString = "hmm"
+    let utcDate = utcDateFormatter.date(from: dateString)
+
+    print("UTC: \(String(describing: utcDate))")
+
+  }
+
+  func localToUTC(dateStr: String) -> String? {
+      let dateFormatter = DateFormatter()
+      dateFormatter.dateFormat = "h:mm a"
+      dateFormatter.calendar = Calendar.current
+      dateFormatter.timeZone = TimeZone.current
+
+      if let date = dateFormatter.date(from: dateStr) {
+          dateFormatter.timeZone = TimeZone(abbreviation: "UTC")
+          dateFormatter.dateFormat = "H:mm:ss"
+
+          return dateFormatter.string(from: date)
+      }
+      return nil
+  }
+
+  func filterMapLinesByTime(callSign: String) {
+      DispatchQueue.main.async {
+        //self.overlays = self.overlays.filter {$0.subtitle == String(callSign)}
+      }
+  }
+
   // MARK: - Filter Call Signs
 
   /// Remove call signs that do not match the filter.
@@ -487,9 +576,17 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   func setCallFilter(callSign: String) {
     spots = spots.filter({$0.dxStation == callSign})
     spotFilter = callSign
+
+    filterMapLinesByCall(callSign: callSign)
   }
 
-  // MARK: - Band Button Action Implementation ----------------------------------------------------------------------------
+  func filterMapLinesByCall(callSign: String) {
+      DispatchQueue.main.async {
+        self.overlays = self.overlays.filter {$0.subtitle == String(callSign)}
+      }
+  }
+
+  // MARK: - Filter Bands
 
   /**
    Manage the band button state.
@@ -497,38 +594,38 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
    - buttonTag: the tag that identifies the button.
    - state: the state of the button .on or .off.
    */
-  func setBandButtons( buttonTag: Int, state: Bool) {
+  func setBandButtons( band: Int, state: Bool) {
 
-    if buttonTag == 9999 {return}
+    if band == 9999 {return}
 
     switch state {
     case true:
-      self.bandFilters[buttonTag] = buttonTag
-      if buttonTag == 0 {
-        //resetBandButtons()
-      } else {
-        bandFilters[buttonTag] = buttonTag
-      }
+      bandFilters[band] = band
     case false:
-      self.bandFilters.removeValue(forKey: buttonTag)
+      self.bandFilters.removeValue(forKey: band)
+      filterSpotsByBand(band: band)
     }
 
-    filterMapLines()
+    filterMapLinesByBand(band: band)
   }
 
-  /**
-   
-   */
-  func filterMapLines() {
-    for polyLine in self.overlays {
-      guard let band = Int(polyLine.title ?? "0") else { return }
-      if bandFilters[band] == nil {
-        DispatchQueue.main.async {
-          self.overlays = self.overlays.filter {$0.title != String(band)}
-        }
-      }
+  func filterSpotsByBand(band: Int) {
+    DispatchQueue.main.async {
+      self.spots = self.spots.filter {$0.frequency != String(band)}
     }
   }
+
+//  func resetBandButtons(state: Bool) {
+//
+//    if state {
+//      for band in bandData where band.id != 0 {
+//          bandFilters[band.id] = band.id
+//      }
+//    } else {
+//      self.bandFilters.removeAll()
+//    }
+//
+//  }
 
   // MARK: - Keep Alive Timer ----------------------------------------------------------------------------
 
@@ -563,6 +660,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
   /**
    Calculate the number of minutes between two dates
+   https://stackoverflow.com/questions/28016578/how-can-i-parse-create-a-date-time-stamp-formatted-with-fractional-seconds-utc/28016692#28016692
    */
   func minutesBetweenDates(_ oldDate: Date, _ newDate: Date) -> CGFloat {
 
@@ -607,7 +705,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     return 1
   }
 
-  // MARK: - Map Implementation ----------------------------------------------------------------------------
+  // MARK: - Overlays
 
   func centerMapOnLocation(location: CLLocation) {
     //          let coordinateRegion = MKCoordinateRegion(center: location.coordinate,
@@ -630,19 +728,46 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
     let polyline = MKGeodesicPolyline(coordinates: locations, count: locations.count)
     polyline.title = String(qrzInfoCombined.band)
+    polyline.subtitle = qrzInfoCombined.dxCall //  buildSubTitleArray(info: qrzInfoCombined)
+    //polyline.tag = false
 
-    DispatchQueue.main.async {
-      if self.bandFilters[qrzInfoCombined.band] != nil {
-        DispatchQueue.main.async {
-          self.overlays.append(polyline)
-        }
+    DispatchQueue.main.async { [self] in
+      if bandFilters[qrzInfoCombined.band] != nil {
+          overlays.append(polyline)
       }
-      //self.filterMapLines()
     }
 
+    DispatchQueue.main.async { [self] in
+      if overlays.count > maxNumberOfMapLines {
+        overlays.remove(at: overlays.count - 1)
+
+        // should be a better way of doing this
+        //overlays[overlays.count - 1].subtitle = ""
+      }
+    }
+  }
+
+  /// Build a string to hold information to be split into an array.
+  /// - Parameter info: combined QRZ information.
+  /// - Returns: string representation of array.
+  func buildSubTitleArray(info: QRZInfoCombined) -> String {
+    return String(info.band) + ":" + info.dxCall + ":" + info.dxGrid + ":" + String(info.expired)
+  }
+
+  func filterMapLinesByBand(band: Int) {
     DispatchQueue.main.async {
-        if self.overlays.count > 50 {
-        self.overlays.remove(at: self.overlays.count - 1)
+      self.overlays = self.overlays.filter {$0.title != String(band)}
+    }
+  }
+
+  /// Remove lines that don't match a selected band.
+  func filterMapLinesByBand() {
+    for polyLine in self.overlays {
+      guard let band = Int(polyLine.title ?? "0") else { return }
+      if bandFilters[band] == nil {
+        DispatchQueue.main.async {
+          self.overlays = self.overlays.filter {$0.title != String(band)}
+        }
       }
     }
   }
@@ -657,55 +782,4 @@ extension String {
             return String(self[start..<end])
         }
     }
-}
-
-// MARK: - User Defaults
-
-// https://www.simpleswiftguide.com/how-to-use-userdefaults-in-swiftui/
-class UserSettings: ObservableObject {
-
-  @Published var callsign: String {
-    didSet {
-      UserDefaults.standard.set(callsign.uppercased(), forKey: "callsign")
-    }
-  }
-
-  @Published var fullname: String {
-    didSet {
-      UserDefaults.standard.set(fullname, forKey: "fullname")
-    }
-  }
-
-  @Published var username: String {
-    didSet {
-      UserDefaults.standard.set(username, forKey: "username")
-    }
-  }
-
-  @Published var password: String {
-    didSet {
-      UserDefaults.standard.set(password, forKey: "password")
-    }
-  }
-
-  @Published var location: String {
-    didSet {
-      UserDefaults.standard.set(location, forKey: "location")
-    }
-  }
-
-  @Published var grid: String {
-    didSet {
-      UserDefaults.standard.set(grid, forKey: "grid")
-    }
-  }
-
-  init() {
-    self.callsign = UserDefaults.standard.string(forKey: "callsign") ?? ""
-    self.username = UserDefaults.standard.string(forKey: "username") ?? ""
-    self.password = UserDefaults.standard.string(forKey: "password") ?? ""
-    self.fullname = UserDefaults.standard.string(forKey: "fullname") ?? ""
-    self.location = UserDefaults.standard.string(forKey: "location") ?? ""
-    self.grid = UserDefaults.standard.string(forKey: "grid") ?? ""
-  }
 }

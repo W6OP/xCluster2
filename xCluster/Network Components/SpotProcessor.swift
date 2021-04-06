@@ -60,7 +60,7 @@ class SpotProcessor {
     spot.comment = convertStringSliceToString(String(rawSpot[startIndex..<endIndex]))
 
     startIndex = rawSpot.index(rawSpot.startIndex, offsetBy: 70)
-    endIndex = rawSpot.index(startIndex, offsetBy: 5)
+    endIndex = rawSpot.index(startIndex, offsetBy: 4)
     // clean of junk on end so it displays correctly when no grid supplied
     spot.dateTime = convertStringSliceToString(String(rawSpot[startIndex..<endIndex])).condenseWhitespace()
 

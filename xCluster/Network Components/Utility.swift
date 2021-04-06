@@ -107,16 +107,19 @@ extension QRZManager: XMLParserDelegate {
     if elementName == recordKey {
       results!.append(sessionDictionary!)
     } else if dictionaryKeys.contains(elementName) {
-      logger.info("Append: \(self.currentValue)")
+      //logger.info("Append: \(self.currentValue)")
       sessionDictionary![elementName] = currentValue
       currentValue = ""
+    } else if elementName == "Error" {
+      logger.info("Error: \(self.currentValue)")
     }
   }
+  // _url  NSURL?  "https://xmldata.qrz.com/xml/current/?s=e4675463761647d33756d50270a0aef2;callsign=IQ7EY/7"  0x0000600001b16380
 
   func parserDidEndDocument(_ parser: XMLParser) {
 
     if sessionKey != nil {
-      logger.info("Parsing completed. \(self.sessionKey.count)")
+      logger.info("Parsing completed.")
     } else {
       logger.info("Parsing completed - session key is nil")
     }
@@ -231,9 +234,9 @@ struct QRZInfoCombined {
   var band = 0
   var mode = ""
 
-  init() {
-    self.identifier = UUID().uuidString
-  }
+//  init() {
+//    self.identifier = UUID().uuidString
+//  }
 
   // need to convert 3.593.4 to 3.5934
   mutating func setFrequency(frequency: String) {
