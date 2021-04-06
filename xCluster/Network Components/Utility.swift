@@ -81,13 +81,42 @@ extension QRZManager: XMLParserDelegate {
   // - If we're starting one of our dictionary keys, initialize `currentValue` (otherwise leave `nil`)
   func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String: String]) {
 
-    if elementName == recordKey {
+    switch elementName {
+    case sessionKeyName:
+      if sessionKey == nil { // can check here for Error node
+        sessionDictionary = [:]
+      }
+      print("Here 2.1s")
+      print("Input (name:key): \(elementName) : \(sessionKeyName) ")
+    case recordKeyName:
       sessionDictionary = [:]
-    } else if elementName == "Error" {
-      logger.info("Parser error: \(self.currentValue)")
-    } else if dictionaryKeys.contains(elementName) {
-      currentValue = ""
+      print("Here 2.1r")
+      //print("Input (name:key): \(elementName) : \(recordKeyName)")
+    case "Error":
+        logger.info("Parser error: \(self.currentValue)")
+    default:
+      //print("default (name:key): \(elementName)")
+      if dictionaryKeys.contains(elementName) {
+        print("Here 1.1")
+        print("default (name:key): \(elementName)")
+        currentValue = ""
+      }
     }
+
+//    if sessionDictionary != nil {
+//      if sessionDictionary.isEmpty {
+//        logger.info("dictionary is empty 1")
+//      }
+//    }
+
+    //print ("Input (name:key): \(elementName) : \(recordKey)")
+//    if elementName == recordKeyName || elementName == sessionKeyName {
+//      sessionDictionary = [:]
+//    } else if elementName == "Error" {
+//      logger.info("Parser error: \(self.currentValue)")
+//    } else if dictionaryKeys.contains(elementName) {
+//      currentValue = ""
+//    }
   }
 
   // found characters
@@ -104,25 +133,57 @@ extension QRZManager: XMLParserDelegate {
   // - If we're at the end of an element that belongs in the dictionary, then save that value in the dictionary
   func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?) {
 
-    if elementName == recordKey {
+    switch elementName {
+    case sessionKeyName:
+      // don't seem to need this
+      //print("Here 2s")
+      //results!.append(sessionDictionary!)
+      break
+    case recordKeyName:
+      print("Here 2r")
       results!.append(sessionDictionary!)
-    } else if dictionaryKeys.contains(elementName) {
-      //logger.info("Append: \(self.currentValue)")
-      sessionDictionary![elementName] = currentValue
-      currentValue = ""
-    } else if elementName == "Error" {
-      logger.info("Error: \(self.currentValue)")
+    case "Error":
+        logger.info("Error: \(self.currentValue)")
+    default:
+      if dictionaryKeys.contains(elementName) {
+        //print("Here 1: \(elementName):\(currentValue)")
+        print("Here 1")
+        sessionDictionary[elementName] = currentValue
+        currentValue = ""
+      }
     }
+
+    //    if sessionDictionary != nil {
+    //      if sessionDictionary.isEmpty {
+    //        logger.info("dictionary is empty 1")
+    //      }
+    //    }
+
+//    if elementName == recordKeyName || elementName == sessionKeyName {
+//      results!.append(sessionDictionary!)
+//    } else if dictionaryKeys.contains(elementName) {
+//      //logger.info("Append: \(self.currentValue)")
+//      sessionDictionary![elementName] = currentValue
+//      currentValue = ""
+//    } else if elementName == "Error" {
+//      logger.info("Error: \(self.currentValue)")
+//    }
   }
   // _url  NSURL?  "https://xmldata.qrz.com/xml/current/?s=e4675463761647d33756d50270a0aef2;callsign=IQ7EY/7"  0x0000600001b16380
 
   func parserDidEndDocument(_ parser: XMLParser) {
 
-    if sessionKey != nil {
+        if sessionDictionary != nil {
+          if sessionDictionary.isEmpty {
+            logger.info("dictionary is empty 1")
+          }
+        }
+
+    //if sessionKey != nil {
       logger.info("Parsing completed.")
-    } else {
-      logger.info("Parsing completed - session key is nil")
-    }
+//    } else {
+//      logger.info("Parsing completed - session key is nil")
+//    }
   }
 
   // Just in case, if there's an error, report it. (We don't want to fly blind here.)

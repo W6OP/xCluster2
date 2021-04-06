@@ -308,7 +308,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   }
 
   func getQRZSessionKey() {
-    self.qrzManager.parseQRZSessionKeyRequest(name: self.qrzUserName, password: self.qrzPassword)
+    self.qrzManager.requestSessionKey(name: self.qrzUserName, password: self.qrzPassword)
   }
 
   // MARK: - Cluster Login and Commands

@@ -31,7 +31,7 @@ class QRZManager: NSObject {
   //static let modelLog = OSLog(subsystem: "com.w6op.TelnetManager", category: "Model")
   let logger = Logger(subsystem: "com.w6op.xCluster", category: "QRZManager")
 
-  // delegate to pass messages back to viewcontroller
+  // delegate to pass messages back to view
   weak var qrZedManagerDelegate: QRZManagerDelegate?
   let callParser = PrefixFileParser()
   var callLookup = CallLookup()
@@ -40,7 +40,8 @@ class QRZManager: NSObject {
   var haveSessionKey: Bool = false
 
   // a few variables to hold the results as we parse the XML
-  var recordKey = ""
+  let sessionKeyName = "Session"
+  let recordKeyName = "Callsign"
   var dictionaryKeys = Set<String>(["Key", "Count", "SubExp", "GMTime", "Remark"])
   var results: [[String: String]]?         // the whole array of dictionaries
   var results2: QRZInfo!
@@ -69,24 +70,69 @@ class QRZManager: NSObject {
    - name: logon name with xml plan.
    - password: password for account.
    */
-  func parseQRZSessionKeyRequest(name: String, password: String) {
+//  func parseQRZSessionKeyRequest(name: String, password: String) {
+//
+//    logger.info("Request Session Key.")
+//
+//    //recordKey = "Session"
+//    dictionaryKeys = Set<String>(["Key", "Count", "SubExp", "GMTime", "Remark"])
+//
+//    let urlString = URL(string: "https://xmldata.qrz.com/xml/current/?username=\(name);password=\(password);xCluster=1.0")
+//
+//    let parser = XMLParser(contentsOf: urlString!)!
+//
+//    parser.delegate = self
+//    if parser.parse() {
+//      print(self.results ?? "No results")
+//      self.sessionKey = self.sessionDictionary?["Key"]?.trimmingCharacters(in: .whitespaces)
+//      self.haveSessionKey = true
+//      self.qrZedManagerDelegate?.qrzManagerDidGetSessionKey(self, messageKey: .session, haveSessionKey: true)
+//    }
+//  }
+
+  func requestSessionKey(name: String, password: String) {
 
     logger.info("Request Session Key.")
 
-    recordKey = "Session"
     dictionaryKeys = Set<String>(["Key", "Count", "SubExp", "GMTime", "Remark"])
 
-    let urlString = URL(string: "https://xmldata.qrz.com/xml/current/?username=\(name);password=\(password);xCluster=1.0")
-
-    let parser = XMLParser(contentsOf: urlString!)!
-
-    parser.delegate = self
-    if parser.parse() {
-      print(self.results ?? "No results")
-      self.sessionKey = self.sessionDictionary?["Key"]?.trimmingCharacters(in: .whitespaces)
-      self.haveSessionKey = true
-      self.qrZedManagerDelegate?.qrzManagerDidGetSessionKey(self, messageKey: .session, haveSessionKey: true)
+    // this dies if session key is missing
+    guard let url = URL(string: "https://xmldata.qrz.com/xml/current/?username=\(name);password=\(password);xCluster=1.0") else {
+      logger.info("Invalid user name or password: \(name)")
+      return
     }
+
+    let task = URLSession.shared.dataTask(with: url) { [self] data, response, error in
+        if let error = error {
+            fatalError("Error: \(error.localizedDescription)")
+        }
+        guard let response = response as? HTTPURLResponse, response.statusCode == 200 else {
+            fatalError("Error: invalid HTTP response code")
+        }
+        guard let data = data else {
+            fatalError("Error: missing response data")
+        }
+
+        do {
+          let parser = XMLParser(data: data)
+          parser.delegate = self
+
+          //let stringValue = String(decoding: data, as: UTF8.self)
+          //print("DATA: \(stringValue)")
+
+          if parser.parse() {
+            if self.results != nil {
+              self.sessionKey = self.sessionDictionary?["Key"]?.trimmingCharacters(in: .whitespaces)
+              self.haveSessionKey = true
+              self.qrZedManagerDelegate?.qrzManagerDidGetSessionKey(self, messageKey: .session, haveSessionKey: true)
+              //print("Session Key: \(sessionKey)")
+            }
+          }
+        } catch {
+            print("Error: \(error.localizedDescription)")
+        }
+    }
+    task.resume()
   }
 
   /**
@@ -148,7 +194,7 @@ class QRZManager: NSObject {
 
   func requestQRZInformation(callSign: String, frequency: String) {
 
-    recordKey = "Callsign"
+    //recordKey = "Callsign"
     sessionDictionary = [String: String]()
     dictionaryKeys = Set<String>(["call", "country", "lat", "lon", "grid", "lotw", "aliases", "Error"])
 
@@ -173,8 +219,8 @@ class QRZManager: NSObject {
           let parser = XMLParser(data: data)
           parser.delegate = self
 
-          let stringValue = String(decoding: data, as: UTF8.self)
-          print("DATA: \(stringValue)")
+          //let stringValue = String(decoding: data, as: UTF8.self)
+          //print("DATA: \(stringValue)")
 
           if parser.parse() {
             if self.results != nil {
@@ -224,8 +270,10 @@ class QRZManager: NSObject {
 
     qrZedInfo = QRZInfo()
 
+    logger.info("populateQRZInfo")
     // need to check if dictionary is empty
     if sessionDictionary.isEmpty {
+      logger.info("dictionary is empty")
       return
     }
 
