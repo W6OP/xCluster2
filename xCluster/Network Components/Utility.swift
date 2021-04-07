@@ -86,19 +86,20 @@ extension QRZManager: XMLParserDelegate {
       if sessionKey == nil { // can check here for Error node
         sessionDictionary = [:]
       }
-      print("Here 2.1s")
-      print("Input (name:key): \(elementName) : \(sessionKeyName) ")
+      //print("Here 2.1s")
+      //print("Input (name:key): \(elementName) : \(sessionKeyName) ")
     case recordKeyName:
-      sessionDictionary = [:]
-      print("Here 2.1r")
+      //sessionDictionary = [:]
+      callSignDictionary = [:]
+      //print("Here 2.1r")
       //print("Input (name:key): \(elementName) : \(recordKeyName)")
-    case "Error":
+    case errorKeyName:
         logger.info("Parser error: \(self.currentValue)")
     default:
       //print("default (name:key): \(elementName)")
       if dictionaryKeys.contains(elementName) {
-        print("Here 1.1")
-        print("default (name:key): \(elementName)")
+        //print("Here 1.1")
+        //print("default (name:key): \(elementName)")
         currentValue = ""
       }
     }
@@ -136,21 +137,21 @@ extension QRZManager: XMLParserDelegate {
     switch elementName {
     case sessionKeyName:
       // don't seem to need this
-      //print("Here 2s")
+      print("Here 2s - was this an error?")
       //results!.append(sessionDictionary!)
-      break
+      //break
     case recordKeyName:
-      print("Here 2r")
-      results!.append(sessionDictionary!)
-    case "Error":
+      //print("Here 2r")
+      results!.append(callSignDictionary!)
+    case errorKeyName:
         logger.info("Error: \(self.currentValue)")
     default:
       if dictionaryKeys.contains(elementName) {
-        //print("Here 1: \(elementName):\(currentValue)")
-        print("Here 1")
+          callSignDictionary[elementName] = currentValue
+      } else if sessionDictionaryKeys.contains(elementName) {
         sessionDictionary[elementName] = currentValue
-        currentValue = ""
       }
+      currentValue = ""
     }
 
     //    if sessionDictionary != nil {
@@ -173,11 +174,11 @@ extension QRZManager: XMLParserDelegate {
 
   func parserDidEndDocument(_ parser: XMLParser) {
 
-        if sessionDictionary != nil {
-          if sessionDictionary.isEmpty {
-            logger.info("dictionary is empty 1")
-          }
-        }
+//        if sessionDictionary != nil {
+//          if sessionDictionary.isEmpty {
+//            logger.info("dictionary is empty 1")
+//          }
+//        }
 
     //if sessionKey != nil {
       logger.info("Parsing completed.")
@@ -191,7 +192,9 @@ extension QRZManager: XMLParserDelegate {
 
     logger.info("parser failed: \(parseError as NSObject)")
     currentValue = ""
+    // probably needs refinement
     sessionDictionary = nil
+    callSignDictionary = nil
     results = nil
   }
 }

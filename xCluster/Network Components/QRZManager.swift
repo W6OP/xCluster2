@@ -42,10 +42,14 @@ class QRZManager: NSObject {
   // a few variables to hold the results as we parse the XML
   let sessionKeyName = "Session"
   let recordKeyName = "Callsign"
-  var dictionaryKeys = Set<String>(["Key", "Count", "SubExp", "GMTime", "Remark"])
+  let errorKeyName = "Error"
+
+  let dictionaryKeys = Set<String>(["call", "country", "lat", "lon", "grid", "lotw", "aliases", "Error"])
+  let sessionDictionaryKeys = Set<String>(["Key", "Count", "SubExp", "GMTime", "Remark"])
   var results: [[String: String]]?         // the whole array of dictionaries
   var results2: QRZInfo!
-  var sessionDictionary: [String: String]! // the current dictionary
+  var sessionDictionary: [String: String]! // the current session dictionary
+  var callSignDictionary: [String: String]! // the current call sign dictionary
   var currentValue = ""
   var locationDictionary: (spotter: [String: String], dx: [String: String])!
 
@@ -94,7 +98,8 @@ class QRZManager: NSObject {
 
     logger.info("Request Session Key.")
 
-    dictionaryKeys = Set<String>(["Key", "Count", "SubExp", "GMTime", "Remark"])
+    sessionDictionary = [String: String]()
+    //dictionaryKeys = Set<String>(["Key", "Count", "SubExp", "GMTime", "Remark"])
 
     // this dies if session key is missing
     guard let url = URL(string: "https://xmldata.qrz.com/xml/current/?username=\(name);password=\(password);xCluster=1.0") else {
@@ -122,7 +127,7 @@ class QRZManager: NSObject {
 
           if parser.parse() {
             if self.results != nil {
-              self.sessionKey = self.sessionDictionary?["Key"]?.trimmingCharacters(in: .whitespaces)
+              self.sessionKey = self.sessionDictionary?["Key"]?.trimmingCharacters(in: .whitespacesAndNewlines)
               self.haveSessionKey = true
               self.qrZedManagerDelegate?.qrzManagerDidGetSessionKey(self, messageKey: .session, haveSessionKey: true)
               //print("Session Key: \(sessionKey)")
@@ -195,8 +200,9 @@ class QRZManager: NSObject {
   func requestQRZInformation(callSign: String, frequency: String) {
 
     //recordKey = "Callsign"
-    sessionDictionary = [String: String]()
-    dictionaryKeys = Set<String>(["call", "country", "lat", "lon", "grid", "lotw", "aliases", "Error"])
+    //sessionDictionary = [String: String]()
+    callSignDictionary = [String: String]()
+    //dictionaryKeys = Set<String>(["call", "country", "lat", "lon", "grid", "lotw", "aliases", "Error"])
 
     // this dies if session key is missing
     guard let url = URL(string: "https://xmldata.qrz.com/xml/current/?s=\(String(self.sessionKey));callsign=\(callSign)") else {
@@ -272,12 +278,12 @@ class QRZManager: NSObject {
 
     logger.info("populateQRZInfo")
     // need to check if dictionary is empty
-    if sessionDictionary.isEmpty {
-      logger.info("dictionary is empty")
+    if callSignDictionary.isEmpty {
+      logger.info("callSignDictionary is empty")
       return
     }
 
-    qrZedInfo.call = sessionDictionary["call"] ?? ""
+    qrZedInfo.call = callSignDictionary["call"] ?? ""
 
     //qrzInfo.call = ("\(qrzInfo.call)/W5") // for debug
     // IF THERE IS A PREFIX OR SUFFIX CALL CALL PARSER AND SKIP SOME OF THIS
@@ -288,14 +294,14 @@ class QRZManager: NSObject {
         qrZedInfo = populateQRZInfo(hitList: hitList)
       }
     } else {
-      qrZedInfo.latitude = Double(sessionDictionary["lat"] ?? "0.0") ?? 00
+      qrZedInfo.latitude = Double(callSignDictionary["lat"] ?? "0.0") ?? 00
       if qrZedInfo.latitude == 00 {
         qrZedInfo.error = true
         //print("latitude error: \(qrZedInfo.call)")
         logger.info("Latitude error: \(self.qrZedInfo.call)")
       }
 
-      qrZedInfo.longitude = Double(sessionDictionary["lon"] ?? "0.0") ?? 00
+      qrZedInfo.longitude = Double(callSignDictionary["lon"] ?? "0.0") ?? 00
       if qrZedInfo.longitude == 00 {
         qrZedInfo.error = true
         //print("longitude error: \(qrZedInfo.call)")
@@ -303,10 +309,10 @@ class QRZManager: NSObject {
       }
 
       // if there is a prefix or suffix I need to find correct country and lat/lon
-      qrZedInfo.country = sessionDictionary["country"] ?? ""
-      qrZedInfo.grid = sessionDictionary["grid"] ?? ""
-      qrZedInfo.lotw = Bool(sessionDictionary["lotw"] ?? "0") ?? false
-      qrZedInfo.aliases = sessionDictionary["aliases"] ?? ""
+      qrZedInfo.country = callSignDictionary["country"] ?? ""
+      qrZedInfo.grid = callSignDictionary["grid"] ?? ""
+      qrZedInfo.lotw = Bool(callSignDictionary["lotw"] ?? "0") ?? false
+      qrZedInfo.aliases = callSignDictionary["aliases"] ?? ""
     }
 
     // add to call sign cache
