@@ -35,7 +35,7 @@ struct MapView: NSViewRepresentable {
         mapView.addOverlay(overlay)
       } else {
         mapView.removeOverlay(overlay)
-        print("overlay removed")
+        //print("overlay removed")
       }
 
     }

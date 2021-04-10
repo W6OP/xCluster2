@@ -308,6 +308,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   }
 
   func getQRZSessionKey() {
+    logger.info("Get session key.")
     self.qrzManager.requestSessionKey(name: self.qrzUserName, password: self.qrzPassword)
   }
 
@@ -430,7 +431,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
           }
         }
 
-        logger.info("Duplicate spot.")
+        //logger.info("Duplicate spot.")
         return
       }
 
@@ -443,16 +444,18 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
           self!.qrzManager.getConsolidatedQRZInformation(spotterCall: spot.spotter,
                                 dxCall: spot.dxStation, frequency: spot.frequency)
         }
+      } else {
+        getQRZSessionKey()
       }
 
       DispatchQueue.main.async { [self] in
         if spots.count > maxNumberOfSpots {
           spots.removeLast()
-          logger.info("Spot removed: \(spot.dxStation)")
+          //logger.info("Spot removed: \(spot.dxStation)")
         }
       }
     } catch {
-      print("Error: \(error)")
+      print("parseClusterSpot error: \(error)")
       logger.info("Controller Error: \(error as NSObject)")
       return
     }
@@ -720,16 +723,19 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
    */
   func buildMapLines(qrzInfoCombined: QRZInfoCombined) {
 
-    if qrzInfoCombined.error {return}
+    if qrzInfoCombined.error {
+      logger.info("QRZ error: \(qrzInfoCombined.spotterCall):\(qrzInfoCombined.dxCall)")
+      return
+    }
 
     let locations = [
       CLLocationCoordinate2D(latitude: qrzInfoCombined.spotterLatitude, longitude: qrzInfoCombined.spotterLongitude),
       CLLocationCoordinate2D(latitude: qrzInfoCombined.dxLatitude, longitude: qrzInfoCombined.dxLongitude)]
 
     let polyline = MKGeodesicPolyline(coordinates: locations, count: locations.count)
+
     polyline.title = String(qrzInfoCombined.band)
-    polyline.subtitle = qrzInfoCombined.dxCall //  buildSubTitleArray(info: qrzInfoCombined)
-    //polyline.tag = false
+    polyline.subtitle = buildSubTitleArray(qrzInfoCombined: qrzInfoCombined) // qrzInfoCombined.dxCall //
 
     DispatchQueue.main.async { [self] in
       if bandFilters[qrzInfoCombined.band] != nil {
@@ -750,10 +756,23 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   /// Build a string to hold information to be split into an array.
   /// - Parameter info: combined QRZ information.
   /// - Returns: string representation of array.
-  func buildSubTitleArray(info: QRZInfoCombined) -> String {
-    return String(info.band) + ":" + info.dxCall + ":" + info.dxGrid + ":" + String(info.expired)
+  func buildSubTitleArray(qrzInfoCombined: QRZInfoCombined) -> String {
+
+    let encoder = JSONEncoder()
+    guard let data = try? encoder.encode(qrzInfoCombined) else { return "" }
+    print(String(data: data, encoding: .utf8) ?? "")
+    return  String(data: data, encoding: .utf8) ?? ""
+//    do {
+//        let jsonData = try JSONSerialization ...
+//        //all fine with jsonData here
+//    } catch {
+//        //handle error
+//        print(error)
+//    }
   }
 
+  /// Remove lines that don't match a selected band.
+  /// - Parameter band: band number
   func filterMapLinesByBand(band: Int) {
     DispatchQueue.main.async {
       self.overlays = self.overlays.filter {$0.title != String(band)}
@@ -761,16 +780,16 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   }
 
   /// Remove lines that don't match a selected band.
-  func filterMapLinesByBand() {
-    for polyLine in self.overlays {
-      guard let band = Int(polyLine.title ?? "0") else { return }
-      if bandFilters[band] == nil {
-        DispatchQueue.main.async {
-          self.overlays = self.overlays.filter {$0.title != String(band)}
-        }
-      }
-    }
-  }
+//  func filterMapLinesByBand() {
+//    for polyLine in self.overlays {
+//      guard let band = Int(polyLine.title ?? "0") else { return }
+//      if bandFilters[band] == nil {
+//        DispatchQueue.main.async {
+//          self.overlays = self.overlays.filter {$0.title != String(band)}
+//        }
+//      }
+//    }
+//  }
 
 } // end class
 

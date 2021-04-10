@@ -20,6 +20,12 @@ protocol QRZManagerDelegate: class {
   func qrzManagerDidGetCallSignData(_ qrzManager: QRZManager, messageKey: QRZManagerMessage, qrzInfoCombined: QRZInfoCombined)
 }
 
+public enum KeyName: String {
+  case errorKeyName = "Error"
+  case sessionKeyName = "Session"
+  case recordKeyName = "Callsign"
+}
+
 class QRZManager: NSObject {
 
   private let serialQRZProcessorQueue =
@@ -39,12 +45,18 @@ class QRZManager: NSObject {
   var sessionKey: String!
   var haveSessionKey: Bool = false
 
-  // a few variables to hold the results as we parse the XML
-  let sessionKeyName = "Session"
-  let recordKeyName = "Callsign"
-  let errorKeyName = "Error"
+  var qrzUserName = ""
+  var qrzPassword = ""
 
-  let dictionaryKeys = Set<String>(["call", "country", "lat", "lon", "grid", "lotw", "aliases", "Error"])
+  // a few variables to hold the results as we parse the XML
+  //let sessionKeyName = "Session"
+  //let recordKeyName = "Callsign"
+  //let errorKeyName = "Error"
+
+  var temp = [String]()
+  var temp2 = [String]()
+
+  let callSignDictionaryKeys = Set<String>(["call", "country", "lat", "lon", "grid", "lotw", "aliases", "Error"])
   let sessionDictionaryKeys = Set<String>(["Key", "Count", "SubExp", "GMTime", "Remark"])
   var results: [[String: String]]?         // the whole array of dictionaries
   var results2: QRZInfo!
@@ -68,38 +80,18 @@ class QRZManager: NSObject {
 
   // MARK: - Network Implementation
 
-  /**
-   Get a Session Key from QRZ.com.
-   - parameters:
-   - name: logon name with xml plan.
-   - password: password for account.
-   */
-//  func parseQRZSessionKeyRequest(name: String, password: String) {
-//
-//    logger.info("Request Session Key.")
-//
-//    //recordKey = "Session"
-//    dictionaryKeys = Set<String>(["Key", "Count", "SubExp", "GMTime", "Remark"])
-//
-//    let urlString = URL(string: "https://xmldata.qrz.com/xml/current/?username=\(name);password=\(password);xCluster=1.0")
-//
-//    let parser = XMLParser(contentsOf: urlString!)!
-//
-//    parser.delegate = self
-//    if parser.parse() {
-//      print(self.results ?? "No results")
-//      self.sessionKey = self.sessionDictionary?["Key"]?.trimmingCharacters(in: .whitespaces)
-//      self.haveSessionKey = true
-//      self.qrZedManagerDelegate?.qrzManagerDidGetSessionKey(self, messageKey: .session, haveSessionKey: true)
-//    }
-//  }
-
+  /// Get a Session Key from QRZ.com.
+  /// - Parameters:
+  ///   - name: logon name with xml plan.
+  ///   - password: password for account.
   func requestSessionKey(name: String, password: String) {
 
     logger.info("Request Session Key.")
 
+    qrzUserName = name
+    qrzPassword = password
+
     sessionDictionary = [String: String]()
-    //dictionaryKeys = Set<String>(["Key", "Count", "SubExp", "GMTime", "Remark"])
 
     // this dies if session key is missing
     guard let url = URL(string: "https://xmldata.qrz.com/xml/current/?username=\(name);password=\(password);xCluster=1.0") else {
@@ -127,14 +119,14 @@ class QRZManager: NSObject {
 
           if parser.parse() {
             if self.results != nil {
-              self.sessionKey = self.sessionDictionary?["Key"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+              self.sessionKey = self.sessionDictionary?["Key"]
+              //?.trimmingCharacters(in: .whitespacesAndNewlines)
               self.haveSessionKey = true
               self.qrZedManagerDelegate?.qrzManagerDidGetSessionKey(self, messageKey: .session, haveSessionKey: true)
-              //print("Session Key: \(sessionKey)")
             }
           }
         } catch {
-            print("Error: \(error.localizedDescription)")
+            print("requestSessionKey Error: \(error.localizedDescription)")
         }
     }
     task.resume()
@@ -147,13 +139,11 @@ class QRZManager: NSObject {
    - dxCall: second of a pair call signs to look up.
    */
   func getConsolidatedQRZInformation(spotterCall: String, dxCall: String, frequency: String) {
-
-    //logger.info("Request QRZ Information: \(spotterCall):\(dxCall)")
-
     serialQRZProcessorQueue.sync(flags: .barrier) { [weak self] in
       self?.requestQRZInformation(callSign: spotterCall, frequency: frequency)
       self?.requestQRZInformation(callSign: dxCall, frequency: frequency)
     }
+    //print("getConsolidatedQRZInformation: \(spotterCall):\(dxCall)")
   }
 
   /**
@@ -161,58 +151,39 @@ class QRZManager: NSObject {
    - parameters:
    - call: call sign to look up.
    */
-//  func parseQRZData(callSign: String, frequency: String) {
-//
-//    recordKey = "Callsign"
-//    sessionDictionary = [String: String]()
-//    dictionaryKeys = Set<String>(["call", "country", "lat", "lon", "grid", "lotw", "aliases"])
-//
-//    // this dies if session key is missing
-//    guard let url = URL(string: "https://xmldata.qrz.com/xml/current/?s=\(String(self.sessionKey));callsign=\(callSign)") else {
-//      logger.info("Invalid call sign: \(callSign)")
-//      return
-//    }
-//
-//    // first check to see if I have the info cached already
-//    if let qrzInfo = qrZedCallSignCache[callSign] {
-//      combineQRZInfo(qrzInfo: qrzInfo, frequency: frequency)
-//    } else {
-//      logger.info("Call QRZ.com")
-//      let parser = XMLParser(contentsOf: url)!
-//
-//      parser.delegate = self
-//      if parser.parse() {
-//        if self.results != nil {
-//          if qrZedCallSignPair.count > 1 {
-//            qrZedCallSignPair.removeAll()
-//          }
-//          //print("Current: \(self.results)")
-//          populateQRZInfo(frequency: frequency)
-//        } else {
-//          // we did not get one or more hits
-//          // will move this to CallParser and call it there
-//          logger.info("Use CallParser: \(callSign)") // above I think
-//        }
-//      }
-//    }
-//  }
 
+  /// Request all the call information from QRZ.com.
+  /// - Parameters:
+  ///   - callSign: call sign to look up.
+  ///   - frequency: frequency to pass on.
   func requestQRZInformation(callSign: String, frequency: String) {
 
-    //recordKey = "Callsign"
-    //sessionDictionary = [String: String]()
+    var call: String
+
     callSignDictionary = [String: String]()
-    //dictionaryKeys = Set<String>(["call", "country", "lat", "lon", "grid", "lotw", "aliases", "Error"])
+    callSignDictionary["Error"] = nil
+
+    if haveSessionKey == false {
+      requestSessionKey(name: qrzUserName, password: qrzPassword)
+      return
+    }
+
+    // clean the call sign w6op-@
+    if callSign.contains("-") {
+      call = String(callSign.split(separator: "-").dropLast()[0])
+    } else {
+      call = callSign
+    }
 
     // this dies if session key is missing
-    guard let url = URL(string: "https://xmldata.qrz.com/xml/current/?s=\(String(self.sessionKey));callsign=\(callSign)") else {
-      logger.info("Invalid call sign: \(callSign)")
+    guard let url = URL(string: "https://xmldata.qrz.com/xml/current/?s=\(String(self.sessionKey));callsign=\(call)") else {
+      logger.info("Session key is invalid: \(self.sessionKey)")
       return
     }
 
     let task = URLSession.shared.dataTask(with: url) { [self] data, response, error in
         if let error = error {
-            fatalError("Error: \(error.localizedDescription)")
+            fatalError("Error 1: \(error.localizedDescription)")
         }
         guard let response = response as? HTTPURLResponse, response.statusCode == 200 else {
             fatalError("Error: invalid HTTP response code")
@@ -233,7 +204,6 @@ class QRZManager: NSObject {
               if qrZedCallSignPair.count > 1 {
                 qrZedCallSignPair.removeAll()
               }
-              //print("Current: \(self.results)")
               populateQRZInfo(frequency: frequency)
             } else {
               // we did not get one or more hits
@@ -242,32 +212,12 @@ class QRZManager: NSObject {
             }
           }
         } catch {
-            print("Error: \(error.localizedDescription)")
+            print("requestQRZInformation Error: \(error.localizedDescription)")
         }
     }
     task.resume()
 
   }
-
-//  func requestQRZInformation(completionHandler: @escaping (String?, String?, Error?) -> Void) {
-//      let url = URL(string: "http://localhost/jazler/NowOnAir.xml")!
-//      let task = URLSession.shared.dataTask(with: url) { data, _, error in
-//          guard let data = data, error == nil else {
-//              DispatchQueue.main.async {
-//                  completionHandler(nil, nil, error)
-//              }
-//              return
-//          }
-//
-//          let parser = XMLParser(data: data)
-//          print("Data: \(data)")
-//          parser.delegate = self
-////          DispatchQueue.main.async {
-////              completionHandler(delegate.song, delegate.artist, parser.parserError)
-////          }
-//      }
-//      task.resume()
-//  }
 
   /// Populate the qrzInfo with latitude, longitude, etc. If there is a pair
   /// send them to the view controller for a line to be drawn.
@@ -285,10 +235,33 @@ class QRZManager: NSObject {
 
     qrZedInfo.call = callSignDictionary["call"] ?? ""
 
+    if callSignDictionary[KeyName.errorKeyName.rawValue] != nil {
+      print("CallSignDictionary not found: \(callSignDictionary["Error"])")
+
+      let error = callSignDictionary["Error"]
+      if let range = error!.range(of: "found: ") {
+        let callSign = error![range.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
+        logger.info("Use callparser \(callSign)")
+        let hitList: [Hit] = callLookup.lookupCall(call: callSign)
+        if !hitList.isEmpty {
+          temp2.append(callSign)
+          logger.info("Use callparser success \(callSign)")
+          qrZedInfo = populateQRZInfo(hitList: hitList)
+        } else {
+          temp.append(callSign)
+        }
+      }
+      //let callSign = callSignDictionary["Error"].sub
+      // use callLookup
+    } //else {
+      //print("CallSignDictionary good: \(callSignDictionary["call"])")
+    //}
+
     //qrzInfo.call = ("\(qrzInfo.call)/W5") // for debug
     // IF THERE IS A PREFIX OR SUFFIX CALL CALL PARSER AND SKIP SOME OF THIS
     // ALSO IF WE DON'T GET ANYTHING from QRZ
     if qrZedInfo.call.contains("/") { // process it
+      logger.info("Use callparser \(self.qrZedInfo.call)")
       let hitList: [Hit] = callLookup.lookupCall(call: qrZedInfo.call)
       if !hitList.isEmpty {
         qrZedInfo = populateQRZInfo(hitList: hitList)
@@ -297,14 +270,12 @@ class QRZManager: NSObject {
       qrZedInfo.latitude = Double(callSignDictionary["lat"] ?? "0.0") ?? 00
       if qrZedInfo.latitude == 00 {
         qrZedInfo.error = true
-        //print("latitude error: \(qrZedInfo.call)")
         logger.info("Latitude error: \(self.qrZedInfo.call)")
       }
 
       qrZedInfo.longitude = Double(callSignDictionary["lon"] ?? "0.0") ?? 00
       if qrZedInfo.longitude == 00 {
         qrZedInfo.error = true
-        //print("longitude error: \(qrZedInfo.call)")
         logger.info("Longitude error: \(self.qrZedInfo.call)")
       }
 
@@ -341,7 +312,7 @@ class QRZManager: NSObject {
       qrZedInfo.latitude = longitude
     }
 
-    print("hit: \(qrZedInfo.call)")
+    //print("hit: \(qrZedInfo.call)")
 
     return qrZedInfo
   }
@@ -361,6 +332,7 @@ class QRZManager: NSObject {
       var qrzInfoCombined = QRZInfoCombined()
 
       qrzInfoCombined.setFrequency(frequency: frequency)
+      qrzInfoCombined.setDateTimeUTC()
 
       qrzInfoCombined.spotterCall = qrzCallSignPairCopy[0].call
       qrzInfoCombined.spotterCountry = qrzCallSignPairCopy[0].country

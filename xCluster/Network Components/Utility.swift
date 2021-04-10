@@ -72,6 +72,7 @@ extension QRZManager: XMLParserDelegate {
   //let logger = Logger(subsystem: "com.w6op.xCluster", category: "Controller")
   // initialize results structure
   func parserDidStartDocument(_ parser: XMLParser) {
+    logger.info("Parsing started.")
     results = []
   }
 
@@ -82,42 +83,21 @@ extension QRZManager: XMLParserDelegate {
   func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String: String]) {
 
     switch elementName {
-    case sessionKeyName:
-      if sessionKey == nil { // can check here for Error node
+    case KeyName.sessionKeyName.rawValue:
+      if sessionKey == nil {
         sessionDictionary = [:]
+      } else {
+        //print("didStartElement: \(elementName)")
       }
-      //print("Here 2.1s")
-      //print("Input (name:key): \(elementName) : \(sessionKeyName) ")
-    case recordKeyName:
-      //sessionDictionary = [:]
+    case KeyName.recordKeyName.rawValue:
       callSignDictionary = [:]
-      //print("Here 2.1r")
-      //print("Input (name:key): \(elementName) : \(recordKeyName)")
-    case errorKeyName:
-        logger.info("Parser error: \(self.currentValue)")
+    case KeyName.errorKeyName.rawValue:
+      logger.info("Parser error: \(elementName):\(self.currentValue)")
     default:
-      //print("default (name:key): \(elementName)")
-      if dictionaryKeys.contains(elementName) {
-        //print("Here 1.1")
-        //print("default (name:key): \(elementName)")
+      if callSignDictionaryKeys.contains(elementName) {
         currentValue = ""
       }
     }
-
-//    if sessionDictionary != nil {
-//      if sessionDictionary.isEmpty {
-//        logger.info("dictionary is empty 1")
-//      }
-//    }
-
-    //print ("Input (name:key): \(elementName) : \(recordKey)")
-//    if elementName == recordKeyName || elementName == sessionKeyName {
-//      sessionDictionary = [:]
-//    } else if elementName == "Error" {
-//      logger.info("Parser error: \(self.currentValue)")
-//    } else if dictionaryKeys.contains(elementName) {
-//      currentValue = ""
-//    }
   }
 
   // found characters
@@ -135,63 +115,40 @@ extension QRZManager: XMLParserDelegate {
   func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?) {
 
     switch elementName {
-    case sessionKeyName:
+    case KeyName.sessionKeyName.rawValue:
       // don't seem to need this
-      print("Here 2s - was this an error?")
-      //results!.append(sessionDictionary!)
-      //break
-    case recordKeyName:
-      //print("Here 2r")
+      //print("Here 2s - was this an error? \(elementName)")
+      break
+    case KeyName.recordKeyName.rawValue:
       results!.append(callSignDictionary!)
-    case errorKeyName:
-        logger.info("Error: \(self.currentValue)")
+    case KeyName.errorKeyName.rawValue:
+        logger.info("didEndElement Error: \(self.currentValue)")
+        callSignDictionary = [:]
+        callSignDictionary[elementName] = currentValue.trimmingCharacters(in: .whitespacesAndNewlines)
+      if currentValue.contains("Session Timeout") {
+        // abort this and request a session key
+        sessionKey = nil
+        haveSessionKey = false
+      }
     default:
-      if dictionaryKeys.contains(elementName) {
-          callSignDictionary[elementName] = currentValue
+      if callSignDictionaryKeys.contains(elementName) {
+          callSignDictionary[elementName] = currentValue.trimmingCharacters(in: .whitespacesAndNewlines)
       } else if sessionDictionaryKeys.contains(elementName) {
-        sessionDictionary[elementName] = currentValue
+        sessionDictionary[elementName] = currentValue.trimmingCharacters(in: .whitespacesAndNewlines)
       }
       currentValue = ""
     }
-
-    //    if sessionDictionary != nil {
-    //      if sessionDictionary.isEmpty {
-    //        logger.info("dictionary is empty 1")
-    //      }
-    //    }
-
-//    if elementName == recordKeyName || elementName == sessionKeyName {
-//      results!.append(sessionDictionary!)
-//    } else if dictionaryKeys.contains(elementName) {
-//      //logger.info("Append: \(self.currentValue)")
-//      sessionDictionary![elementName] = currentValue
-//      currentValue = ""
-//    } else if elementName == "Error" {
-//      logger.info("Error: \(self.currentValue)")
-//    }
   }
-  // _url  NSURL?  "https://xmldata.qrz.com/xml/current/?s=e4675463761647d33756d50270a0aef2;callsign=IQ7EY/7"  0x0000600001b16380
 
   func parserDidEndDocument(_ parser: XMLParser) {
-
-//        if sessionDictionary != nil {
-//          if sessionDictionary.isEmpty {
-//            logger.info("dictionary is empty 1")
-//          }
-//        }
-
-    //if sessionKey != nil {
       logger.info("Parsing completed.")
-//    } else {
-//      logger.info("Parsing completed - session key is nil")
-//    }
   }
 
   // Just in case, if there's an error, report it. (We don't want to fly blind here.)
   func parser(_ parser: XMLParser, parseErrorOccurred parseError: Error) {
-
     logger.info("parser failed: \(parseError as NSObject)")
     currentValue = ""
+
     // probably needs refinement
     sessionDictionary = nil
     callSignDictionary = nil
@@ -274,7 +231,7 @@ struct QRZInfo {
   var error = false
 }
 
-struct QRZInfoCombined {
+struct QRZInfoCombined: Encodable {
   var spotterCall = ""
   var spotterCountry = ""
   var spotterLatitude: Double = 00
@@ -298,10 +255,17 @@ struct QRZInfoCombined {
   var band = 0
   var mode = ""
 
-//  init() {
-//    self.identifier = UUID().uuidString
-//  }
+  var dateTime = "" // make this UTC
 
+  mutating func setDateTimeUTC() {
+    // The default timeZone for ISO8601DateFormatter is UTC
+    let utcISODateFormatter = ISO8601DateFormatter()
+
+    // Printing a Date
+    let date = Date()
+    dateTime = utcISODateFormatter.string(from: date)
+    //print(utcISODateFormatter.string(from: date))
+  }
   // need to convert 3.593.4 to 3.5934
   mutating func setFrequency(frequency: String) {
     self.frequency = frequency
