@@ -138,10 +138,10 @@ class QRZManager: NSObject {
    - spotterCall: first of a pair call signs to look up.
    - dxCall: second of a pair call signs to look up.
    */
-  func getConsolidatedQRZInformation(spotterCall: String, dxCall: String, frequency: String) {
+  func getConsolidatedQRZInformation(spotterCall: String, dxCall: String, frequency: String, spotId: String) {
     serialQRZProcessorQueue.sync(flags: .barrier) { [weak self] in
-      self?.requestQRZInformation(callSign: spotterCall, frequency: frequency)
-      self?.requestQRZInformation(callSign: dxCall, frequency: frequency)
+      self?.requestQRZInformation(callSign: spotterCall, frequency: frequency, spotId: spotId)
+      self?.requestQRZInformation(callSign: dxCall, frequency: frequency, spotId: spotId)
     }
     //print("getConsolidatedQRZInformation: \(spotterCall):\(dxCall)")
   }
@@ -156,7 +156,7 @@ class QRZManager: NSObject {
   /// - Parameters:
   ///   - callSign: call sign to look up.
   ///   - frequency: frequency to pass on.
-  func requestQRZInformation(callSign: String, frequency: String) {
+  func requestQRZInformation(callSign: String, frequency: String, spotId: String) {
 
     var call: String
 
@@ -204,7 +204,7 @@ class QRZManager: NSObject {
               if qrZedCallSignPair.count > 1 {
                 qrZedCallSignPair.removeAll()
               }
-              populateQRZInfo(frequency: frequency)
+              populateQRZInfo(frequency: frequency, spotId: spotId)
             } else {
               // we did not get one or more hits
               // will move this to CallParser and call it there
@@ -222,7 +222,7 @@ class QRZManager: NSObject {
   /// Populate the qrzInfo with latitude, longitude, etc. If there is a pair
   /// send them to the view controller for a line to be drawn.
   /// - Parameter frequency: frequency represented as a string
-  func populateQRZInfo(frequency: String) {
+  func populateQRZInfo(frequency: String, spotId: String) {
 
     qrZedInfo = QRZInfo()
 
@@ -234,6 +234,7 @@ class QRZManager: NSObject {
     }
 
     qrZedInfo.call = callSignDictionary["call"] ?? ""
+    qrZedInfo.spotId = spotId
 
     if callSignDictionary[KeyName.errorKeyName.rawValue] != nil {
       print("CallSignDictionary not found: \(callSignDictionary["Error"])")
@@ -247,6 +248,9 @@ class QRZManager: NSObject {
           temp2.append(callSign)
           logger.info("Use callparser success \(callSign)")
           qrZedInfo = populateQRZInfo(hitList: hitList)
+          // check if these are necessary
+          //qrZedInfo.call = callSignDictionary["call"] ?? ""
+          qrZedInfo.spotId = spotId
         } else {
           temp.append(callSign)
         }
@@ -265,6 +269,9 @@ class QRZManager: NSObject {
       let hitList: [Hit] = callLookup.lookupCall(call: qrZedInfo.call)
       if !hitList.isEmpty {
         qrZedInfo = populateQRZInfo(hitList: hitList)
+        // check if these are necessary
+        //qrZedInfo.call = callSignDictionary["call"] ?? ""
+        qrZedInfo.spotId = spotId
       }
     } else {
       qrZedInfo.latitude = Double(callSignDictionary["lat"] ?? "0.0") ?? 00
@@ -332,7 +339,6 @@ class QRZManager: NSObject {
       var qrzInfoCombined = QRZInfoCombined()
 
       qrzInfoCombined.setFrequency(frequency: frequency)
-      qrzInfoCombined.setDateTimeUTC()
 
       qrzInfoCombined.spotterCall = qrzCallSignPairCopy[0].call
       qrzInfoCombined.spotterCountry = qrzCallSignPairCopy[0].country
@@ -340,6 +346,7 @@ class QRZManager: NSObject {
       qrzInfoCombined.spotterLongitude = qrzCallSignPairCopy[0].longitude
       qrzInfoCombined.spotterGrid = qrzCallSignPairCopy[0].grid
       qrzInfoCombined.spotterLotw = qrzCallSignPairCopy[0].lotw
+      qrzInfoCombined.spotId = qrzCallSignPairCopy[0].spotId
       qrzInfoCombined.error = qrzCallSignPairCopy[0].error
 
       qrzInfoCombined.dxCall = qrzCallSignPairCopy[1].call

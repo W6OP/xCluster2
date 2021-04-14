@@ -229,9 +229,10 @@ struct QRZInfo {
   var grid = ""
   var lotw = false
   var error = false
+  var spotId = "9999"
 }
 
-struct QRZInfoCombined: Encodable {
+struct QRZInfoCombined: Codable {
   var spotterCall = ""
   var spotterCountry = ""
   var spotterLatitude: Double = 00
@@ -255,17 +256,23 @@ struct QRZInfoCombined: Encodable {
   var band = 0
   var mode = ""
 
+  var spotId = "9999"
+
   var dateTime = "" // make this UTC
 
+  init() {
+    setDateTimeUTC()
+  }
+
+  /// Set the UTC time the object was created "2021-04-10T22:03:59Z"
   mutating func setDateTimeUTC() {
     // The default timeZone for ISO8601DateFormatter is UTC
     let utcISODateFormatter = ISO8601DateFormatter()
 
-    // Printing a Date
     let date = Date()
     dateTime = utcISODateFormatter.string(from: date)
-    //print(utcISODateFormatter.string(from: date))
   }
+
   // need to convert 3.593.4 to 3.5934
   mutating func setFrequency(frequency: String) {
     self.frequency = frequency
@@ -274,7 +281,6 @@ struct QRZInfoCombined: Encodable {
   }
 
   static func formatFrequency(frequency: String) -> Float {
-
     let components = frequency.trimmingCharacters(in: .whitespaces).components(separatedBy: ".")
     var suffix = ""
 
@@ -292,7 +298,6 @@ struct QRZInfoCombined: Encodable {
   }
 
   static func setBand(frequency: Float) -> Int {
-
     switch frequency {
     case 1.8...2.0:
       return 160

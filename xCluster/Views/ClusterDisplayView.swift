@@ -98,7 +98,7 @@ struct SpotRow: View {
         Text(spot.spotter)
           .frame(minWidth: 75, alignment: .leading)
           .border(width: 1, edges: [.trailing], color: .gray)
-        Text(spot.dateTime)
+        Text(spot.timeUTC)
           .frame(minWidth: 60, alignment: .leading)
           .border(width: 1, edges: [.trailing], color: .gray)
         Text(spot.comment)

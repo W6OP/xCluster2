@@ -32,6 +32,7 @@ struct MapView: NSViewRepresentable {
 
     for overlay in overlays {
       if overlay.subtitle != "expired" {
+        // NEED TO LOOK AT JSON
         mapView.addOverlay(overlay)
       } else {
         mapView.removeOverlay(overlay)
@@ -40,8 +41,8 @@ struct MapView: NSViewRepresentable {
 
     }
 
-    print("mapview: \(mapView.overlays.count)")
-    print("overlays: \(overlays.count)")
+    //print("mapview: \(mapView.overlays.count)")
+    //print("overlays: \(overlays.count)")
   }
 
   func makeCoordinator() -> Coordinator {
