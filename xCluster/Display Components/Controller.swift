@@ -14,7 +14,7 @@ import os
 
 // MARK: - ClusterSpots
 
-struct ClusterSpot: Identifiable, Hashable, Encodable {
+struct ClusterSpot: Identifiable, Hashable {
   var id: String
   var dxStation: String
   var frequency: String
@@ -24,6 +24,7 @@ struct ClusterSpot: Identifiable, Hashable, Encodable {
   var comment: String
   var grid: String
   var filtered: Bool
+  var overlay: MKPolyline!
 }
 
 struct ConnectedCluster: Identifiable, Hashable {
@@ -84,7 +85,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   var telnetManager = TelnetManager()
   var spotProcessor = SpotProcessor()
 
-  var overlaysStored = [MKPolyline]() // temp storage to restore after filter
+  //var overlaysStored = [MKPolyline]() // temp storage to restore after filter
 
   let callSign = UserDefaults.standard.string(forKey: "callsign") ?? ""
   let fullName = UserDefaults.standard.string(forKey: "fullname") ?? ""
@@ -110,6 +111,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   weak var webRefreshTimer: Timer!
 
   var bandFilters = [99: 99, 160: 160, 80: 80, 60: 60, 40: 40, 30: 30, 20: 20, 17: 17, 15: 15, 12: 12, 10: 10, 6: 6]
+
   var spotFilter = ""
 
   var lastSpotReceivedTime = Date()
@@ -302,10 +304,10 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
    - messageKey: Key associated with this message.
    - message: message text.
    */
-  func qrzManagerDidGetCallSignData(_ qrzManager: QRZManager, messageKey: QRZManagerMessage, qrzInfoCombined: QRZInfoCombined) {
+  func qrzManagerDidGetCallSignData(_ qrzManager: QRZManager, messageKey: QRZManagerMessage, qrzInfoCombined: QRZInfoCombined, spot: ClusterSpot) {
 
     DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-      self!.buildMapLines(qrzInfoCombined: qrzInfoCombined)
+      self!.buildMapLines(qrzInfoCombined: qrzInfoCombined, spot: spot)
     }
   }
 
@@ -437,29 +439,29 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
             spots[index].timeUTC = spot.timeUTC
           }
         }
-
         //logger.info("Duplicate spot.")
         return
       }
 
-      DispatchQueue.main.async {
-        self.spots.insert(spot, at: 0)
-      }
+      // will change so spot isn't inserted until overlay is created
+//      DispatchQueue.main.async {
+//        self.spots.insert(spot, at: 0)
+//      }
 
       if self.haveSessionKey {
         DispatchQueue.global(qos: .background).async { [weak self] in
-          self!.qrzManager.getConsolidatedQRZInformation(spotterCall: spot.spotter,
-                                                         dxCall: spot.dxStation, frequency: spot.frequency, spotId: spot.id)
+          self!.qrzManager.getConsolidatedQRZInformation(spot: spot)
         }
       } else {
         getQRZSessionKey()
       }
 
+      // this will be moved too
       DispatchQueue.main.async { [self] in
         if spots.count > maxNumberOfSpots {
-          let spot = spots.removeLast()
+          //let spot = spots.removeLast()
           // if spot is removed, remove related overlay
-          sycnOverlays(id: spot.id)
+          //sycnOverlays(id: spot.id)
           //logger.info("Spot removed: \(spot.dxStation)")
         }
       }
@@ -635,11 +637,11 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
     overlays.removeAll()
 
-    for spot in spots {
-      qrzManager.getConsolidatedQRZInformation(spotterCall: spot.spotter,
-                                               dxCall: spot.dxStation, frequency:
-                                                spot.frequency, spotId: spot.id)
-    }
+//    for spot in spots {
+//      qrzManager.getConsolidatedQRZInformation(spotterCall: spot.spotter,
+//                                               dxCall: spot.dxStation, frequency:
+//                                                spot.frequency, spotId: spot.id)
+//    }
   }
 
   // MARK: - Filter Bands
@@ -797,7 +799,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
    - parameters:
    - qrzInfoCombined: combined data of a pair of call signs QRZ information.
    */
-  func buildMapLines(qrzInfoCombined: QRZInfoCombined) {
+  func buildMapLines(qrzInfoCombined: QRZInfoCombined, spot: ClusterSpot) {
 
     if qrzInfoCombined.error {
       logger.info("QRZ error: \(qrzInfoCombined.spotterCall):\(qrzInfoCombined.dxCall)")
@@ -817,6 +819,13 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
     polyline.title = String(qrzInfoCombined.band)
     polyline.subtitle = "" //buildJSONString(qrzInfoCombined: qrzInfoCombined)
+
+    var newSpot = spot
+    newSpot.overlay = polyline
+
+    DispatchQueue.main.async {
+      self.spots.insert(newSpot, at: 0)
+    }
 
     DispatchQueue.main.async { [self] in
       if bandFilters[qrzInfoCombined.band] != nil {
