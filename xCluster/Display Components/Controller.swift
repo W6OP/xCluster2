@@ -23,6 +23,7 @@ struct ClusterSpot: Identifiable, Hashable, Encodable {
   var timeUTC: String
   var comment: String
   var grid: String
+  var filtered: Bool
 }
 
 struct ConnectedCluster: Identifiable, Hashable {
@@ -84,7 +85,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   var spotProcessor = SpotProcessor()
 
   var overlaysStored = [MKPolyline]() // temp storage to restore after filter
-  var spotsStored = [ClusterSpot]()
 
   let callSign = UserDefaults.standard.string(forKey: "callsign") ?? ""
   let fullName = UserDefaults.standard.string(forKey: "fullname") ?? ""
@@ -95,7 +95,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
   // mapping
   let maxNumberOfSpots = 200
-  let maxNumberOfMapLines = 200
+  let maxNumberOfMapLines = 100
   let regionRadius: CLLocationDistance = 10000000
   let centerLatitude = 28.282778
   let centerLongitude = -40.829444
@@ -117,8 +117,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   // MARK: - Initialization
 
   init () {
-
-//    bandFilters = [99: 99, 160: 160, 80: 80, 60: 60, 40: 40, 30: 30, 20: 20, 17: 17, 15: 15, 12: 12, 10: 10, 6: 6]
 
     telnetManager.telnetManagerDelegate = self
     qrzManager.qrZedManagerDelegate = self
@@ -402,7 +400,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
     do {
       var spot = ClusterSpot(id: UUID().uuidString, dxStation: "", frequency: "", band: 99, spotter: "",
-                             timeUTC: "", comment: "", grid: "")
+                             timeUTC: "", comment: "", grid: "", filtered: false)
 
       switch messageType {
       case .showDxSpots:
@@ -421,13 +419,13 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
       // GUARD
       spot.band = convertFrequencyToBand(frequency: spot.frequency)
 
-      if bandFilters[convertFrequencyToBand(frequency: spot.frequency)] == nil {
-        return
-      }
-
-      if !spotFilter.isEmpty && spot.dxStation != spotFilter {
-        return
-      }
+//      if bandFilters[convertFrequencyToBand(frequency: spot.frequency)] == nil {
+//        return
+//      }
+//
+//      if !spotFilter.isEmpty && spot.dxStation != spotFilter {
+//        return
+//      }
 
       // if spot already exists, don't add again ?
       // update timestamp though - WHY??
@@ -459,7 +457,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
       DispatchQueue.main.async { [self] in
         if spots.count > maxNumberOfSpots {
-          spots.removeLast()
+          let spot = spots.removeLast()
+          // if spot is removed, remove related overlay
+          sycnOverlays(id: spot.id)
           //logger.info("Spot removed: \(spot.dxStation)")
         }
       }
@@ -468,6 +468,10 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
       logger.info("Controller Error: \(error as NSObject)")
       return
     }
+  }
+
+  func sycnOverlays (id: String) {
+
   }
 
   /// Convert a frequency to a band.
@@ -521,14 +525,14 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     let iso8601DateFormatter = ISO8601DateFormatter()
     iso8601DateFormatter.formatOptions = [.withFullTime]
     let string = iso8601DateFormatter.string(from: localDateTime)
-    print("utc_date-->", string.prefix(5).replacingOccurrences(of: ":", with: "")) // 18:35:17Z
+    //print("utc_date-->", string.prefix(5).replacingOccurrences(of: ":", with: "")) // 18:35:17Z
 
     // set the dxcall to "expired"
-    if filterState {
-      for overlay in overlays {
-
-      }
-    }
+//    if filterState {
+//      for overlay in overlays {
+//
+//      }
+//    }
   }
 
   func getGMTTimeDate() -> Date {
@@ -549,14 +553,14 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     utcDateFormatter.timeZone = TimeZone(abbreviation: "UTC")
 
     // Printing a Date
-    let date = Date()
-    print(utcDateFormatter.string(from: date))
+    //let date = Date()
+    //print(utcDateFormatter.string(from: date))
 
     // Parsing a string representing a date
     let dateString = "hmm"
     let utcDate = utcDateFormatter.date(from: dateString)
 
-    print("UTC: \(String(describing: utcDate))")
+    //print("UTC: \(String(describing: utcDate))")
 
   }
 
@@ -586,21 +590,31 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   /// Remove call signs that do not match the filter.
   /// - Parameter callSign: call sign to be filtered
   func setCallFilter(callSign: String) {
-    spots = spots.filter({$0.dxStation == callSign})
-    spotFilter = callSign
 
-    filterMapLinesByCall(callSign: callSign)
+    if callSign.isEmpty {
+      spotFilter = callSign
+      regenerateOverlays()
+      return
+    }
+
+    if spotFilter != callSign {
+      spotFilter = callSign
+      regenerateOverlays()
+    } else {
+      return
+    }
+
+    filterMapLinesByCall()
   }
 
-  func filterMapLinesByCall(callSign: String) {
+  /// Remove overlays where the call sign does not match.
+  func filterMapLinesByCall() {
 
-    let decoder = JSONDecoder()
     var indexes = [Int]()
 
     for (index, overlay) in overlays.enumerated() {
-      let data = overlay.subtitle!.data(using: .utf8)!
-      guard let qrzInfoCombined = try? decoder.decode(QRZInfoCombined.self, from: data) else { return }
-      if qrzInfoCombined.dxCall != callSign {
+      let qrzInfoCombined = extractJSONFromString(subTitle: overlay.subtitle!)
+      if qrzInfoCombined.dxCall != spotFilter {
         print("No Match: \(qrzInfoCombined.dxCall)")
         indexes.append(index)
       } else {
@@ -611,9 +625,20 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     indexes = indexes.sorted().reversed()
     for index in indexes {
       DispatchQueue.main.async {
-        //print("Remove: \(index) : \(self.overlays[index].subtitle)")
         self.overlays.remove(at: index)
       }
+    }
+  }
+
+  /// Remove and recreate the overlays to match the current spots.
+  func regenerateOverlays() {
+
+    overlays.removeAll()
+
+    for spot in spots {
+      qrzManager.getConsolidatedQRZInformation(spotterCall: spot.spotter,
+                                               dxCall: spot.dxStation, frequency:
+                                                spot.frequency, spotId: spot.id)
     }
   }
 
@@ -629,46 +654,57 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
     if band == 9999 {return}
 
-    // TODO: I think I only want to remove the overlays and not the actual spots
-
     switch state {
     case true:
-      bandFilters[band] = band
+      bandFilters.updateValue(band, forKey: band)
+      if band == 99 {
+        resetBandButtons(state: state)
+        // add missing overlays
+        return
+      }
+      regenerateOverlays()
     case false:
-      self.bandFilters.removeValue(forKey: band)
-      //filterSpotsByBand(band: band)
+      bandFilters.updateValue(0, forKey: band)
+      if band == 99 {
+        resetBandButtons(state: state)
+        // remove all overlays
+        overlays.removeAll()
+        return
+      }
     }
 
-    filterMapLinesByBand(band: band)
+    filterMapLinesByBand(selection: band)
   }
 
   /// Filter the spots by band
   /// - Parameter band: band
-  func filterSpotsByBand(band: Int) {
-    DispatchQueue.main.async {
-      self.spots = self.spots.filter {$0.frequency != String(band)}
-    }
-  }
+//  func filterSpotsByBand(band: Int) {
+//    DispatchQueue.main.async {
+//      self.spots = self.spots.filter {$0.frequency != String(band)}
+//    }
+//  }
 
   /// Remove lines that don't match a selected band.
   /// - Parameter band: band number
-  func filterMapLinesByBand(band: Int) {
-    DispatchQueue.main.async {
-      self.overlays = self.overlays.filter {$0.title != String(band)}
+  func filterMapLinesByBand(selection: Int) {
+    DispatchQueue.main.async { [self] in
+      for (_, element) in bandFilters.enumerated() {
+        if element.value == 0 {
+          overlays = overlays.filter {$0.title != String(element.key)}
+        }
+      }
     }
   }
 
-//  func resetBandButtons(state: Bool) {
-//
-//    if state {
-//      for band in bandData where band.id != 0 {
-//          bandFilters[band.id] = band.id
-//      }
-//    } else {
-//      self.bandFilters.removeAll()
-//    }
-//
-//  }
+  func resetBandButtons(state: Bool) {
+    if state {
+      for band in bandData where band.id != 0 {
+          bandFilters[band.id] = band.id
+      }
+    } else {
+      self.bandFilters.removeAll()
+    }
+  }
 
   // MARK: - Keep Alive Timer ----------------------------------------------------------------------------
 
@@ -768,6 +804,11 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
       return
     }
 
+    // need to look at what filters are active here
+    if bandFilters[qrzInfoCombined.band] == 0 {
+      return
+    }
+
     let locations = [
       CLLocationCoordinate2D(latitude: qrzInfoCombined.spotterLatitude, longitude: qrzInfoCombined.spotterLongitude),
       CLLocationCoordinate2D(latitude: qrzInfoCombined.dxLatitude, longitude: qrzInfoCombined.dxLongitude)]
@@ -775,7 +816,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     let polyline = MKGeodesicPolyline(coordinates: locations, count: locations.count)
 
     polyline.title = String(qrzInfoCombined.band)
-    polyline.subtitle = buildSubTitleArray(qrzInfoCombined: qrzInfoCombined) // qrzInfoCombined.dxCall //
+    polyline.subtitle = "" //buildJSONString(qrzInfoCombined: qrzInfoCombined)
 
     DispatchQueue.main.async { [self] in
       if bandFilters[qrzInfoCombined.band] != nil {
@@ -793,34 +834,39 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     }
   }
 
+  // MARK: - JSON Decode/Encode
+
   /*
    {"dxLatitude":32.604489999999998,"band":20,"spotterLatitude":-34.526000000000003,"spotterLongitude":-58.472700000000003,"dxGrid":"EM72go","dxLongitude":-85.482693999999995,"dxCountry":"United States","dxLotw":false,"spotterGrid":"GF05sl","spotterCall":"LU4DCW","dateTime":"2021-04-10T22:03:59Z","spotterLotw":false,"expired":false,"identifier":"0","dxCall":"W4E","error":false,"formattedFrequency":14.079999923706055,"spotterCountry":"Argentina","frequency":"14.080","mode":""}
    */
 
-  /// Build a string to hold information to be split into an array.
-  /// - Parameter info: combined QRZ information.
-  /// - Returns: string representation of array.
-  func buildSubTitleArray(qrzInfoCombined: QRZInfoCombined) -> String {
+  /// Build a string to hold information from the associated spot.
+  /// - Parameter info: QRZInfoCombined that built overlay.
+  /// - Returns: string representation of QRZInfoCombined.
+  func buildJSONString(qrzInfoCombined: QRZInfoCombined) -> String {
 
     let encoder = JSONEncoder()
     guard let data = try? encoder.encode(qrzInfoCombined) else { return "" }
 
-    print(String(data: data, encoding: .utf8) ?? "")
+    //print(String(data: data, encoding: .utf8) ?? "")
 
     return  String(data: data, encoding: .utf8) ?? ""
   }
 
-  /// Remove lines that don't match a selected band.
-//  func filterMapLinesByBand() {
-//    for polyLine in self.overlays {
-//      guard let band = Int(polyLine.title ?? "0") else { return }
-//      if bandFilters[band] == nil {
-//        DispatchQueue.main.async {
-//          self.overlays = self.overlays.filter {$0.title != String(band)}
-//        }
-//      }
-//    }
-//  }
+  /// Build a QRZInfoCombined from a string.
+  /// - Parameter subTitle: subtitle from overlay.
+  /// - Returns: QRZInfoCombined
+  func extractJSONFromString(subTitle: String) -> QRZInfoCombined {
+
+    let decoder = JSONDecoder()
+
+    let data = subTitle.data(using: .utf8)!
+    guard let qrzInfoCombined = try? decoder.decode(QRZInfoCombined.self, from: data) else {
+      return QRZInfoCombined()
+    }
+
+    return qrzInfoCombined
+  }
 
 } // end class
 

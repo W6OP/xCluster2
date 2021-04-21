@@ -11,7 +11,6 @@ import Network
 import CoreLocation
 import os
 import CallParser
-import Combine
 
 protocol QRZManagerDelegate: class {
 
@@ -69,6 +68,10 @@ class QRZManager: NSObject {
   var qrZedCallSignPair = [QRZInfo]()
   var qrZedInfo: QRZInfo!
 
+  // temp to test with
+  var qrzRequestCount = 0
+  var cacheRequestCount = 0
+
   // MARK: - Overrides
 
   override init() {
@@ -110,7 +113,7 @@ class QRZManager: NSObject {
             fatalError("Error: missing response data")
         }
 
-        do {
+        //do {
           let parser = XMLParser(data: data)
           parser.delegate = self
 
@@ -125,9 +128,9 @@ class QRZManager: NSObject {
               self.qrZedManagerDelegate?.qrzManagerDidGetSessionKey(self, messageKey: .session, haveSessionKey: true)
             }
           }
-        } catch {
-            print("requestSessionKey Error: \(error.localizedDescription)")
-        }
+//        } catch {
+//            print("requestSessionKey Error: \(error.localizedDescription)")
+//        }
     }
     task.resume()
   }
@@ -139,11 +142,35 @@ class QRZManager: NSObject {
    - dxCall: second of a pair call signs to look up.
    */
   func getConsolidatedQRZInformation(spotterCall: String, dxCall: String, frequency: String, spotId: String) {
+
+    var cacheHits = 0
+
     serialQRZProcessorQueue.sync(flags: .barrier) { [weak self] in
-      self?.requestQRZInformation(callSign: spotterCall, frequency: frequency, spotId: spotId)
-      self?.requestQRZInformation(callSign: dxCall, frequency: frequency, spotId: spotId)
+      // check the call sign cache
+      if qrZedCallSignCache[spotterCall] != nil {
+        let qrZedInfo = qrZedCallSignCache[spotterCall]
+        qrZedCallSignPair.append(qrZedInfo!)
+        cacheHits += 1
+        cacheRequestCount += 1
+        logger.info("Cache hit for \(spotterCall) : \(self!.qrZedCallSignCache.count)")
+      } else {
+        self?.requestQRZInformation(callSign: spotterCall, frequency: frequency, spotId: spotId)
+      }
+
+      if qrZedCallSignCache[dxCall] != nil {
+        let qrZedInfo = qrZedCallSignCache[dxCall]
+        qrZedCallSignPair.append(qrZedInfo!)
+        logger.info("Cache hit for \(dxCall) : \(self!.qrZedCallSignCache.count)")
+        cacheHits += 1
+        cacheRequestCount += 1
+      } else {
+        self?.requestQRZInformation(callSign: dxCall, frequency: frequency, spotId: spotId)
+      }
+
+      if cacheHits == 2 {
+        combineQRZInfo(frequency: frequency)
+      }
     }
-    //print("getConsolidatedQRZInformation: \(spotterCall):\(dxCall)")
   }
 
   /**
@@ -168,55 +195,52 @@ class QRZManager: NSObject {
       return
     }
 
-    // clean the call sign w6op-@
+    // clean the call sign w6op-@ GUD EARS--
     if callSign.contains("-") {
-      call = String(callSign.split(separator: "-").dropLast()[0])
+      call = callSign.stringBefore("-")
     } else {
       call = callSign
     }
 
+    //------------------------------------
     // this dies if session key is missing
     guard let url = URL(string: "https://xmldata.qrz.com/xml/current/?s=\(String(self.sessionKey));callsign=\(call)") else {
       logger.info("Session key is invalid: \(self.sessionKey)")
       return
     }
 
+    qrzRequestCount += 1
+
+    logger.info("QRZ requests vs cache hits: \(self.qrzRequestCount) : \(self.cacheRequestCount)")
+
     let task = URLSession.shared.dataTask(with: url) { [self] data, response, error in
-        if let error = error {
-            fatalError("Error 1: \(error.localizedDescription)")
-        }
-        guard let response = response as? HTTPURLResponse, response.statusCode == 200 else {
-            fatalError("Error: invalid HTTP response code")
-        }
-        guard let data = data else {
-            fatalError("Error: missing response data")
-        }
+      if let error = error {
+        fatalError("Error 1: \(error.localizedDescription)")
+      }
+      guard let response = response as? HTTPURLResponse, response.statusCode == 200 else {
+        fatalError("Error: invalid HTTP response code")
+      }
+      guard let data = data else {
+        fatalError("Error: missing response data")
+      }
 
-        do {
-          let parser = XMLParser(data: data)
-          parser.delegate = self
+      let parser = XMLParser(data: data)
+      parser.delegate = self
 
-          //let stringValue = String(decoding: data, as: UTF8.self)
-          //print("DATA: \(stringValue)")
-
-          if parser.parse() {
-            if self.results != nil {
-              if qrZedCallSignPair.count > 1 {
-                qrZedCallSignPair.removeAll()
-              }
-              populateQRZInfo(frequency: frequency, spotId: spotId)
-            } else {
-              // we did not get one or more hits
-              // will move this to CallParser and call it there
-              logger.info("Use CallParser: \(callSign)") // above I think
-            }
+      if parser.parse() {
+        if self.results != nil {
+          if qrZedCallSignPair.count > 1 {
+            qrZedCallSignPair.removeAll()
           }
-        } catch {
-            print("requestQRZInformation Error: \(error.localizedDescription)")
+          populateQRZInfo(frequency: frequency, spotId: spotId)
+        } else {
+          // we did not get one or more hits
+          // will move this to CallParser and call it there
+          logger.info("Use CallParser: \(callSign)") // above I think
         }
+      }
     }
     task.resume()
-
   }
 
   /// Populate the qrzInfo with latitude, longitude, etc. If there is a pair
@@ -226,7 +250,7 @@ class QRZManager: NSObject {
 
     qrZedInfo = QRZInfo()
 
-    logger.info("populateQRZInfo")
+    //logger.info("populateQRZInfo")
     // need to check if dictionary is empty
     if callSignDictionary.isEmpty {
       logger.info("callSignDictionary is empty")
@@ -237,8 +261,9 @@ class QRZManager: NSObject {
     qrZedInfo.spotId = spotId
 
     if callSignDictionary[KeyName.errorKeyName.rawValue] != nil {
-      print("CallSignDictionary not found: \(callSignDictionary["Error"])")
+      //print("CallSignDictionary not found: \(callSignDictionary["Error"])")
 
+      // QRZ.com could not find it
       let error = callSignDictionary["Error"]
       if let range = error!.range(of: "found: ") {
         let callSign = error![range.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
@@ -255,11 +280,7 @@ class QRZManager: NSObject {
           temp.append(callSign)
         }
       }
-      //let callSign = callSignDictionary["Error"].sub
-      // use callLookup
-    } //else {
-      //print("CallSignDictionary good: \(callSignDictionary["call"])")
-    //}
+    }
 
     //qrzInfo.call = ("\(qrzInfo.call)/W5") // for debug
     // IF THERE IS A PREFIX OR SUFFIX CALL CALL PARSER AND SKIP SOME OF THIS
@@ -294,8 +315,13 @@ class QRZManager: NSObject {
     }
 
     // add to call sign cache
-    qrZedCallSignCache[qrZedInfo.call] = qrZedInfo
-    combineQRZInfo(qrzInfo: qrZedInfo, frequency: frequency)
+    if qrZedCallSignCache[qrZedInfo.call] == nil {
+      qrZedCallSignCache[qrZedInfo.call] = qrZedInfo
+    }
+
+    qrZedCallSignPair.append(qrZedInfo)
+
+    combineQRZInfo(frequency: frequency)
   }
 
   /**
@@ -319,8 +345,6 @@ class QRZManager: NSObject {
       qrZedInfo.latitude = longitude
     }
 
-    //print("hit: \(qrZedInfo.call)")
-
     return qrZedInfo
   }
 
@@ -330,9 +354,9 @@ class QRZManager: NSObject {
    - qrzCallSignPairCopy: the pair of QRZInfo to be combined
    - frequency: frequency to add to structure
    */
-  func combineQRZInfo(qrzInfo: QRZInfo, frequency: String) {
+  func combineQRZInfo(frequency: String) {
 
-    qrZedCallSignPair.append(qrzInfo)
+    //qrZedCallSignPair.append(qrzInfo)
 
     if qrZedCallSignPair.count == 2 {
       let qrzCallSignPairCopy = qrZedCallSignPair // use copy so we don't read while modifying

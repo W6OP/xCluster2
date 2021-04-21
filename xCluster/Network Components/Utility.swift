@@ -14,14 +14,47 @@ extension String {
     let components = self.components(separatedBy: .whitespacesAndNewlines)
     return components.filter { !$0.isEmpty }.joined(separator: " ")
   }
+
+  func deletingPrefix(_ prefix: String) -> String {
+      guard self.hasPrefix(prefix) else { return self }
+      return String(self.dropFirst(prefix.count))
+  }
+
+  func deletingSuffix(_ suffix: String) -> String {
+      guard self.hasSuffix(suffix) else { return self }
+      return String(self.dropLast(suffix.count))
+  }
+
+  func stringBefore(_ delimiter: Character) -> String {
+          if let index = firstIndex(of: delimiter) {
+              return String(prefix(upTo: index))
+          } else {
+              return ""
+          }
+      }
+
+      func stringAfter(_ delimiter: Character) -> String {
+          if let index = firstIndex(of: delimiter) {
+              return String(suffix(from: index).dropFirst())
+          } else {
+              return ""
+          }
+      }
 }
 // https://www.hackingwithswift.com/example-code/strings/how-to-remove-a-prefix-from-a-string
-extension String {
-    func deletingPrefix(_ prefix: String) -> String {
-        guard self.hasPrefix(prefix) else { return self }
-        return String(self.dropFirst(prefix.count))
-    }
-}
+//extension String {
+//    func deletingPrefix(_ prefix: String) -> String {
+//        guard self.hasPrefix(prefix) else { return self }
+//        return String(self.dropFirst(prefix.count))
+//    }
+//}
+//
+//extension String {
+//    func deletingSuffix(_ suffix: String) -> String {
+//        guard self.hasSuffix(suffix) else { return self }
+//        return String(self.dropLast(suffix.count))
+//    }
+//}
 
 // https://stackoverflow.com/questions/32305891/index-of-a-substring-in-a-string-with-swift
 extension StringProtocol {
@@ -72,7 +105,7 @@ extension QRZManager: XMLParserDelegate {
   //let logger = Logger(subsystem: "com.w6op.xCluster", category: "Controller")
   // initialize results structure
   func parserDidStartDocument(_ parser: XMLParser) {
-    logger.info("Parsing started.")
+    //logger.info("Parsing started.")
     results = []
   }
 
@@ -141,7 +174,7 @@ extension QRZManager: XMLParserDelegate {
   }
 
   func parserDidEndDocument(_ parser: XMLParser) {
-      logger.info("Parsing completed.")
+      //logger.info("Parsing completed.")
   }
 
   // Just in case, if there's an error, report it. (We don't want to fly blind here.)
