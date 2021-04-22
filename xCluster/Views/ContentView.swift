@@ -206,8 +206,9 @@ struct BandViewToggle: View {
           } else {
             for (index, band) in bands.enumerated() where band.id != 0 {
               self.bands[index].isSelected = self.bands[0].isSelected
-              self.controller.bandFilter = (self.bands[index].id, state)
+              //self.controller.bandFilter = (self.bands[index].id, state)
             }
+            self.controller.bandFilter = (0, state)
           }
         })
         .tag(self.bands[item].id)

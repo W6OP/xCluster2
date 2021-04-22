@@ -25,6 +25,7 @@ struct ClusterSpot: Identifiable, Hashable {
   var grid: String
   var isFiltered: Bool
   var overlay: MKPolyline!
+  var qrzInfoCombinedJSON = ""
 }
 
 struct ConnectedCluster: Identifiable, Hashable {
@@ -382,6 +383,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     }
   }
 
+  /// Limit the length of the spot to 80 characters.
+  /// - Parameter message: original message
+  /// - Returns: truncated message
   func limitMessageLength(message: String) -> [String] {
 
     var messages = [String]()
@@ -650,7 +654,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   /**
    Manage the band button state.
    - parameters:
-   - buttonTag: the tag that identifies the button.
+   - buttonTag: the tag that identifies the button (0 == All).
    - state: the state of the button .on or .off.
    */
   func setBandButtons( band: Int, state: Bool) {
@@ -659,24 +663,71 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
     switch state {
     case true:
-      bandFilters.updateValue(band, forKey: band)
-      if band == 99 {
-        resetBandButtons(state: state)
+      //bandFilters.updateValue(band, forKey: band)
+      if band == 0 {
+        // turn on all bands
+        resetAllSpotFilters(setFilter: state)
         // add missing overlays
         return
       }
-      regenerateOverlays()
+      //regenerateOverlays()
     case false:
-      bandFilters.updateValue(0, forKey: band)
-      if band == 99 {
-        resetBandButtons(state: state)
-        // remove all overlays
+      if band == 0 {
+        // turn off all bands
+        resetAllSpotFilters(setFilter: state)
         overlays.removeAll()
         return
       }
+      //bandFilters.updateValue(0, forKey: band)
     }
 
-    filterMapLinesByBand(selection: band)
+    updateSpotFilterState(band: band, setFilter: state)
+    filterMapLinesByBand()
+  }
+
+
+  /// Update the filter state on a spot.
+  /// - Parameters:
+  ///   - band: band to update
+  ///   - setFilter: state to set filter toggled()
+  func updateSpotFilterState(band: Int, setFilter: Bool) {
+    DispatchQueue.main.async { [self] in
+      for (index, spot) in spots.enumerated() where spot.band == band {
+            var newSpot = spot
+            newSpot.isFiltered = !setFilter
+            spots[index] = newSpot
+      }
+    }
+  }
+
+  /// Reset all the band filters to the same state.
+  /// - Parameter setFilter: state to set
+  func resetAllSpotFilters(setFilter: Bool) {
+    DispatchQueue.main.async { [self] in
+      for (index, spot) in spots.enumerated() {
+            var newSpot = spot
+            newSpot.isFiltered = !setFilter
+            spots[index] = newSpot
+      }
+    }
+  }
+
+  func filterMapLinesByBand() {
+    DispatchQueue.main.async { [self] in
+      for (index, spot) in spots.enumerated() {
+        if spot.isFiltered == false {
+          let overlay = spot.overlay
+          if !overlays.contains(overlay!) {
+            overlays.append(overlay!)
+          }
+        } else {
+          let overlay = spot.overlay
+          if overlays.contains(overlay!) {
+            overlays = overlays.filter { $0 != overlay }
+          }
+        }
+      }
+    }
   }
 
   /// Filter the spots by band
@@ -689,25 +740,25 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
   /// Remove lines that don't match a selected band.
   /// - Parameter band: band number
-  func filterMapLinesByBand(selection: Int) {
-    DispatchQueue.main.async { [self] in
-      for (_, element) in bandFilters.enumerated() {
-        if element.value == 0 {
-          overlays = overlays.filter {$0.title != String(element.key)}
-        }
-      }
-    }
-  }
+//  func filterMapLinesByBand(selection: Int) {
+//    DispatchQueue.main.async { [self] in
+//      for (_, element) in bandFilters.enumerated() {
+//        if element.value == 0 {
+//          overlays = overlays.filter {$0.title != String(element.key)}
+//        }
+//      }
+//    }
+//  }
 
-  func resetBandButtons(state: Bool) {
-    if state {
-      for band in bandData where band.id != 0 {
-          bandFilters[band.id] = band.id
-      }
-    } else {
-      self.bandFilters.removeAll()
-    }
-  }
+//  func resetBandButtons(state: Bool) {
+//    if state {
+//      for band in bandData where band.id != 0 {
+//          bandFilters[band.id] = band.id
+//      }
+//    } else {
+//      self.bandFilters.removeAll()
+//    }
+//  }
 
   // MARK: - Keep Alive Timer ----------------------------------------------------------------------------
 
@@ -823,6 +874,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
     var newSpot = spot
     newSpot.overlay = polyline
+    newSpot.qrzInfoCombinedJSON = buildJSONString(qrzInfoCombined: qrzInfoCombined)
 
     DispatchQueue.main.async {
       self.spots.insert(newSpot, at: 0)
