@@ -663,14 +663,14 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
     switch state {
     case true:
-      //bandFilters.updateValue(band, forKey: band)
       if band == 0 {
         // turn on all bands
         resetAllSpotFilters(setFilter: state)
         // add missing overlays
+        filterMapLinesByBand()
         return
       }
-      //regenerateOverlays()
+
     case false:
       if band == 0 {
         // turn off all bands
@@ -678,13 +678,11 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
         overlays.removeAll()
         return
       }
-      //bandFilters.updateValue(0, forKey: band)
     }
 
     updateSpotFilterState(band: band, setFilter: state)
     filterMapLinesByBand()
   }
-
 
   /// Update the filter state on a spot.
   /// - Parameters:
