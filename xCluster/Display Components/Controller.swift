@@ -23,7 +23,7 @@ struct ClusterSpot: Identifiable, Hashable {
   var timeUTC: String
   var comment: String
   var grid: String
-  var filtered: Bool
+  var isFiltered: Bool
   var overlay: MKPolyline!
 }
 
@@ -402,7 +402,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
     do {
       var spot = ClusterSpot(id: UUID().uuidString, dxStation: "", frequency: "", band: 99, spotter: "",
-                             timeUTC: "", comment: "", grid: "", filtered: false)
+                             timeUTC: "", comment: "", grid: "", isFiltered: false)
 
       switch messageType {
       case .showDxSpots:
@@ -443,6 +443,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
         return
       }
 
+      // moved to line 827
       // will change so spot isn't inserted until overlay is created
 //      DispatchQueue.main.async {
 //        self.spots.insert(spot, at: 0)
@@ -827,10 +828,14 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
       self.spots.insert(newSpot, at: 0)
     }
 
+    // instead check newSpot filtered property
     DispatchQueue.main.async { [self] in
-      if bandFilters[qrzInfoCombined.band] != nil {
-          overlays.append(polyline)
+      if !spot.isFiltered {
+        overlays.append(newSpot.overlay)
       }
+//      if bandFilters[qrzInfoCombined.band] != nil {
+//          overlays.append(polyline)
+//      }
     }
 
     DispatchQueue.main.async { [self] in
