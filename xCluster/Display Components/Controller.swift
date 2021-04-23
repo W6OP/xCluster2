@@ -26,6 +26,19 @@ struct ClusterSpot: Identifiable, Hashable {
   var isFiltered: Bool
   var overlay: MKPolyline!
   var qrzInfoCombinedJSON = ""
+
+  mutating func createOverlay(qrzInfoCombined: QRZInfoCombined) {
+
+    let locations = [
+      CLLocationCoordinate2D(latitude: qrzInfoCombined.spotterLatitude, longitude: qrzInfoCombined.spotterLongitude),
+      CLLocationCoordinate2D(latitude: qrzInfoCombined.dxLatitude, longitude: qrzInfoCombined.dxLongitude)]
+
+    let polyline = MKGeodesicPolyline(coordinates: locations, count: locations.count)
+    polyline.title = String(qrzInfoCombined.band)
+    polyline.subtitle = ""
+
+    self.overlay = polyline
+  }
 }
 
 struct ConnectedCluster: Identifiable, Hashable {
@@ -712,7 +725,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
   func filterMapLinesByBand() {
     DispatchQueue.main.async { [self] in
-      for (index, spot) in spots.enumerated() {
+      for spot in spots {
         if spot.isFiltered == false {
           let overlay = spot.overlay
           if !overlays.contains(overlay!) {
@@ -861,18 +874,20 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
       return
     }
 
-    let locations = [
-      CLLocationCoordinate2D(latitude: qrzInfoCombined.spotterLatitude, longitude: qrzInfoCombined.spotterLongitude),
-      CLLocationCoordinate2D(latitude: qrzInfoCombined.dxLatitude, longitude: qrzInfoCombined.dxLongitude)]
-
-    let polyline = MKGeodesicPolyline(coordinates: locations, count: locations.count)
-
-    polyline.title = String(qrzInfoCombined.band)
-    polyline.subtitle = "" //buildJSONString(qrzInfoCombined: qrzInfoCombined)
-
     var newSpot = spot
-    newSpot.overlay = polyline
-    newSpot.qrzInfoCombinedJSON = buildJSONString(qrzInfoCombined: qrzInfoCombined)
+    newSpot.createOverlay(qrzInfoCombined: qrzInfoCombined)
+
+//    let locations = [
+//      CLLocationCoordinate2D(latitude: qrzInfoCombined.spotterLatitude, longitude: qrzInfoCombined.spotterLongitude),
+//      CLLocationCoordinate2D(latitude: qrzInfoCombined.dxLatitude, longitude: qrzInfoCombined.dxLongitude)]
+//
+//    let polyline = MKGeodesicPolyline(coordinates: locations, count: locations.count)
+//    polyline.title = String(qrzInfoCombined.band)
+//    polyline.subtitle = "" //buildJSONString(qrzInfoCombined: qrzInfoCombined)
+//
+//    var newSpot = spot
+//    newSpot.overlay = polyline
+//    newSpot.qrzInfoCombinedJSON = buildJSONString(qrzInfoCombined: qrzInfoCombined)
 
     DispatchQueue.main.async {
       self.spots.insert(newSpot, at: 0)
@@ -880,20 +895,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
     // instead check newSpot filtered property
     DispatchQueue.main.async { [self] in
-      if !spot.isFiltered {
+      if !newSpot.isFiltered {
         overlays.append(newSpot.overlay)
-      }
-//      if bandFilters[qrzInfoCombined.band] != nil {
-//          overlays.append(polyline)
-//      }
-    }
-
-    DispatchQueue.main.async { [self] in
-      if overlays.count > maxNumberOfMapLines {
-        overlays.remove(at: overlays.count - 1)
-
-        // should be a better way of doing this
-        //overlays[overlays.count - 1].subtitle = ""
       }
     }
   }
