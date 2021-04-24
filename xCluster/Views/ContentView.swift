@@ -8,6 +8,7 @@
 import SwiftUI
 import CallParser
 import MapKit
+import Combine
 
 // MARK: - Map View
 struct MapView: NSViewRepresentable {
@@ -278,9 +279,10 @@ struct ControlBarView: View {
 //          }
 //        }
         Divider()
-        TextField("Call Filter", text: $callSignFilter, onEditingChanged: { _ in // (changed)
+        TextField("Call Filter", text: $callSignFilter, onEditingChanged: { _ in
           // onEditingChanged
           callSignFilter = callSignFilter.uppercased()
+          print("editing changed \(callSignFilter)")
           if callSignFilter.count > characterLimit {
             callSignFilter = String(callSignFilter.prefix(characterLimit))
           }
@@ -289,7 +291,9 @@ struct ControlBarView: View {
           self.controller.setCallFilter(callSign: callSignFilter.uppercased())
         }
         .textFieldStyle(RoundedBorderTextFieldStyle())
+        .modifier(ClearButton(boundText: $callSignFilter))
         .frame(maxWidth: 150)
+        // .textCase(.uppercase)
 
         Divider()
 
@@ -316,6 +320,31 @@ struct ControlBarView: View {
     }
   }
 
+}
+
+public struct ClearButton: ViewModifier {
+    var text: Binding<String>
+    var trailing: Bool
+
+    public init(boundText: Binding<String>, trailing: Bool = true) {
+        self.text = boundText
+        self.trailing = trailing
+    }
+
+    public func body(content: Content) -> some View {
+        ZStack(alignment: trailing ? .trailing : .leading) {
+            content
+
+            if !text.wrappedValue.isEmpty {
+                Image(systemName: "x.circle")
+                    .resizable()
+                    .frame(width: 17, height: 17)
+                    .onTapGesture {
+                        text.wrappedValue = ""
+                    }
+            }
+        }
+    }
 }
 
 // MARK: - Content Preview

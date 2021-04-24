@@ -262,7 +262,7 @@ struct QRZInfo {
   var grid = ""
   var lotw = false
   var error = false
-  var spotId = "9999"
+  var spotId = UUID()
 }
 
 struct QRZInfoCombined: Codable {
@@ -289,7 +289,7 @@ struct QRZInfoCombined: Codable {
   var band = 0
   var mode = ""
 
-  var spotId = "9999"
+  var spotId = UUID()
 
   var dateTime = "" // make this UTC
 

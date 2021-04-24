@@ -25,7 +25,7 @@ class SpotProcessor {
   /// - Returns: ClusterSpot
   func processSpot(rawSpot: String) throws -> ClusterSpot {
 
-    var spot = ClusterSpot(id: UUID().uuidString, dxStation: "", frequency: "", band: 99, spotter: "",
+    var spot = ClusterSpot(id: UUID(), dxStation: "", frequency: "", band: 99, spotter: "",
                            timeUTC: "", comment: "", grid: "", isFiltered: false)
 
     if rawSpot.count < 75 {
@@ -143,7 +143,7 @@ class SpotProcessor {
   /// - Returns: ClusterSpot
   func processHtmlSpot(rawSpot: String) throws -> ClusterSpot {
 
-    var spot = ClusterSpot(id: UUID().uuidString, dxStation: "", frequency: "", band: 99, spotter: "",
+    var spot = ClusterSpot(id: UUID(), dxStation: "", frequency: "", band: 99, spotter: "",
                            timeUTC: "", comment: "", grid: "", isFiltered: false)
 
     // first strip first 6 chars (<html>)

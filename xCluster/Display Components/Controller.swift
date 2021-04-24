@@ -14,8 +14,24 @@ import os
 
 // MARK: - ClusterSpots
 
+// move to utility
+enum BandFilterState: Int {
+  case isOn = 0
+  case isOff = 1
+}
+
 struct ClusterSpot: Identifiable, Hashable {
-  var id: String
+
+  enum FilterReason: Int {
+    case band = 0
+    case call = 1
+    case grid = 2
+    case mode = 3
+    case time = 4
+    case none = 5
+  }
+
+  var id: UUID
   var dxStation: String
   var frequency: String
   var band: Int
@@ -26,6 +42,7 @@ struct ClusterSpot: Identifiable, Hashable {
   var isFiltered: Bool
   var overlay: MKPolyline!
   var qrzInfoCombinedJSON = ""
+  var reason = FilterReason.none
 
   /// Build the line (overlay) to display on the map.
   /// - Parameter qrzInfoCombined: combined data of a pair of call signs - QRZ information.
@@ -36,7 +53,7 @@ struct ClusterSpot: Identifiable, Hashable {
 
     let polyline = MKGeodesicPolyline(coordinates: locations, count: locations.count)
     polyline.title = String(qrzInfoCombined.band)
-    polyline.subtitle = ""
+    polyline.subtitle = id.uuidString
 
     self.overlay = polyline
   }
@@ -108,7 +125,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   let qrzPassword = UserDefaults.standard.string(forKey: "password") ?? ""
 
   // mapping
-  let maxNumberOfSpots = 20
+  let maxNumberOfSpots = 200
   let regionRadius: CLLocationDistance = 10000000
   let centerLatitude = 28.282778
   let centerLongitude = -40.829444
@@ -122,7 +139,11 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   weak var keepAliveTimer: Timer!
   weak var webRefreshTimer: Timer!
 
-//  var bandFilters = [99: 99, 160: 160, 80: 80, 60: 60, 40: 40, 30: 30, 20: 20, 17: 17, 15: 15, 12: 12, 10: 10, 6: 6]
+  var bandFilters = [0: BandFilterState.isOff, 160: BandFilterState.isOff,
+                     80: BandFilterState.isOff, 60: BandFilterState.isOff, 40: BandFilterState.isOff,
+                     30: BandFilterState.isOff, 20: BandFilterState.isOff, 17: BandFilterState.isOff,
+                     15: BandFilterState.isOff, 12: BandFilterState.isOff, 10: BandFilterState.isOff,
+                     6: BandFilterState.isOff]
 
   var spotFilter = ""
   var lastSpotReceivedTime = Date()
@@ -408,7 +429,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   func parseClusterSpot(message: String, messageType: TelnetManagerMessage) {
 
     do {
-      var spot = ClusterSpot(id: UUID().uuidString, dxStation: "", frequency: "", band: 99, spotter: "",
+      var spot = ClusterSpot(id: UUID(), dxStation: "", frequency: "", band: 99, spotter: "",
                              timeUTC: "", comment: "", grid: "", isFiltered: false)
 
       switch messageType {
@@ -567,42 +588,54 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
     if callSign.isEmpty {
       spotFilter = callSign
-      regenerateOverlays()
+      setAllSpotFilters(filterState: true)
       return
     }
 
-    if spotFilter != callSign {
-      spotFilter = callSign
-      regenerateOverlays()
+    if spotFilter == callSign {
+      return
     } else {
-      return
+      spotFilter = callSign
     }
 
-    filterMapLinesByCall()
+    updateSpotCallFilterState(call: callSign, setFilter: false)
+    filterOverlays()
   }
 
-  /// Remove overlays where the call sign does not match.
-  func filterMapLinesByCall() {
-
-    var indexes = [Int]()
-
-    for (index, overlay) in overlays.enumerated() {
-      let qrzInfoCombined = extractJSONFromString(subTitle: overlay.subtitle!)
-      if qrzInfoCombined.dxCall != spotFilter {
-        print("No Match: \(qrzInfoCombined.dxCall)")
-        indexes.append(index)
-      } else {
-        print("Match: \(qrzInfoCombined.dxCall)")
-      }
-    }
-
-    indexes = indexes.sorted().reversed()
-    for index in indexes {
-      DispatchQueue.main.async {
-        self.overlays.remove(at: index)
+  /// Update the filter state on a spot.
+  /// - Parameters:
+  ///   - band: band to update
+  ///   - setFilter: state to set filter toggled()
+  func updateSpotCallFilterState(call: String, setFilter: Bool) {
+    DispatchQueue.main.async { [self] in
+      for (index, spot) in spots.enumerated() where spot.dxStation != call {
+            var newSpot = spot
+            newSpot.isFiltered = !setFilter
+            spots[index] = newSpot
+            //print("Filtered: \(spot.dxStation):\(index)")
       }
     }
   }
+
+//    var indexes = [Int]()
+//
+//    for (index, overlay) in overlays.enumerated() {
+//      let qrzInfoCombined = extractJSONFromString(subTitle: overlay.subtitle!)
+//      if qrzInfoCombined.dxCall != spotFilter {
+//        print("No Match: \(qrzInfoCombined.dxCall)")
+//        indexes.append(index)
+//      } else {
+//        print("Match: \(qrzInfoCombined.dxCall)")
+//      }
+//    }
+//
+//    indexes = indexes.sorted().reversed()
+//    for index in indexes {
+//      DispatchQueue.main.async {
+//        self.overlays.remove(at: index)
+//      }
+//    }
+//  }
 
   /// Remove and recreate the overlays to match the current spots.
   func regenerateOverlays() {
@@ -621,109 +654,86 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   /**
    Manage the band button state.
    - parameters:
-   - buttonTag: the tag that identifies the button (0 == All).
-   - state: the state of the button .on or .off.
+   - buttonTag: The tag that identifies the button (0 == All).
+   - state: The state of the button .on or .off.
    */
   func setBandButtons( band: Int, state: Bool) {
 
     if band == 9999 {return}
 
-    switch state {
+    // Invert the state to reduce confusion. A button as false means isFiltered = true.
+    // That just confuses everything down stream as you are constantly having to invert
+    // the state in all subsequent functions.
+    var actualState = state
+    actualState.toggle()
+
+    switch actualState {
     case true:
-      if band == 0 {
-        // turn on all bands
-        resetAllSpotFilters(setFilter: state)
-        // add missing overlays
-        filterMapLinesByBand()
+      if band != 0 {
+        bandFilters[Int(band)] = .isOn
+      } else {
+        // turn off all bands
+        bandFilters.keys.forEach { bandFilters[$0] = .isOn }
+        setAllSpotFilters(filterState: actualState)
+        overlays.removeAll()
         return
       }
-
     case false:
-      if band == 0 {
-        // turn off all bands
-        resetAllSpotFilters(setFilter: state)
-        overlays.removeAll()
+      if band != 0 {
+        bandFilters[Int(band)] = .isOff
+      } else {
+        // turn on all bands
+        bandFilters.keys.forEach { bandFilters[$0] = .isOff }
+        setAllSpotFilters(filterState: actualState)
+        filterOverlays()
         return
       }
     }
 
-    updateSpotFilterState(band: band, setFilter: state)
-    filterMapLinesByBand()
+    updateSpotBandFilterState(band: band, filterState: actualState)
+    filterOverlays()
   }
 
   /// Update the filter state on a spot.
   /// - Parameters:
   ///   - band: band to update
   ///   - setFilter: state to set filter toggled()
-  func updateSpotFilterState(band: Int, setFilter: Bool) {
+  func updateSpotBandFilterState(band: Int, filterState: Bool) {
     DispatchQueue.main.async { [self] in
       for (index, spot) in spots.enumerated() where spot.band == band {
-            var newSpot = spot
-            newSpot.isFiltered = !setFilter
-            spots[index] = newSpot
+          var newSpot = spot
+          newSpot.isFiltered = filterState
+          spots[index] = newSpot
       }
     }
   }
 
   /// Reset all the band filters to the same state.
   /// - Parameter setFilter: state to set
-  func resetAllSpotFilters(setFilter: Bool) {
+  func setAllSpotFilters(filterState: Bool) {
     DispatchQueue.main.async { [self] in
       for (index, spot) in spots.enumerated() {
             var newSpot = spot
-            newSpot.isFiltered = !setFilter
+            newSpot.isFiltered = filterState
             spots[index] = newSpot
       }
     }
   }
 
-  func filterMapLinesByBand() {
+  /// Only allow overlays where isFiltered == false
+  func filterOverlays() {
     DispatchQueue.main.async { [self] in
       for spot in spots {
         if spot.isFiltered == false {
-          let overlay = spot.overlay
-          if !overlays.contains(overlay!) {
-            overlays.append(overlay!)
+          if overlays.first(where: {$0.subtitle == spot.id.uuidString}) == nil {
+            overlays.append(spot.overlay!)
           }
         } else {
-          let overlay = spot.overlay
-          if overlays.contains(overlay!) {
-            overlays = overlays.filter { $0 != overlay }
-          }
+          overlays = overlays.filter({ $0.subtitle != spot.id.uuidString })
         }
       }
     }
   }
-
-  /// Filter the spots by band
-  /// - Parameter band: band
-//  func filterSpotsByBand(band: Int) {
-//    DispatchQueue.main.async {
-//      self.spots = self.spots.filter {$0.frequency != String(band)}
-//    }
-//  }
-
-  /// Remove lines that don't match a selected band.
-  /// - Parameter band: band number
-//  func filterMapLinesByBand(selection: Int) {
-//    DispatchQueue.main.async { [self] in
-//      for (_, element) in bandFilters.enumerated() {
-//        if element.value == 0 {
-//          overlays = overlays.filter {$0.title != String(element.key)}
-//        }
-//      }
-//    }
-//  }
-
-//  func resetBandButtons(state: Bool) {
-//    if state {
-//      for band in bandData where band.id != 0 {
-//          bandFilters[band.id] = band.id
-//      }
-//    } else {
-//      self.bandFilters.removeAll()
-//    }
-//  }
 
   // MARK: - Keep Alive Timer ----------------------------------------------------------------------------
 
