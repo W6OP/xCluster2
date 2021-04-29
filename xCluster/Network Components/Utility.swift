@@ -16,30 +16,34 @@ extension String {
   }
 
   func deletingPrefix(_ prefix: String) -> String {
-      guard self.hasPrefix(prefix) else { return self }
-      return String(self.dropFirst(prefix.count))
+    guard self.hasPrefix(prefix) else { return self }
+    return String(self.dropFirst(prefix.count))
   }
 
   func deletingSuffix(_ suffix: String) -> String {
-      guard self.hasSuffix(suffix) else { return self }
-      return String(self.dropLast(suffix.count))
+    guard self.hasSuffix(suffix) else { return self }
+    return String(self.dropLast(suffix.count))
   }
 
   func stringBefore(_ delimiter: Character) -> String {
-          if let index = firstIndex(of: delimiter) {
-              return String(prefix(upTo: index))
-          } else {
-              return ""
-          }
-      }
+    if let index = firstIndex(of: delimiter) {
+      return String(prefix(upTo: index))
+    } else {
+      return ""
+    }
+  }
 
-      func stringAfter(_ delimiter: Character) -> String {
-          if let index = firstIndex(of: delimiter) {
-              return String(suffix(from: index).dropFirst())
-          } else {
-              return ""
-          }
-      }
+  func stringAfter(_ delimiter: Character) -> String {
+    if let index = firstIndex(of: delimiter) {
+      return String(suffix(from: index).dropFirst())
+    } else {
+      return ""
+    }
+  }
+
+  func isAlphanumeric() -> Bool {
+    return self.rangeOfCharacter(from: CharacterSet.alphanumerics.inverted) == nil && self.isEmpty
+  }
 }
 // https://www.hackingwithswift.com/example-code/strings/how-to-remove-a-prefix-from-a-string
 //extension String {
@@ -125,7 +129,8 @@ extension QRZManager: XMLParserDelegate {
     case KeyName.recordKeyName.rawValue:
       callSignDictionary = [:]
     case KeyName.errorKeyName.rawValue:
-      logger.info("Parser error: \(elementName):\(self.currentValue)")
+      //logger.info("Parser error: \(elementName):\(self.currentValue)")
+    break
     default:
       if callSignDictionaryKeys.contains(elementName) {
         currentValue = ""
@@ -155,7 +160,7 @@ extension QRZManager: XMLParserDelegate {
     case KeyName.recordKeyName.rawValue:
       results!.append(callSignDictionary!)
     case KeyName.errorKeyName.rawValue:
-        logger.info("didEndElement Error: \(self.currentValue)")
+        //logger.info("didEndElement Error: \(self.currentValue)")
         callSignDictionary = [:]
         callSignDictionary[elementName] = currentValue.trimmingCharacters(in: .whitespacesAndNewlines)
       if currentValue.contains("Session Timeout") {
@@ -262,7 +267,7 @@ struct QRZInfo {
   var grid = ""
   var lotw = false
   var error = false
-  var spotId = UUID()
+  //var spotId = UUID()
 }
 
 struct QRZInfoCombined: Codable {

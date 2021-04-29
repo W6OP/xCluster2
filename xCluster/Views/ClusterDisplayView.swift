@@ -40,7 +40,7 @@ struct ListDisplayView: View {
             SpotRow(spot: spot)
           }
         }
-        .frame( alignment: .topLeading)
+        .frame(alignment: .topLeading)
         .background(Color(red: 209 / 255, green: 215 / 255, blue: 226 / 255))
       }
     }

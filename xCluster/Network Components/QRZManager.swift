@@ -52,8 +52,8 @@ class QRZManager: NSObject {
   //let recordKeyName = "Callsign"
   //let errorKeyName = "Error"
 
-  var temp = [String]()
-  var temp2 = [String]()
+  //var temp = [String]()
+  //var temp2 = [String]()
 
   let callSignDictionaryKeys = Set<String>(["call", "country", "lat", "lon", "grid", "lotw", "aliases", "Error"])
   let sessionDictionaryKeys = Set<String>(["Key", "Count", "SubExp", "GMTime", "Remark"])
@@ -135,70 +135,40 @@ class QRZManager: NSObject {
     task.resume()
   }
 
-  /**
+  /*
    Request all the call information from QRZ.com to make a line on the map.
    - parameters:
    - spotterCall: first of a pair call signs to look up.
    - dxCall: second of a pair call signs to look up.
    */
-//  func getConsolidatedQRZInformation(spotterCall: String, dxCall: String, frequency: String, spotId: String) {
-//
-//    var cacheHits = 0
-//
-//    serialQRZProcessorQueue.sync(flags: .barrier) { [weak self] in
-//      // check the call sign cache
-//      if qrZedCallSignCache[spotterCall] != nil {
-//        let qrZedInfo = qrZedCallSignCache[spotterCall]
-//        qrZedCallSignPair.append(qrZedInfo!)
-//        cacheHits += 1
-//        cacheRequestCount += 1
-//        logger.info("Cache hit for \(spotterCall) : \(self!.qrZedCallSignCache.count)")
-//      } else {
-//        self?.requestQRZInformation(callSign: spotterCall, frequency: frequency, spotId: spotId)
-//      }
-//
-//      if qrZedCallSignCache[dxCall] != nil {
-//        let qrZedInfo = qrZedCallSignCache[dxCall]
-//        qrZedCallSignPair.append(qrZedInfo!)
-//        logger.info("Cache hit for \(dxCall) : \(self!.qrZedCallSignCache.count)")
-//        cacheHits += 1
-//        cacheRequestCount += 1
-//      } else {
-//        self?.requestQRZInformation(callSign: dxCall, frequency: frequency, spotId: spotId)
-//      }
-//
-//      if cacheHits == 2 {
-//        combineQRZInfo(frequency: frequency)
-//      }
-//    }
-//  }
 
+  /// Request all the call information from QRZ.com to make a line on the map.
+  /// - Parameter spot: cluster spot
   func getConsolidatedQRZInformation(spot: ClusterSpot) {
 
     var cacheHits = 0
 
-    serialQRZProcessorQueue.sync(flags: .barrier) { [weak self] in
+    serialQRZProcessorQueue.sync(flags: .barrier) { //[weak self] in
+
       // check the call sign cache
       if qrZedCallSignCache[spot.spotter] != nil {
         let qrZedInfo = qrZedCallSignCache[spot.spotter]
         qrZedCallSignPair.append(qrZedInfo!)
         cacheHits += 1
         cacheRequestCount += 1
-        logger.info("Cache hit for \(spot.spotter) : \(self!.qrZedCallSignCache.count)")
+        //logger.info("Cache hit for \(spot.spotter) : \(self!.qrZedCallSignCache.count)")
       } else {
-        //self?.requestQRZInformation(callSign: spot.spotter, frequency: spot.frequency, spotId: spot.id)
-        requestQRZInformation(spot: spot, spotter: true)
+        requestQRZInformation(spot: spot, isSpotter: true)
       }
 
       if qrZedCallSignCache[spot.dxStation] != nil {
         let qrZedInfo = qrZedCallSignCache[spot.dxStation]
         qrZedCallSignPair.append(qrZedInfo!)
-        logger.info("Cache hit for \(spot.dxStation) : \(self!.qrZedCallSignCache.count)")
+        //logger.info("Cache hit for \(spot.dxStation) : \(self!.qrZedCallSignCache.count)")
         cacheHits += 1
         cacheRequestCount += 1
       } else {
-        //self?.requestQRZInformation(callSign: spot.dxStation, frequency: spot.frequency, spotId: spot.id)
-        requestQRZInformation(spot: spot, spotter: false)
+        requestQRZInformation(spot: spot, isSpotter: false)
       }
 
       if cacheHits == 2 {
@@ -207,17 +177,11 @@ class QRZManager: NSObject {
     }
   }
 
-  /**
-   Request all the call information from QRZ.com.
-   - parameters:
-   - call: call sign to look up.
-   */
-
   /// Request all the call information from QRZ.com.
   /// - Parameters:
   ///   - callSign: call sign to look up.
   ///   - frequency: frequency to pass on.
-  func requestQRZInformation(spot: ClusterSpot, spotter: Bool) {
+  func requestQRZInformation(spot: ClusterSpot, isSpotter: Bool) {
 
     var call: String
 
@@ -229,16 +193,16 @@ class QRZManager: NSObject {
       return
     }
 
-    if spotter {
+    if isSpotter {
       call = spot.spotter
     } else {
       call = spot.dxStation
     }
 
     // clean the call sign w6op-@ GUD EARS--
-    if call.contains("-") {
-      call = call.stringBefore("-")
-    }
+//    if call.contains("-") {
+//      call = call.stringBefore("-")
+//    }
 
     //------------------------------------
     // this dies if session key is missing
@@ -262,6 +226,10 @@ class QRZManager: NSObject {
         fatalError("Error: missing response data")
       }
 
+      // to look at xml input for debugging
+      //let str = String(decoding: data, as: UTF8.self)
+      //print(str)
+
       let parser = XMLParser(data: data)
       parser.delegate = self
 
@@ -274,7 +242,7 @@ class QRZManager: NSObject {
         } else {
           // we did not get one or more hits
           // will move this to CallParser and call it there
-          logger.info("Use CallParser: \(call)") // above I think
+          logger.info("Use CallParser: (0) \(call)") // above I think
         }
       }
     }
@@ -287,6 +255,7 @@ class QRZManager: NSObject {
   func populateQRZInfo(spot: ClusterSpot) {
 
     qrZedInfo = QRZInfo()
+    var isProcessed = false
 
     //logger.info("populateQRZInfo")
     // need to check if dictionary is empty
@@ -296,61 +265,64 @@ class QRZManager: NSObject {
     }
 
     qrZedInfo.call = callSignDictionary["call"] ?? ""
-    qrZedInfo.spotId = spot.id
+    //print("QRZInfo: \(String(describing: callSignDictionary))")
 
     if callSignDictionary[KeyName.errorKeyName.rawValue] != nil {
-      //print("CallSignDictionary not found: \(callSignDictionary["Error"])")
+      print("CallSignDictionary not found: \(String(describing: callSignDictionary["Error"]))")
 
       // QRZ.com could not find it
       let error = callSignDictionary["Error"]
       if let range = error!.range(of: "found: ") {
         let callSign = error![range.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
-        logger.info("Use callparser \(callSign)")
+        //logger.info("Use callparser (1) \(callSign)")
         let hitList: [Hit] = callLookup.lookupCall(call: callSign)
         if !hitList.isEmpty {
-          temp2.append(callSign)
-          logger.info("Use callparser success \(callSign)")
+          logger.info("Use callparser(1) success \(callSign)")
           qrZedInfo = populateQRZInfo(hitList: hitList)
-          // check if these are necessary
-          //qrZedInfo.call = callSignDictionary["call"] ?? ""
-          qrZedInfo.spotId = spot.id
+          isProcessed = true
         } else {
-          temp.append(callSign)
+          logger.info("THIS IS AN ERROR \(callSign)")
+          return // SHOULD THROW
         }
       }
     }
 
-    //qrzInfo.call = ("\(qrzInfo.call)/W5") // for debug
-    // IF THERE IS A PREFIX OR SUFFIX CALL CALL PARSER AND SKIP SOME OF THIS
-    // ALSO IF WE DON'T GET ANYTHING from QRZ
-    if qrZedInfo.call.contains("/") { // process it
-      logger.info("Use callparser \(self.qrZedInfo.call)")
-      let hitList: [Hit] = callLookup.lookupCall(call: qrZedInfo.call)
-      if !hitList.isEmpty {
-        qrZedInfo = populateQRZInfo(hitList: hitList)
-        // check if these are necessary
-        //qrZedInfo.call = callSignDictionary["call"] ?? ""
-        qrZedInfo.spotId = spot.id
-      }
-    } else {
-      qrZedInfo.latitude = Double(callSignDictionary["lat"] ?? "0.0") ?? 00
-      if qrZedInfo.latitude == 00 {
-        qrZedInfo.error = true
-        logger.info("Latitude error: \(self.qrZedInfo.call)")
+    // this assumes QRZ.com found the information
+    // however if there is a prefix or suffix the QRZ info will
+    // only be for the base call - use the callparser to get
+    // the correct area information if the callparser can't
+    // find it then use the base call information
+    if !isProcessed {
+      if qrZedInfo.call.contains("/") {
+          logger.info("Use callparser (2) \(self.qrZedInfo.call)")
+          let hitList: [Hit] = callLookup.lookupCall(call: qrZedInfo.call)
+          if !hitList.isEmpty {
+            logger.info("Use callparser(2) success \(self.qrZedInfo.call)")
+            qrZedInfo = populateQRZInfo(hitList: hitList)
+            isProcessed = true
+          }
+        }
       }
 
-      qrZedInfo.longitude = Double(callSignDictionary["lon"] ?? "0.0") ?? 00
-      if qrZedInfo.longitude == 00 {
-        qrZedInfo.error = true
-        logger.info("Longitude error: \(self.qrZedInfo.call)")
-      }
+      if !isProcessed {
+        qrZedInfo.latitude = Double(callSignDictionary["lat"] ?? "0.0") ?? 00
+        if qrZedInfo.latitude == 00 {
+          qrZedInfo.error = true
+          logger.info("Latitude error: \(self.qrZedInfo.call)")
+        }
 
-      // if there is a prefix or suffix I need to find correct country and lat/lon
-      qrZedInfo.country = callSignDictionary["country"] ?? ""
-      qrZedInfo.grid = callSignDictionary["grid"] ?? ""
-      qrZedInfo.lotw = Bool(callSignDictionary["lotw"] ?? "0") ?? false
-      qrZedInfo.aliases = callSignDictionary["aliases"] ?? ""
-    }
+        qrZedInfo.longitude = Double(callSignDictionary["lon"] ?? "0.0") ?? 00
+        if qrZedInfo.longitude == 00 {
+          qrZedInfo.error = true
+          logger.info("Longitude error: \(self.qrZedInfo.call)")
+        }
+
+        // if there is a prefix or suffix I need to find correct country and lat/lon
+        qrZedInfo.country = callSignDictionary["country"] ?? ""
+        qrZedInfo.grid = callSignDictionary["grid"] ?? ""
+        qrZedInfo.lotw = Bool(callSignDictionary["lotw"] ?? "0") ?? false
+        qrZedInfo.aliases = callSignDictionary["aliases"] ?? ""
+      }
 
     // add to call sign cache
     if qrZedCallSignCache[qrZedInfo.call] == nil {
@@ -380,7 +352,7 @@ class QRZManager: NSObject {
     }
 
     if let longitude = Double(hit.longitude) {
-      qrZedInfo.latitude = longitude
+      qrZedInfo.longitude = longitude
     }
 
     return qrZedInfo
@@ -406,7 +378,7 @@ class QRZManager: NSObject {
       qrzInfoCombined.spotterLongitude = qrzCallSignPairCopy[0].longitude
       qrzInfoCombined.spotterGrid = qrzCallSignPairCopy[0].grid
       qrzInfoCombined.spotterLotw = qrzCallSignPairCopy[0].lotw
-      qrzInfoCombined.spotId = qrzCallSignPairCopy[0].spotId
+      //qrzInfoCombined.spotId = qrzCallSignPairCopy[0].spotId
       qrzInfoCombined.error = qrzCallSignPairCopy[0].error
 
       qrzInfoCombined.dxCall = qrzCallSignPairCopy[1].call

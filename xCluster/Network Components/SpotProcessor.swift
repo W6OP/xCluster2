@@ -33,16 +33,15 @@ class SpotProcessor {
       throw SpotError.spotError("processRawSpot: spot length too short")
     }
 
-    let spotter = rawSpot.components(separatedBy: ":")
+    let component = rawSpot.components(separatedBy: ":")
     // replacing -# for AE5E - don't know why he does that "W6OP-#" and "W6OP-2-#"
-    spot.spotter =  convertStringSliceToString(spotter[0].components(separatedBy: " ")[2])
-    if spot.spotter.contains("-") {
-      let index = spot.spotter.firstIndex(of: "-")
-      let startIndex = spot.spotter.startIndex
-      spot.spotter = convertStringSliceToString(String(spot.spotter[startIndex..<index!])).condenseWhitespace()
-    }
+    spot.spotter =  convertStringSliceToString(component[0].components(separatedBy: " ")[2])
+    spot.spotter = cleanCallSign(callSign: spot.spotter)
 
-    // now just remove the first part of the string
+    if spot.spotter.filter({ $0.isLetter }).isEmpty ||
+        spot.spotter.filter({ $0.isNumber }).isEmpty {
+      throw SpotError.spotError("processRawSpot: invalid spotter call sign: \(spot.dxStation)")
+    }
 
     var startIndex = rawSpot.index(rawSpot.startIndex, offsetBy: 16)
     var endIndex = rawSpot.index(startIndex, offsetBy: 9)
@@ -55,6 +54,12 @@ class SpotProcessor {
     startIndex = rawSpot.index(rawSpot.startIndex, offsetBy: 26)
     endIndex = rawSpot.index(startIndex, offsetBy: 11)
     spot.dxStation = convertStringSliceToString(String(rawSpot[startIndex..<endIndex]))
+    spot.dxStation = cleanCallSign(callSign: spot.dxStation)
+
+    if spot.dxStation.filter({ $0.isLetter }).isEmpty ||
+        spot.dxStation.filter({ $0.isNumber }).isEmpty {
+      throw SpotError.spotError("processRawSpot: invalid dx call sign: \(spot.dxStation)")
+    }
 
     startIndex = rawSpot.index(rawSpot.startIndex, offsetBy: 39)
     endIndex = rawSpot.index(startIndex, offsetBy: 30)
@@ -75,6 +80,38 @@ class SpotProcessor {
       .joined()
 
     return spot
+  }
+
+  func cleanCallSign(callSign: String) -> String {
+    var cleanedCall = ""
+
+    // if there are spaces in the call don't process it
+    cleanedCall = callSign.replacingOccurrences(of: " ", with: "")
+
+    // strip leading or trailing "/"  /W6OP/
+    if callSign.prefix(1) == "/" {
+      cleanedCall = String(callSign.suffix(callSign.count - 1))
+    }
+
+    if callSign.suffix(1) == "/" {
+      cleanedCall = String(cleanedCall.prefix(cleanedCall.count - 1))
+    }
+
+    if callSign.contains("//") { // EB5KB//P
+      cleanedCall = callSign.replacingOccurrences(of: "//", with: "/")
+    }
+
+    if callSign.contains("///") { // BU1H8///D
+      cleanedCall = callSign.replacingOccurrences(of: "///", with: "/")
+    }
+
+    if callSign.contains("-") {
+      let index = callSign.firstIndex(of: "-")
+      let startIndex = callSign.startIndex
+      cleanedCall = convertStringSliceToString(String(callSign[startIndex..<index!])).condenseWhitespace()
+    }
+
+    return cleanedCall
   }
 
   /// Process a telnet packet from a show/dx command.
@@ -151,6 +188,12 @@ class SpotProcessor {
     var endIndex = balance.endIndex
 
     spot.spotter = balance.components(separatedBy: " ").first!.condenseWhitespace()
+    spot.spotter = cleanCallSign(callSign: spot.spotter)
+
+    if spot.spotter.filter({ $0.isLetter }).isEmpty ||
+        spot.spotter.filter({ $0.isNumber }).isEmpty {
+      throw SpotError.spotError("processRawSpot: invalid spotter call sign: \(spot.dxStation)")
+    }
 
     balance = balance.dropFirst(11)
     endIndex = balance.index(balance.startIndex, offsetBy: 8)
@@ -165,6 +208,13 @@ class SpotProcessor {
     endIndex = balance.index(balance.startIndex, offsetBy: 10)
 
     spot.dxStation = convertStringSliceToString(String(balance[balance.startIndex..<endIndex])).condenseWhitespace()
+
+    spot.dxStation = cleanCallSign(callSign: spot.dxStation)
+
+    if spot.dxStation.filter({ $0.isLetter }).isEmpty ||
+        spot.dxStation.filter({ $0.isNumber }).isEmpty {
+      throw SpotError.spotError("processRawSpot: invalid dx call sign: \(spot.dxStation)")
+    }
 
     balance = balance.dropFirst(11)
     endIndex = balance.index(balance.startIndex, offsetBy: 30)

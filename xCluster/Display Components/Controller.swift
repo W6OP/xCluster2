@@ -42,7 +42,8 @@ struct ClusterSpot: Identifiable, Hashable {
   var isFiltered: Bool
   var overlay: MKPolyline!
   var qrzInfoCombinedJSON = ""
-  var reason = FilterReason.none
+  var filterReason = FilterReason.none
+  var isInvalidSpot = false
 
   /// Build the line (overlay) to display on the map.
   /// - Parameter qrzInfoCombined: combined data of a pair of call signs - QRZ information.
@@ -171,6 +172,10 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   func  connect(cluster: ClusterIdentifier) {
 
     disconnect()
+
+    overlays.removeAll()
+    spots.removeAll()
+    bandFilters.keys.forEach { bandFilters[$0] = .isOff }
 
     logger.info("Connecting to: \(cluster.name)")
     self.telnetManager.connect(cluster: cluster)
@@ -337,8 +342,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     // need to make spot mutable
     var spot = spot
     spot.createOverlay(qrzInfoCombined: qrzInfoCombined)
-    // don't know if I still need this
-    //    spot.qrzInfoCombinedJSON = buildJSONString(qrzInfoCombined: qrzInfoCombined)
 
     DispatchQueue.main.async { [self] in
       spots.insert(spot, at: 0)
@@ -347,12 +350,12 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
       }
 
       if spots.count > maxNumberOfSpots {
+        let spot = spots[spots.count - 1]
+        overlays = overlays.filter({ $0.subtitle != spot.id.uuidString })
         spots.removeLast()
-        overlays.remove(at: overlays.count - 1)
       }
     }
   }
-
 
   /// Get the session key from QRZ.com
   func getQRZSessionKey() {
@@ -422,7 +425,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     return messages
   }
 
-  /// Parse the cluster spot message
+  /// Parse the cluster spot message. This is where all cluster spots
+  /// are first created.
   /// - Parameters:
   ///   - message: "DX de W3EX:      28075.6  N9AMI   1912Z FN20\a\a"
   ///   - messageType: Type of spot received.
@@ -433,9 +437,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
                              timeUTC: "", comment: "", grid: "", isFiltered: false)
 
       switch messageType {
-      // Deprecated
-      // case .showDxSpots:
-      // spot = try self.spotProcessor.processShowDxSpot(rawSpot: message)
       case .spotReceived:
         spot = try self.spotProcessor.processSpot(rawSpot: message)
       case .htmlSpotReceived:
@@ -449,6 +450,12 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
       // GUARD
       spot.band = convertFrequencyToBand(frequency: spot.frequency)
 
+      // check band filters to see if this spot should have the overlay filtered
+      if bandFilters[Int(spot.band)] == .isOn {
+        spot.isFiltered = true
+        spot.filterReason = .band
+      }
+
       // if spot already exists, don't add again
       if spots.firstIndex(where: { $0.spotter == spot.spotter &&
         $0.dxStation == spot.dxStation && $0.frequency == spot.frequency
@@ -457,9 +464,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
       }
 
       if self.haveSessionKey {
-        DispatchQueue.global(qos: .background).async { [weak self] in
-          self!.qrzManager.getConsolidatedQRZInformation(spot: spot)
-        }
+        //DispatchQueue.global(qos: .background).async { [weak self] in
+          qrzManager.getConsolidatedQRZInformation(spot: spot)
+        //}
       } else {
         getQRZSessionKey()
       }
@@ -512,8 +519,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   /// Remove spots older than 30 minutes
   /// - Parameter filterState: filter/don't filter
   func setTimeFilter(filterState: Bool) {
-
-    // TODO: remove spots and overlays by time
 
     let localDateTime = Date()
 
