@@ -47,13 +47,13 @@ struct ClusterSpot: Identifiable, Hashable {
 
   /// Build the line (overlay) to display on the map.
   /// - Parameter qrzInfoCombined: combined data of a pair of call signs - QRZ information.
-  mutating func createOverlay(qrzInfoCombined: QRZInfoCombined) {
+  mutating func createOverlay(stationInfoCombined: StationInformationCombined) {
     let locations = [
-      CLLocationCoordinate2D(latitude: qrzInfoCombined.spotterLatitude, longitude: qrzInfoCombined.spotterLongitude),
-      CLLocationCoordinate2D(latitude: qrzInfoCombined.dxLatitude, longitude: qrzInfoCombined.dxLongitude)]
+      CLLocationCoordinate2D(latitude: stationInfoCombined.spotterLatitude, longitude: stationInfoCombined.spotterLongitude),
+      CLLocationCoordinate2D(latitude: stationInfoCombined.dxLatitude, longitude: stationInfoCombined.dxLongitude)]
 
     let polyline = MKGeodesicPolyline(coordinates: locations, count: locations.count)
-    polyline.title = String(qrzInfoCombined.band)
+    polyline.title = String(stationInfoCombined.band)
     polyline.subtitle = id.uuidString
 
     self.overlay = polyline
@@ -337,11 +337,11 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   ///   - messageKey: Key associated with this message.
   ///   - qrzInfoCombined: Message text.
   ///   - spot: Associated Cluster spot.
-  func qrzManagerDidGetCallSignData(_ qrzManager: QRZManager, messageKey: QRZManagerMessage, qrzInfoCombined: QRZInfoCombined, spot: ClusterSpot) {
+  func qrzManagerDidGetCallSignData(_ qrzManager: QRZManager, messageKey: QRZManagerMessage, stationInfoCombined: StationInformationCombined, spot: ClusterSpot) {
 
     // need to make spot mutable
     var spot = spot
-    spot.createOverlay(qrzInfoCombined: qrzInfoCombined)
+    spot.createOverlay(stationInfoCombined: stationInfoCombined)
 
     DispatchQueue.main.async { [self] in
       spots.insert(spot, at: 0)
@@ -464,11 +464,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
       }
 
       if self.haveSessionKey {
-        //DispatchQueue.global(qos: .background).async { [weak self] in
           qrzManager.getConsolidatedQRZInformation(spot: spot)
-        //}
       } else {
-        getQRZSessionKey()
+        getQRZSessionKey() // or just use CallLookup()
       }
     } catch {
       print("parseClusterSpot error: \(error)")
@@ -835,7 +833,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   /// Build a string to hold information from the associated spot.
   /// - Parameter info: QRZInfoCombined that built overlay.
   /// - Returns: string representation of QRZInfoCombined.
-  func buildJSONString(qrzInfoCombined: QRZInfoCombined) -> String {
+  func buildJSONString(qrzInfoCombined: StationInformationCombined) -> String {
 
     let encoder = JSONEncoder()
     guard let data = try? encoder.encode(qrzInfoCombined) else { return "" }
@@ -848,13 +846,13 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   /// Build a QRZInfoCombined from a string.
   /// - Parameter subTitle: subtitle from overlay.
   /// - Returns: QRZInfoCombined
-  func extractJSONFromString(subTitle: String) -> QRZInfoCombined {
+  func extractJSONFromString(subTitle: String) -> StationInformationCombined {
 
     let decoder = JSONDecoder()
 
     let data = subTitle.data(using: .utf8)!
-    guard let qrzInfoCombined = try? decoder.decode(QRZInfoCombined.self, from: data) else {
-      return QRZInfoCombined()
+    guard let qrzInfoCombined = try? decoder.decode(StationInformationCombined.self, from: data) else {
+      return StationInformationCombined()
     }
 
     return qrzInfoCombined

@@ -258,7 +258,7 @@ enum SpotError: Error {
  Structure to return information from QRZ.com.
  - parameters:
  */
-struct QRZInfo {
+struct StationInformation {
   var call = ""
   var aliases = ""
   var country = ""
@@ -267,10 +267,10 @@ struct QRZInfo {
   var grid = ""
   var lotw = false
   var error = false
-  //var spotId = UUID()
+  var isInitialized = false
 }
 
-struct QRZInfoCombined: Codable {
+struct StationInformationCombined: Codable {
   var spotterCall = ""
   var spotterCountry = ""
   var spotterLatitude: Double = 00
@@ -314,8 +314,8 @@ struct QRZInfoCombined: Codable {
   // need to convert 3.593.4 to 3.5934
   mutating func setFrequency(frequency: String) {
     self.frequency = frequency
-    self.formattedFrequency = QRZInfoCombined.formatFrequency(frequency: frequency)
-    self.band = QRZInfoCombined.setBand(frequency: self.formattedFrequency)
+    self.formattedFrequency = StationInformationCombined.formatFrequency(frequency: frequency)
+    self.band = StationInformationCombined.setBand(frequency: self.formattedFrequency)
   }
 
   static func formatFrequency(frequency: String) -> Float {
