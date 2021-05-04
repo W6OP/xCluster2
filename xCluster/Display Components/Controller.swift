@@ -20,6 +20,12 @@ enum BandFilterState: Int {
   case isOff = 1
 }
 
+enum RequestError: Error {
+  case invalidCallSign
+  case invalidLatitude
+  case invalidLongitude
+}
+
 struct ClusterSpot: Identifiable, Hashable {
 
   enum FilterReason: Int {
@@ -49,8 +55,10 @@ struct ClusterSpot: Identifiable, Hashable {
   /// - Parameter qrzInfoCombined: combined data of a pair of call signs - QRZ information.
   mutating func createOverlay(stationInfoCombined: StationInformationCombined) {
     let locations = [
-      CLLocationCoordinate2D(latitude: stationInfoCombined.spotterLatitude, longitude: stationInfoCombined.spotterLongitude),
-      CLLocationCoordinate2D(latitude: stationInfoCombined.dxLatitude, longitude: stationInfoCombined.dxLongitude)]
+      CLLocationCoordinate2D(latitude: stationInfoCombined.spotterLatitude,
+                             longitude: stationInfoCombined.spotterLongitude),
+      CLLocationCoordinate2D(latitude: stationInfoCombined.dxLatitude,
+                             longitude: stationInfoCombined.dxLongitude)]
 
     let polyline = MKGeodesicPolyline(coordinates: locations, count: locations.count)
     polyline.title = String(stationInfoCombined.band)
@@ -360,7 +368,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   /// Get the session key from QRZ.com
   func getQRZSessionKey() {
     logger.info("Get session key.")
-    self.qrzManager.requestSessionKey(name: self.qrzUserName, password: self.qrzPassword)
+    if !qrzUserName.isEmpty && !qrzPassword.isEmpty {
+      self.qrzManager.requestSessionKey(name: qrzUserName, password: qrzPassword)
+    }
   }
 
   // MARK: - Cluster Login and Commands

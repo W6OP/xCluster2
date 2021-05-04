@@ -165,8 +165,9 @@ extension QRZManager: XMLParserDelegate {
         callSignDictionary[elementName] = currentValue.trimmingCharacters(in: .whitespacesAndNewlines)
       if currentValue.contains("Session Timeout") {
         // abort this and request a session key
-        sessionKey = nil
-        haveSessionKey = false
+        logger.info("Session Timed Out - abort processing")
+        isSessionKeyValid = false
+        parser.abortParsing()
       }
     default:
       if callSignDictionaryKeys.contains(elementName) {
@@ -187,10 +188,10 @@ extension QRZManager: XMLParserDelegate {
     logger.info("parser failed: \(parseError as NSObject)")
     currentValue = ""
 
-    // probably needs refinement
-    sessionDictionary = nil
-    callSignDictionary = nil
-    results = nil
+    if !isSessionKeyValid {
+      logger.info("Request a new Session Key")
+      requestSessionKey(name: qrzUserName, password: qrzPassword)
+    }
   }
 }
 

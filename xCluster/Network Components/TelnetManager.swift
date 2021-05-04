@@ -10,7 +10,7 @@ import Cocoa
 import Network
 import os
 
-protocol TelnetManagerDelegate: class {
+protocol TelnetManagerDelegate: AnyObject {
 
   func connect(cluster: ClusterIdentifier)
 
