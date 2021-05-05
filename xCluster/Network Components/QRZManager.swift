@@ -33,6 +33,8 @@ class QRZManager: NSObject {
 
   // MARK: - Field Definitions
 
+  var callSignPairAsync = [StationInformation]()
+
   //static let modelLog = OSLog(subsystem: "com.w6op.TelnetManager", category: "Model")
   let logger = Logger(subsystem: "com.w6op.xCluster", category: "QRZManager")
 
@@ -46,6 +48,7 @@ class QRZManager: NSObject {
 
   var qrzUserName = ""
   var qrzPassword = ""
+  var useCallLookupOnly = false
 
   let callSignDictionaryKeys = Set<String>(["call", "country", "lat", "lon", "grid", "lotw", "aliases", "Error"])
   let sessionDictionaryKeys = Set<String>(["Key", "Count", "SubExp", "GMTime", "Remark"])
@@ -123,10 +126,10 @@ class QRZManager: NSObject {
     task.resume()
   }
 
-  /// Request all the call information from QRZ.com to make a line on the map.
-  /// All we really need is to get the latitude and longitude.
-  /// - Parameter spot: cluster spot
-  func getConsolidatedQRZInformation(spot: ClusterSpot) {
+  /// If the user does not have a subscription to QRZ.com then
+  /// only use the Call Parser for lookups.
+  /// - Parameter spot: ClusterSpot
+  func requestConsolidatedStationInformationCallParser(spot: ClusterSpot) {
     var cacheHits = 0
     var callSignPair = [StationInformation]()
 
@@ -134,6 +137,42 @@ class QRZManager: NSObject {
       if callSignCache[spot.spotter] != nil {
         let spotterInfo = callSignCache[spot.spotter]
         callSignPair.append(spotterInfo!)
+        cacheHits += 1
+        cacheRequestCount += 1
+      } else {
+        let spotterInfo = requestCallParserInformation(call: spot.spotter)
+        callSignPair.append(spotterInfo)
+      }
+
+      if callSignCache[spot.dxStation] != nil {
+        let dxInfo = callSignCache[spot.dxStation]
+        callSignPair.append(dxInfo!)
+        cacheHits += 1
+        cacheRequestCount += 1
+      } else {
+        let dxInfo = requestCallParserInformation(call: spot.dxStation)
+        callSignPair.append(dxInfo)
+      }
+
+      if callSignPair.count == 2 {
+        logger.info("Call Parser success for spot")
+        combineQRZInfo(spot: spot, callSignPair: callSignPair)
+      }
+    }
+  }
+
+  /// Request all the call information from QRZ.com to make a line on the map.
+  /// All we really need is to get the latitude and longitude.
+  /// - Parameter spot: ClusterSpot
+  func requestConsolidatedStationInformationQRZ(spot: ClusterSpot) {
+    var cacheHits = 0
+    var callSignPair = [StationInformation]()
+
+    serialQRZProcessorQueue.sync(flags: .barrier) {
+      if callSignCache[spot.spotter] != nil {
+        let spotterInfo = callSignCache[spot.spotter]
+        callSignPair.append(spotterInfo!)
+        logger.info("Cache hit for: \(spot.spotter)")
         cacheHits += 1
         cacheRequestCount += 1
       } else {
@@ -147,6 +186,7 @@ class QRZManager: NSObject {
       if callSignCache[spot.dxStation] != nil {
         let dxInfo = callSignCache[spot.dxStation]
         callSignPair.append(dxInfo!)
+        logger.info("Cache hit for: \(spot.dxStation)")
         cacheHits += 1
         cacheRequestCount += 1
       } else {
@@ -158,13 +198,18 @@ class QRZManager: NSObject {
       }
 
       if callSignPair.count == 2 {
-        logger.info("Cache success for spot")
+        logger.info("Call Parser success for spot")
+        logger.info("combineQRZInfo 1: \(spot.id)")
         combineQRZInfo(spot: spot, callSignPair: callSignPair)
       }
     }
   }
 
   /// Request all the call information from QRZ.com
+  /// If there is a prefix or suffix the QRZ info will
+  /// only be for the base call - use the call parser to get
+  /// the correct area information if the call parser can't
+  /// find it then use the base call information
   /// - Parameters:
   ///   - call: call sign
   ///   - spot: cluster spot
@@ -181,35 +226,43 @@ class QRZManager: NSObject {
       return callSignPair // throw?
     }
 
-    // if there is a prefix or suffix the QRZ info will
-    // only be for the base call - use the call parser to get
-    // the correct area information if the call parser can't
-    // find it then use the base call information
     if call.contains("/") {
       logger.info("Use callparser (2) \(call)")
-      let hitList: [Hit] = callLookup.lookupCall(call: call)
-      if !hitList.isEmpty {
-        logger.info("Use callparser(2) success \(call)")
-        let stationInfo = populateStationInformation(hitList: hitList)
-        // add to call sign cache
-        if callSignCache[stationInfo.call] == nil {
-          callSignCache[stationInfo.call] = stationInfo
-        }
-
+        let stationInfo = requestCallParserInformation(call: call)
         callSignPairCopy.append(stationInfo)
         return callSignPairCopy
-      }
     }
 
-    requestQRZInformation(call: call, spot: spot, callSignPair: &callSignPairCopy, isSpotter: isSpotter)
+    requestQRZInformation(call: call, spot: spot)
 
     return callSignPairCopy
   }
 
-  func requestQRZInformation(call: String, spot: ClusterSpot, callSignPair: inout [StationInformation], isSpotter: Bool) {
+  /// Request the information about a call sign from the Call Parser.
+  /// - Parameter call: call sign to lookup
+  /// - Returns: StationInformation
+  func requestCallParserInformation(call: String) -> StationInformation {
 
-    //var callSignPairCopy = callSignPair
-    //------------------------------------
+    var stationInfo = StationInformation()
+
+    let hitList: [Hit] = callLookup.lookupCall(call: call)
+    if !hitList.isEmpty {
+      logger.info("Use callparser(5) success \(call)")
+      stationInfo = populateStationInformation(hitList: hitList)
+      if callSignCache[stationInfo.call] == nil {
+        callSignCache[stationInfo.call] = stationInfo
+      }
+    }
+    //          // THIS IS AN ERROR 9W64BW/E46V
+    //          // THIS IS AN ERROR D1DX
+    //          logger.info("THIS IS AN ERROR \(callSign)")
+    //          throw (RequestError.invalidCallSign)
+
+    return stationInfo
+  }
+
+  func requestQRZInformation(call: String, spot: ClusterSpot) {
+
     // this dies if session key is missing
     guard let url = URL(string: "https://xmldata.qrz.com/xml/current/?s=\(String(self.sessionKey));callsign=\(call)") else {
       logger.info("Session key is invalid: \(self.sessionKey)")
@@ -239,34 +292,27 @@ class QRZManager: NSObject {
 
       if parser.parse() {
         if self.results != nil {
-          if callSignPair.count > 1 {
-            callSignPair.removeAll()
+          if callSignPairAsync.count > 1 {
+            callSignPairAsync.removeAll()
           }
 
           logger.info("Processing QRZ data for: \(call)")
 
           do {
-            if isSpotter {
-              let spotterInfo = try processQRZInformation(call: call)
-              if callSignCache[spotterInfo.call] == nil {
-                callSignCache[spotterInfo.call] = spotterInfo
+              let stationInfo = try processQRZInformation(call: call)
+              if callSignCache[stationInfo.call] == nil {
+                callSignCache[stationInfo.call] = stationInfo
               }
-              callSignPairCopy.append(spotterInfo)
-            } else {
-              let dxInfo = try processQRZInformation(call: call)
-              if callSignCache[dxInfo.call] == nil {
-                callSignCache[dxInfo.call] = dxInfo
-              }
-              callSignPairCopy.append(dxInfo)
-            }
+              callSignPairAsync.append(stationInfo)
           } catch {
             logger.info("RequestError Error: \(error as NSObject)")
-            callSignPairCopy.removeAll()
+            callSignPairAsync.removeAll()
           }
 
-          if callSignPairCopy.count == 2 {
-            logger.info("combineQRZInfo2: \(spot.id)")
-            combineQRZInfo(spot: spot, callSignPair: callSignPairCopy)
+          if callSignPairAsync.count == 2 {
+            logger.info("combineQRZInfo 2: \(spot.id)")
+            combineQRZInfo(spot: spot, callSignPair: callSignPairAsync)
+            callSignPairAsync.removeAll()
           }
 
         } else {
@@ -302,18 +348,8 @@ class QRZManager: NSObject {
       let error = callSignDictionary["Error"]
       if let range = error!.range(of: "found: ") {
         let callSign = error![range.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
-        //logger.info("Use callparser (1) \(callSign)")
-        let hitList: [Hit] = callLookup.lookupCall(call: callSign)
-        if !hitList.isEmpty {
-          logger.info("Use callparser(1) success \(callSign)")
-          stationInfo = populateStationInformation(hitList: hitList)
-          isProcessed = true
-        } else {
-          // THIS IS AN ERROR 9W64BW/E46V
-          // THIS IS AN ERROR D1DX
-          logger.info("THIS IS AN ERROR \(callSign)")
-          throw (RequestError.invalidCallSign)
-        }
+        stationInfo = requestCallParserInformation(call: callSign)
+        isProcessed = true
       }
     }
 
@@ -321,8 +357,7 @@ class QRZManager: NSObject {
         do {
           stationInfo = try populateQRZInformation(stationInfoIncomplete: stationInfo)
         } catch {
-          // need to fix this
-          //callSignPair.removeAll()
+          callSignPairAsync.removeAll()
         }
       }
 
@@ -399,7 +434,7 @@ class QRZManager: NSObject {
   /// - Parameter spot: cluster spot.
   func combineQRZInfo(spot: ClusterSpot, callSignPair: [StationInformation]) {
 
-     logger.info("Combine QRZ Information: \(callSignPair[0].call):\(callSignPair[1].call)")
+     //logger.info("Combine QRZ Information: \(callSignPair[0].call):\(callSignPair[1].call)")
 
       let qrzCallSignPairCopy = callSignPair // use copy so we don't read while modifying
       var qrzInfoCombined = StationInformationCombined()

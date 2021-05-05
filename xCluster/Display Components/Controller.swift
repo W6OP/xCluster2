@@ -369,7 +369,10 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   func getQRZSessionKey() {
     logger.info("Get session key.")
     if !qrzUserName.isEmpty && !qrzPassword.isEmpty {
-      self.qrzManager.requestSessionKey(name: qrzUserName, password: qrzPassword)
+      qrzManager.useCallLookupOnly = false
+      qrzManager.requestSessionKey(name: qrzUserName, password: qrzPassword)
+    } else {
+      qrzManager.useCallLookupOnly = true
     }
   }
 
@@ -473,10 +476,14 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
         return
       }
 
-      if self.haveSessionKey {
-          qrzManager.getConsolidatedQRZInformation(spot: spot)
+      if qrzManager.useCallLookupOnly == false {
+        if self.haveSessionKey {
+          qrzManager.requestConsolidatedStationInformationQRZ(spot: spot)
+        } else {
+          getQRZSessionKey()
+        }
       } else {
-        getQRZSessionKey() // or just use CallLookup()
+        qrzManager.requestConsolidatedStationInformationCallParser(spot: spot)
       }
     } catch {
       print("parseClusterSpot error: \(error)")
