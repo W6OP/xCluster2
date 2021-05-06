@@ -87,6 +87,10 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
       label: "com.w6op.virtualcluster.spotProcessorQueue",
       attributes: .concurrent)
 
+  private let serialQRZProcessorQueue =
+    DispatchQueue(
+      label: "com.w6op.virtualcluster.qrzProcessorQueue")
+
   //static let modelLog = OSLog(subsystem: "com.w6op.Controller", category: "Model")
   let logger = Logger(subsystem: "com.w6op.xCluster", category: "Controller")
 
@@ -478,12 +482,16 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
       if qrzManager.useCallLookupOnly == false {
         if self.haveSessionKey {
-          qrzManager.requestConsolidatedStationInformationQRZ(spot: spot)
+          serialQRZProcessorQueue.sync {
+            qrzManager.requestConsolidatedStationInformationQRZ(spot: spot)
+          }
         } else {
           getQRZSessionKey()
         }
       } else {
-        qrzManager.requestConsolidatedStationInformationCallParser(spot: spot)
+        serialQRZProcessorQueue.sync {
+          qrzManager.requestConsolidatedStationInformationCallParser(spot: spot)
+        }
       }
     } catch {
       print("parseClusterSpot error: \(error)")

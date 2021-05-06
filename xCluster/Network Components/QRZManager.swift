@@ -31,6 +31,9 @@ class QRZManager: NSObject {
     DispatchQueue(
       label: "com.w6op.virtualcluster.qrzProcessorQueue")
 
+  private let lockQueue = DispatchQueue(label: "name.lock.queue")
+  private let queue = DispatchQueue(label: "ThreadSafeCollection.queue", attributes: .concurrent)
+
   // MARK: - Field Definitions
 
   var callSignPairAsync = [StationInformation]()
@@ -133,7 +136,7 @@ class QRZManager: NSObject {
     var cacheHits = 0
     var callSignPair = [StationInformation]()
 
-    serialQRZProcessorQueue.sync(flags: .barrier) {
+    serialQRZProcessorQueue.sync() { //flags: .barrier
       if callSignCache[spot.spotter] != nil {
         let spotterInfo = callSignCache[spot.spotter]
         callSignPair.append(spotterInfo!)
@@ -168,7 +171,7 @@ class QRZManager: NSObject {
     var cacheHits = 0
     var callSignPair = [StationInformation]()
 
-    serialQRZProcessorQueue.sync(flags: .barrier) {
+//    serialQRZProcessorQueue.sync() { //flags: .barrier
       if callSignCache[spot.spotter] != nil {
         let spotterInfo = callSignCache[spot.spotter]
         callSignPair.append(spotterInfo!)
@@ -202,7 +205,7 @@ class QRZManager: NSObject {
         logger.info("combineQRZInfo 1: \(spot.id)")
         combineQRZInfo(spot: spot, callSignPair: callSignPair)
       }
-    }
+//    }
   }
 
   /// Request all the call information from QRZ.com
@@ -218,8 +221,8 @@ class QRZManager: NSObject {
 
     var callSignPairCopy = callSignPair
 
-    callSignDictionary = [String: String]()
-    callSignDictionary["Error"] = nil
+//    callSignDictionary = [String: String]()
+//    callSignDictionary["Error"] = nil
 
     if isSessionKeyValid == false {
       requestSessionKey(name: qrzUserName, password: qrzPassword)
@@ -249,8 +252,10 @@ class QRZManager: NSObject {
     if !hitList.isEmpty {
       logger.info("Use callparser(5) success \(call)")
       stationInfo = populateStationInformation(hitList: hitList)
-      if callSignCache[stationInfo.call] == nil {
-        callSignCache[stationInfo.call] = stationInfo
+      queue.async(flags: .barrier) { [self] in
+        if callSignCache[stationInfo.call] == nil {
+          callSignCache[stationInfo.call] = stationInfo
+        }
       }
     }
     //          // THIS IS AN ERROR 9W64BW/E46V
@@ -300,8 +305,11 @@ class QRZManager: NSObject {
 
           do {
               let stationInfo = try processQRZInformation(call: call)
-              if callSignCache[stationInfo.call] == nil {
-                callSignCache[stationInfo.call] = stationInfo
+
+            queue.async(flags: .barrier) {
+            if callSignCache[stationInfo.call] == nil {
+                  callSignCache[stationInfo.call] = stationInfo
+                }
               }
               callSignPairAsync.append(stationInfo)
           } catch {

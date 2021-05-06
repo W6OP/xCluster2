@@ -111,6 +111,7 @@ extension QRZManager: XMLParserDelegate {
   func parserDidStartDocument(_ parser: XMLParser) {
     //logger.info("Parsing started.")
     results = []
+    callSignDictionary = [String: String]()
   }
 
   // start element
