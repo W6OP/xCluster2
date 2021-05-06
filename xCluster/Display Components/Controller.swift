@@ -307,17 +307,17 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
       }
 
     case .spotReceived:
-      DispatchQueue.main.async {
+      //DispatchQueue.main.async {
         self.parseClusterSpot(message: message, messageType: messageKey)
-      }
+      //}
 
-    case.htmlSpotReceived: // DO I WANT TO DO THIS HERE??
+    case.htmlSpotReceived:
       self.parseClusterSpot(message: message, messageType: messageKey)
 
     case .showDxSpots:
-      DispatchQueue.main.async {
+      //DispatchQueue.main.async {
         self.parseClusterSpot(message: message, messageType: messageKey)
-      }
+      //}
 
     default:
       break
@@ -482,14 +482,14 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
       if qrzManager.useCallLookupOnly == false {
         if self.haveSessionKey {
-          serialQRZProcessorQueue.sync {
+          serialQRZProcessorQueue.async { [self] in
             qrzManager.requestConsolidatedStationInformationQRZ(spot: spot)
           }
         } else {
           getQRZSessionKey()
         }
       } else {
-        serialQRZProcessorQueue.sync {
+        serialQRZProcessorQueue.async { [self] in
           qrzManager.requestConsolidatedStationInformationCallParser(spot: spot)
         }
       }

@@ -26,12 +26,9 @@ class TelnetManager {
 
   // MARK: - Field Definitions ----------------------------------------------------------------------------
 
-  private let concurrentTelnetQueue =
-    DispatchQueue(
-      label: "com.w6op.virtualCluster.telnetQueue",
-      attributes: .concurrent)
+  private let serialTelnetQueue =
+    DispatchQueue(label: "com.w6op.virtualCluster.telnetQueue") // ,attributes: .concurrent
 
-  //static let modelLog = OSLog(subsystem: "com.w6op.TelnetManager", category: "Model")
   let logger = Logger(subsystem: "com.w6op.xCluster", category: "TelnetManager")
 
   // delegate to pass messages back to controller
@@ -84,7 +81,7 @@ class TelnetManager {
 
   /// Start the telnet connection.
   func start() {
-    connection.start(queue: concurrentTelnetQueue)
+    connection.start(queue: serialTelnetQueue)
   }
 
   /// Handle state changes to the connection.

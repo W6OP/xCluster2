@@ -27,12 +27,7 @@ public enum KeyName: String {
 
 class QRZManager: NSObject {
 
-  private let serialQRZProcessorQueue =
-    DispatchQueue(
-      label: "com.w6op.virtualcluster.qrzProcessorQueue")
-
-  private let lockQueue = DispatchQueue(label: "name.lock.queue")
-  private let queue = DispatchQueue(label: "ThreadSafeCollection.queue", attributes: .concurrent)
+  private let lockQueue = DispatchQueue(label: "com.w6op.virtualcluster.lock.queue", attributes: .concurrent)
 
   // MARK: - Field Definitions
 
@@ -133,35 +128,33 @@ class QRZManager: NSObject {
   /// only use the Call Parser for lookups.
   /// - Parameter spot: ClusterSpot
   func requestConsolidatedStationInformationCallParser(spot: ClusterSpot) {
-    var cacheHits = 0
-    var callSignPair = [StationInformation]()
-
-    serialQRZProcessorQueue.sync() { //flags: .barrier
-      if callSignCache[spot.spotter] != nil {
-        let spotterInfo = callSignCache[spot.spotter]
-        callSignPair.append(spotterInfo!)
-        cacheHits += 1
-        cacheRequestCount += 1
-      } else {
-        let spotterInfo = requestCallParserInformation(call: spot.spotter)
-        callSignPair.append(spotterInfo)
-      }
-
-      if callSignCache[spot.dxStation] != nil {
-        let dxInfo = callSignCache[spot.dxStation]
-        callSignPair.append(dxInfo!)
-        cacheHits += 1
-        cacheRequestCount += 1
-      } else {
-        let dxInfo = requestCallParserInformation(call: spot.dxStation)
-        callSignPair.append(dxInfo)
-      }
-
-      if callSignPair.count == 2 {
-        logger.info("Call Parser success for spot")
-        combineQRZInfo(spot: spot, callSignPair: callSignPair)
-      }
-    }
+//    var cacheHits = 0
+//    var callSignPair = [StationInformation]()
+//
+//      if callSignCache[spot.spotter] != nil {
+//        let spotterInfo = callSignCache[spot.spotter]
+//        callSignPair.append(spotterInfo!)
+//        cacheHits += 1
+//        cacheRequestCount += 1
+//      } else {
+//        let spotterInfo = requestCallParserInformation(call: spot.spotter)
+//        callSignPair.append(spotterInfo)
+//      }
+//
+//      if callSignCache[spot.dxStation] != nil {
+//        let dxInfo = callSignCache[spot.dxStation]
+//        callSignPair.append(dxInfo!)
+//        cacheHits += 1
+//        cacheRequestCount += 1
+//      } else {
+//        let dxInfo = requestCallParserInformation(call: spot.dxStation)
+//        callSignPair.append(dxInfo)
+//      }
+//
+//      if callSignPair.count == 2 {
+//        logger.info("Call Parser success for spot")
+//        combineQRZInfo(spot: spot, callSignPair: callSignPair)
+//      }
   }
 
   /// Request all the call information from QRZ.com to make a line on the map.
@@ -171,41 +164,50 @@ class QRZManager: NSObject {
     var cacheHits = 0
     var callSignPair = [StationInformation]()
 
-//    serialQRZProcessorQueue.sync() { //flags: .barrier
-      if callSignCache[spot.spotter] != nil {
-        let spotterInfo = callSignCache[spot.spotter]
+    callSignPairAsync.removeAll()
+    callSignPair.removeAll()
+
+    if callSignCache[spot.spotter] != nil {
+      let spotterInfo = callSignCache[spot.spotter]
+      lockQueue.async(flags: .barrier) {
         callSignPair.append(spotterInfo!)
-        logger.info("Cache hit for: \(spot.spotter)")
-        cacheHits += 1
-        cacheRequestCount += 1
-      } else {
-        callSignPair = requestStationInformation(call: spot.spotter,
-                                                 spot: spot,
-                                                 callSignPair: callSignPair,
-                                                 isSpotter: true)
-        return
       }
 
-      if callSignCache[spot.dxStation] != nil {
-        let dxInfo = callSignCache[spot.dxStation]
+      logger.info("Cache hit for: \(spot.spotter)")
+      cacheHits += 1
+      cacheRequestCount += 1
+    } else {
+      callSignPair = requestStationInformation(call: spot.spotter,
+                                               spot: spot,
+                                               callSignPair: callSignPair,
+                                               isSpotter: true)
+      return
+    }
+
+    if callSignCache[spot.dxStation] != nil {
+      let dxInfo = callSignCache[spot.dxStation]
+      lockQueue.async(flags: .barrier) {
         callSignPair.append(dxInfo!)
-        logger.info("Cache hit for: \(spot.dxStation)")
-        cacheHits += 1
-        cacheRequestCount += 1
-      } else {
-        callSignPair = requestStationInformation(call: spot.dxStation,
-                                                 spot: spot,
-                                                 callSignPair: callSignPair,
-                                                 isSpotter: false)
-        return
       }
 
-      if callSignPair.count == 2 {
-        logger.info("Call Parser success for spot")
-        logger.info("combineQRZInfo 1: \(spot.id)")
-        combineQRZInfo(spot: spot, callSignPair: callSignPair)
+      logger.info("Cache hit for: \(spot.dxStation)")
+      cacheHits += 1
+      cacheRequestCount += 1
+    } else {
+      callSignPair = requestStationInformation(call: spot.dxStation,
+                                               spot: spot,
+                                               callSignPair: callSignPair,
+                                               isSpotter: false)
+      return
+    }
+
+    if callSignPair.count == 2 {
+      logger.info("Call Parser success for spot")
+      logger.info("combineQRZInfo 1: \(spot.id)")
+      lockQueue.async(flags: .barrier) {
+        self.combineQRZInfo(spot: spot, callSignPair: callSignPair)
       }
-//    }
+    }
   }
 
   /// Request all the call information from QRZ.com
@@ -221,9 +223,6 @@ class QRZManager: NSObject {
 
     var callSignPairCopy = callSignPair
 
-//    callSignDictionary = [String: String]()
-//    callSignDictionary["Error"] = nil
-
     if isSessionKeyValid == false {
       requestSessionKey(name: qrzUserName, password: qrzPassword)
       return callSignPair // throw?
@@ -232,11 +231,26 @@ class QRZManager: NSObject {
     if call.contains("/") {
       logger.info("Use callparser (2) \(call)")
         let stationInfo = requestCallParserInformation(call: call)
-        callSignPairCopy.append(stationInfo)
-        return callSignPairCopy
+        lockQueue.async(flags: .barrier) {
+          callSignPairCopy.append(stationInfo)
+        }
     }
 
-    requestQRZInformation(call: call, spot: spot)
+    switch callSignPairCopy.count {
+    case 0:
+      requestQRZInformation(call: call, spot: spot)
+    case 1:
+      callSignPairAsync.append(contentsOf: callSignPairCopy)
+      if callSignPairAsync.count == 2 {
+        lockQueue.async(flags: .barrier) { [self] in
+          self.combineQRZInfo(spot: spot, callSignPair: callSignPairAsync)
+        }
+      } else {
+        requestQRZInformation(call: call, spot: spot)
+      }
+    default:
+      return callSignPairCopy
+    }
 
     return callSignPairCopy
   }
@@ -252,7 +266,7 @@ class QRZManager: NSObject {
     if !hitList.isEmpty {
       logger.info("Use callparser(5) success \(call)")
       stationInfo = populateStationInformation(hitList: hitList)
-      queue.async(flags: .barrier) { [self] in
+      lockQueue.async(flags: .barrier) { [self] in
         if callSignCache[stationInfo.call] == nil {
           callSignCache[stationInfo.call] = stationInfo
         }
@@ -304,14 +318,15 @@ class QRZManager: NSObject {
           logger.info("Processing QRZ data for: \(call)")
 
           do {
-              let stationInfo = try processQRZInformation(call: call)
+            let stationInfo = try processQRZInformation(call: call)
 
-            queue.async(flags: .barrier) {
-            if callSignCache[stationInfo.call] == nil {
-                  callSignCache[stationInfo.call] = stationInfo
-                }
+            lockQueue.async(flags: .barrier) {
+              if callSignCache[stationInfo.call] == nil {
+                callSignCache[stationInfo.call] = stationInfo
               }
-              callSignPairAsync.append(stationInfo)
+            }
+
+            callSignPairAsync.append(stationInfo)
           } catch {
             logger.info("RequestError Error: \(error as NSObject)")
             callSignPairAsync.removeAll()
@@ -319,8 +334,10 @@ class QRZManager: NSObject {
 
           if callSignPairAsync.count == 2 {
             logger.info("combineQRZInfo 2: \(spot.id)")
-            combineQRZInfo(spot: spot, callSignPair: callSignPairAsync)
-            callSignPairAsync.removeAll()
+            lockQueue.async(flags: .barrier) {
+              combineQRZInfo(spot: spot, callSignPair: callSignPairAsync)
+            }
+            //callSignPairAsync.removeAll()
           }
 
         } else {
