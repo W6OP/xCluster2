@@ -82,16 +82,11 @@ struct ConnectedCluster: Identifiable, Hashable {
 /// Stub between view and all other classes
 public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDelegate {
 
-  private let concurrentSpotProcessorQueue =
-    DispatchQueue(
-      label: "com.w6op.virtualcluster.spotProcessorQueue",
-      attributes: .concurrent)
+//  private let concurrentSpotProcessorQueue =
+//    DispatchQueue(
+//      label: "com.w6op.virtualcluster.spotProcessorQueue",
+//      attributes: .concurrent)
 
-  private let serialQRZProcessorQueue =
-    DispatchQueue(
-      label: "com.w6op.virtualcluster.qrzProcessorQueue")
-
-  //static let modelLog = OSLog(subsystem: "com.w6op.Controller", category: "Model")
   let logger = Logger(subsystem: "com.w6op.xCluster", category: "Controller")
 
   // MARK: - Published Properties
@@ -174,7 +169,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     webRefreshTimer = Timer.scheduledTimer(timeInterval: TimeInterval(dxSummitRefreshInterval),
                     target: self, selector: #selector(refreshWeb), userInfo: nil, repeats: true)
 
-    getQRZSessionKey()
+    requestQRZSessionKey()
   }
 
   // MARK: - Protocol Delegate Implementation
@@ -307,17 +302,13 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
       }
 
     case .spotReceived:
-      //DispatchQueue.main.async {
         self.parseClusterSpot(message: message, messageType: messageKey)
-      //}
 
     case.htmlSpotReceived:
       self.parseClusterSpot(message: message, messageType: messageKey)
 
     case .showDxSpots:
-      //DispatchQueue.main.async {
         self.parseClusterSpot(message: message, messageType: messageKey)
-      //}
 
     default:
       break
@@ -341,6 +332,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     DispatchQueue.main.async {
       self.haveSessionKey = haveSessionKey
     }
+    logger.info("Received Session Key.")
   }
 
   /// QRZ Manager protocol - Receive the call sign data QRZ.com.
@@ -370,8 +362,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   }
 
   /// Get the session key from QRZ.com
-  func getQRZSessionKey() {
-    logger.info("Get session key.")
+  func requestQRZSessionKey() {
     if !qrzUserName.isEmpty && !qrzPassword.isEmpty {
       qrzManager.useCallLookupOnly = false
       qrzManager.requestSessionKey(name: qrzUserName, password: qrzPassword)
@@ -482,16 +473,12 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
       if qrzManager.useCallLookupOnly == false {
         if self.haveSessionKey {
-          serialQRZProcessorQueue.async { [self] in
-            qrzManager.requestConsolidatedStationInformationQRZ(spot: spot)
-          }
+          qrzManager.buildStationInformation(spot: spot)
         } else {
-          getQRZSessionKey()
+          requestQRZSessionKey()
         }
       } else {
-        serialQRZProcessorQueue.async { [self] in
-          qrzManager.requestConsolidatedStationInformationCallParser(spot: spot)
-        }
+        qrzManager.buildStationInformation(spot: spot)
       }
     } catch {
       print("parseClusterSpot error: \(error)")

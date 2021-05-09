@@ -260,7 +260,8 @@ enum SpotError: Error {
  Structure to return information from QRZ.com.
  - parameters:
  */
-struct StationInformation {
+struct StationInformation: Identifiable {
+  var id = UUID()
   var call = ""
   var aliases = ""
   var country = ""
