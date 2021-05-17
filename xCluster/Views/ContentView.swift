@@ -197,12 +197,14 @@ struct BandViewToggle: View {
       ForEach(bands.indices) { item in
         Toggle(self.bands[item].band, isOn: self.$bands[item].isSelected.didSet { (state) in
           if self.bands[item].id != 0 {
-            self.controller.bandFilter = (self.bands[item].id, state)
+            // Invert the state to reduce confusion. A button as false means isFiltered = true.
+            self.controller.bandFilter = (self.bands[item].id, !state)
           } else {
             for (index, band) in bands.enumerated() where band.id != 0 {
               self.bands[index].isSelected = self.bands[0].isSelected
             }
-            self.controller.bandFilter = (0, state)
+            // Invert the state to reduce confusion. A button as false means isFiltered = true.
+            self.controller.bandFilter = (0, !state)
           }
         })
         .tag(self.bands[item].id)

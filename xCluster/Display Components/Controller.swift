@@ -26,16 +26,17 @@ enum RequestError: Error {
   case invalidLongitude
 }
 
-
 /// Definition of a ClusterSpot
 struct ClusterSpot: Identifiable, Hashable {
+
   enum FilterReason: Int {
-    case band = 0
-    case call = 1
-    case grid = 2
-    case mode = 3
-    case time = 4
-    case none = 5
+    case band
+    case call
+    case country
+    case grid
+    case mode
+    case time
+    case none
   }
 
   var id: UUID
@@ -69,15 +70,34 @@ struct ClusterSpot: Identifiable, Hashable {
     self.overlay = polyline
   }
 
-  mutating func setFilter(filterReason: FilterReason) {
-    self.filterReasons.append(filterReason)
+  /// Set a specific filter.
+  /// - Parameter filterReason: FilterReason
+  mutating func setFilter(reason: FilterReason) {
+    self.filterReasons.append(reason)
     self.isFiltered = true
   }
 
-  mutating func resetFilter(filterReason: FilterReason) {
-    self.filterReasons.removeAll { value in
-      return value == filterReason
+  /// Reset a specific filter.
+  /// - Parameter filterReason: FilterReason
+  mutating func resetFilter(reason: FilterReason) {
+
+    if filterReasons.contains(reason) {
+      let index = filterReasons.firstIndex(of: reason)!
+      self.filterReasons.remove(at: index)
     }
+
+    if self.filterReasons.isEmpty {
+      self.isFiltered = false
+    }
+  }
+
+  /// Reset the filter state of all of a certain type
+  /// - Parameter filterReason: FilterReason
+  mutating func resetAllFiltersOfType(reason: FilterReason) {
+    self.filterReasons.removeAll { value in
+      return value == reason
+    }
+
     if self.filterReasons.isEmpty {
       self.isFiltered = false
     }
@@ -471,7 +491,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
       // check band filters to see if this spot should have the overlay filtered
       if bandFilters[Int(spot.band)] == .isOn {
-        spot.setFilter(filterReason: .band)
+        spot.setFilter(reason: .band)
         //spot.isFiltered = true
       }
 
@@ -636,11 +656,10 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   func updateSpotCallFilterState(call: String, filterState: Bool) {
     DispatchQueue.main.async { [self] in
       for (index, spot) in spots.enumerated() where spot.dxStation != call {
-            var newSpot = spot
-        newSpot.setFilter(filterReason: .call)
-            //newSpot.isFiltered = filterState
-            spots[index] = newSpot
-            //print("Filtered: \(spot.dxStation):\(index)")
+        var mutatingSpot = spot
+        mutatingSpot.setFilter(reason: .call)
+        spots[index] = mutatingSpot
+        //print("Filtered: \(spot.dxStation):\(index)")
       }
     }
   }
@@ -662,21 +681,17 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
     if band == 9999 {return}
 
-    // Invert the state to reduce confusion. A button as false means isFiltered = true.
-    // That just confuses everything down stream as you are constantly having to invert
-    // the state in all subsequent functions.
-    var actualState = state
-    actualState.toggle()
-
-    switch actualState {
+    switch state {
     case true:
       if band != 0 {
         bandFilters[Int(band)] = .isOn
       } else {
         // turn off all bands
         bandFilters.keys.forEach { bandFilters[$0] = .isOn }
-        setAllSpotFilters(filterState: actualState)
-        overlays.removeAll()
+        setAllSpotFilters(filterState: state)
+        DispatchQueue.main.async { [self] in
+          overlays.removeAll()
+        }
         return
       }
     case false:
@@ -685,13 +700,13 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
       } else {
         // turn on all bands
         bandFilters.keys.forEach { bandFilters[$0] = .isOff }
-        setAllSpotFilters(filterState: actualState)
+        setAllSpotFilters(filterState: state)
         filterOverlays()
         return
       }
     }
 
-    updateSpotBandFilterState(band: band, filterState: actualState)
+    updateSpotBandFilterState(band: band, filterState: state)
     filterOverlays()
   }
 
@@ -702,13 +717,13 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   func updateSpotBandFilterState(band: Int, filterState: Bool) {
     DispatchQueue.main.async { [self] in
       for (index, spot) in spots.enumerated() where spot.band == band {
-          var newSpot = spot
+        var mutatingSpot = spot
         if filterState {
-          newSpot.setFilter(filterReason: .band)
+          mutatingSpot.setFilter(reason: .band)
         } else {
-          newSpot.resetFilter(filterReason: .band)
+          mutatingSpot.resetFilter(reason: .band)
         }
-          spots[index] = newSpot
+          spots[index] = mutatingSpot
       }
     }
   }
@@ -718,12 +733,14 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   func setAllSpotFilters(filterState: Bool) {
     DispatchQueue.main.async { [self] in
       for (index, spot) in spots.enumerated() {
-            var newSpot = spot
-        newSpot.resetFilter(filterReason: .band)
-        spots[index] = newSpot
+        var mutatingSpot = spot
+        mutatingSpot.resetFilter(reason: .band)
+        spots[index] = mutatingSpot
       }
     }
   }
+
+  // MARK: - Filter Ovelays
 
   /// Only allow overlays where isFiltered == false
   func filterOverlays() {
