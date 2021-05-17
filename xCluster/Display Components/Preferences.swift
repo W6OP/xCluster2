@@ -49,11 +49,11 @@ class UserSettings: ObservableObject {
   }
 
   init() {
-    self.callsign = UserDefaults.standard.string(forKey: "callsign") ?? ""
-    self.username = UserDefaults.standard.string(forKey: "username") ?? ""
-    self.password = UserDefaults.standard.string(forKey: "password") ?? ""
-    self.fullname = UserDefaults.standard.string(forKey: "fullname") ?? ""
-    self.location = UserDefaults.standard.string(forKey: "location") ?? ""
-    self.grid = UserDefaults.standard.string(forKey: "grid") ?? ""
+    callsign = UserDefaults.standard.string(forKey: "callsign") ?? ""
+    username = UserDefaults.standard.string(forKey: "username") ?? ""
+    password = UserDefaults.standard.string(forKey: "password") ?? ""
+    fullname = UserDefaults.standard.string(forKey: "fullname") ?? ""
+    location = UserDefaults.standard.string(forKey: "location") ?? ""
+    grid = UserDefaults.standard.string(forKey: "grid") ?? ""
   }
 }

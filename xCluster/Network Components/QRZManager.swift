@@ -14,7 +14,7 @@ import CallParser
 
 protocol QRZManagerDelegate: AnyObject {
 
-  func qrzManagerDidGetSessionKey(_ qrzManager: QRZManager, messageKey: QRZManagerMessage, haveSessionKey: Bool)
+  func qrzManagerDidGetSessionKey(_ qrzManager: QRZManager, messageKey: QRZManagerMessage, doHaveSessionKey: Bool)
 
   func qrzManagerDidGetCallSignData(_ qrzManager: QRZManager, messageKey: QRZManagerMessage, stationInfoCombined: StationInformationCombined, spot: ClusterSpot)
 }
@@ -86,7 +86,6 @@ class QRZManager: NSObject {
 
     logger.info("Request Session Key.")
 
-    // TODO: account for no QRZ account or incorrect id/password
     qrzUserName = name
     qrzPassword = password
 
@@ -121,7 +120,7 @@ class QRZManager: NSObject {
               isSessionKeyValid = true
               qrZedManagerDelegate?.qrzManagerDidGetSessionKey(self,
                                                                messageKey: .session,
-                                                               haveSessionKey: true)
+                                                               doHaveSessionKey: true)
             }
           }
     }
@@ -131,9 +130,7 @@ class QRZManager: NSObject {
   /// Initial starting point to queue work
   /// - Parameter spot: ClusterSpot
   func buildStationInformation(spot: ClusterSpot) {
-    //stationProcessorQueue.async { [self] in
       requestConsolidatedStationInformationQRZ(spot: spot)
-    //}
   }
 
   /// If the user does not have a subscription to QRZ.com then
@@ -188,9 +185,9 @@ class QRZManager: NSObject {
     var cacheHits = 0
 
     if let spotterInfo = checkCache(call: spot.spotter) {
-      print("Decide 1")
+      logger.info("Decide 1: \(spot.id.uuidString.suffix(5))")
       lockQueue.async { [self] in
-        print("Decide 2")
+        logger.info("Decide 2: \(spot.id.uuidString.suffix(5))")
         decide(stationInfo: spotterInfo, spot: spot)
       }
       logger.info("Cache hit for: \(spot.spotter)")
@@ -203,9 +200,9 @@ class QRZManager: NSObject {
     }
 
     if let dxInfo = checkCache(call: spot.dxStation) {
-      print("Decide 9")
+      logger.info("Decide 3: \(spot.id.uuidString.suffix(5))")
       lockQueue.async { [self] in
-        print("Decide 10")
+        logger.info("Decide 4: \(spot.id.uuidString.suffix(5))")
         decide(stationInfo: dxInfo, spot: spot)
       }
       logger.info("Cache hit for: \(spot.dxStation)")
@@ -236,9 +233,9 @@ class QRZManager: NSObject {
       var stationInfo = requestCallParserInformation(call: call)
       stationInfo.id = spot.id
 
-      print("Decide 3")
+      logger.info("Decide 5: \(spot.id.uuidString.suffix(5))")
       lockQueue.async { [self] in
-        print("Decide 4")
+        logger.info("Decide 6: \(spot.id.uuidString.suffix(5))")
         decide(stationInfo: stationInfo, spot: spot)
       }
       return true
@@ -287,13 +284,18 @@ class QRZManager: NSObject {
 
     let task = URLSession.shared.dataTask(with: url) { [self] data, response, error in
       if let error = error {
-        fatalError("Error 1: \(error.localizedDescription)")
+        //fatalError("Error 1: \(error.localizedDescription)")
+        logger.error("Error 1: \(error.localizedDescription)")
       }
       guard let response = response as? HTTPURLResponse, response.statusCode == 200 else {
-        fatalError("Error: invalid HTTP response code")
+        //fatalError("Error: invalid HTTP response code")
+        logger.error("Error 2: \(error!.localizedDescription)")
+        return
       }
       guard let data = data else {
-        fatalError("Error: missing response data")
+        //fatalError("Error: missing response data")
+        logger.error("Error 3: \(error!.localizedDescription)")
+        return
       }
 
       stationProcessorQueue.async { [self] in
@@ -316,9 +318,9 @@ class QRZManager: NSObject {
               callSignCache[stationInfo.call] = stationInfo
             //}
 
-            print("Decide 7")
+            logger.info("Decide 7: \(spot.id.uuidString.suffix(5))")
             lockQueue.async { [self] in
-              print("Decide 8")
+              logger.info("Decide 8: \(spot.id.uuidString.suffix(5))")
               decide(stationInfo: stationInfo, spot: spot)
             }
 
@@ -343,15 +345,12 @@ class QRZManager: NSObject {
     if callSignPairs[spot.id] != nil {
       var callSignPair = callSignPairs[spot.id]
       callSignPair?.append(stationInfo)
-
-      print("Decide 5")
       if callSignPair!.count == 2 {
         combineQRZInfo(spot: spot, callSignPair: callSignPair!)
         callSignPairs[spot.id] = nil
       }
     } else {
       var callSignPair = [StationInformation]()
-      print("Decide 6")
       callSignPair.append(stationInfo)
       callSignPairs[spot.id] = callSignPair
     }
@@ -403,7 +402,6 @@ class QRZManager: NSObject {
   func populateQRZInformation(stationInfoIncomplete: StationInformation) throws -> StationInformation {
     var stationInfo = stationInfoIncomplete
 
-    // Thread 290: Fatal error: Unexpectedly found nil while unwrapping an Optional value
     if let latitude = Double(callSignDictionary["lat"]!) {
       stationInfo.latitude = latitude
     } else {
@@ -428,7 +426,7 @@ class QRZManager: NSObject {
 
   /// Populate the latitude and longitude from the hit.
   /// - Parameter hitList: collection of hits.
-  /// - Returns: station information struct.
+  /// - Returns: StationInformation
   func populateStationInformation(hitList: [Hit]) -> StationInformation {
     var stationInfo = StationInformation()
 

@@ -9,6 +9,7 @@
 import Cocoa
 import os
 
+// https://www.hackingwithswift.com/example-code/strings/how-to-remove-a-prefix-from-a-string
 extension String {
   func condenseWhitespace() -> String {
     let components = self.components(separatedBy: .whitespacesAndNewlines)
@@ -45,20 +46,6 @@ extension String {
     return self.rangeOfCharacter(from: CharacterSet.alphanumerics.inverted) == nil && self.isEmpty
   }
 }
-// https://www.hackingwithswift.com/example-code/strings/how-to-remove-a-prefix-from-a-string
-//extension String {
-//    func deletingPrefix(_ prefix: String) -> String {
-//        guard self.hasPrefix(prefix) else { return self }
-//        return String(self.dropFirst(prefix.count))
-//    }
-//}
-//
-//extension String {
-//    func deletingSuffix(_ suffix: String) -> String {
-//        guard self.hasSuffix(suffix) else { return self }
-//        return String(self.dropLast(suffix.count))
-//    }
-//}
 
 // https://stackoverflow.com/questions/32305891/index-of-a-substring-in-a-string-with-swift
 extension StringProtocol {

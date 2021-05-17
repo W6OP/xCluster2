@@ -9,6 +9,26 @@ import Foundation
 import SwiftUI
 import Combine
 
+// MARK: - Extensions
+
+//https://stackoverflow.com/questions/56996272/how-can-i-trigger-an-action-when-a-swiftui-toggle-is-toggled
+// allows an action to be attached to a Toggle
+extension Binding {
+    func didSet(execute: @escaping (Value) -> Void) -> Binding {
+        return Binding(
+            get: {
+                return self.wrappedValue
+            },
+            set: {
+                self.wrappedValue = $0
+                execute($0)
+            }
+        )
+    }
+}
+
+// MARK: - Enums
+
 enum ClusterProtocol: String {
     case telnet = "Telnet"
     case html = "HTML"
@@ -147,19 +167,3 @@ let clusterData = [
  KY4XX-3 dxc.ky4xx.com:7300
  KY9J-2 dxc.ky9j.com:7300
  */
-
-//https://stackoverflow.com/questions/56996272/how-can-i-trigger-an-action-when-a-swiftui-toggle-is-toggled
-// allows an action to be attached to a Toggle
-extension Binding {
-    func didSet(execute: @escaping (Value) -> Void) -> Binding {
-        return Binding(
-            get: {
-                return self.wrappedValue
-            },
-            set: {
-                self.wrappedValue = $0
-                execute($0)
-            }
-        )
-    }
-}

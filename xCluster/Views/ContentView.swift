@@ -100,6 +100,7 @@ struct ContentView: View {
   @EnvironmentObject var controller: Controller
   @ObservedObject var userSettings = UserSettings()
   @State private var showPreferences = false
+
   var bands: [BandIdentifier] = bandData
   var clusters: [ClusterIdentifier] = clusterData
 
@@ -167,6 +168,7 @@ struct ContentView: View {
         .layoutPriority(1.0)
 
         // MARK: - Cluster selection and filtering.
+
         HStack {
           ControlBarView(controller: controller)
         }
@@ -177,14 +179,6 @@ struct ContentView: View {
       } // end map VStack
       .frame(minWidth: 1300)
     } // end outer HStack
-
-    //    .onAppear { // comment out for debugging and designing
-    //      #if !DEBUG
-    //      if let url = URL(string: "xClusterApp://spots") {
-    //        openURL(url)
-    //      }
-    //      #endif
-    //    }
   }
 } // end ContentView
 
@@ -207,7 +201,6 @@ struct BandViewToggle: View {
           } else {
             for (index, band) in bands.enumerated() where band.id != 0 {
               self.bands[index].isSelected = self.bands[0].isSelected
-              //self.controller.bandFilter = (self.bands[index].id, state)
             }
             self.controller.bandFilter = (0, state)
           }
@@ -273,12 +266,8 @@ struct ControlBarView: View {
         })
         .toggleStyle(SwitchToggleStyle(tint: Color.green))
 
-//        Button("Open Spots") {
-//          if let url = URL(string: "xClusterApp://spots") {
-//            openURL(url)
-//          }
-//        }
         Divider()
+
         TextField("Call Filter", text: $callSignFilter, onEditingChanged: { _ in
           // onEditingChanged
           callSignFilter = callSignFilter.uppercased()

@@ -26,8 +26,9 @@ enum RequestError: Error {
   case invalidLongitude
 }
 
-struct ClusterSpot: Identifiable, Hashable {
 
+/// Definition of a ClusterSpot
+struct ClusterSpot: Identifiable, Hashable {
   enum FilterReason: Int {
     case band = 0
     case call = 1
@@ -45,11 +46,12 @@ struct ClusterSpot: Identifiable, Hashable {
   var timeUTC: String
   var comment: String
   var grid: String
-  var isFiltered: Bool
   var overlay: MKPolyline!
   var qrzInfoCombinedJSON = ""
-  var filterReason = FilterReason.none
+  var filterReasons = [FilterReason]()
   var isInvalidSpot = false
+
+  private(set) var isFiltered: Bool
 
   /// Build the line (overlay) to display on the map.
   /// - Parameter qrzInfoCombined: combined data of a pair of call signs - QRZ information.
@@ -66,6 +68,20 @@ struct ClusterSpot: Identifiable, Hashable {
 
     self.overlay = polyline
   }
+
+  mutating func setFilter(filterReason: FilterReason) {
+    self.filterReasons.append(filterReason)
+    self.isFiltered = true
+  }
+
+  mutating func resetFilter(filterReason: FilterReason) {
+    self.filterReasons.removeAll { value in
+      return value == filterReason
+    }
+    if self.filterReasons.isEmpty {
+      self.isFiltered = false
+    }
+  }
 }
 
 struct ConnectedCluster: Identifiable, Hashable {
@@ -81,11 +97,6 @@ struct ConnectedCluster: Identifiable, Hashable {
 
 /// Stub between view and all other classes
 public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDelegate {
-
-//  private let concurrentSpotProcessorQueue =
-//    DispatchQueue(
-//      label: "com.w6op.virtualcluster.spotProcessorQueue",
-//      attributes: .concurrent)
 
   let logger = Logger(subsystem: "com.w6op.xCluster", category: "Controller")
 
@@ -153,7 +164,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
                      15: BandFilterState.isOff, 12: BandFilterState.isOff, 10: BandFilterState.isOff,
                      6: BandFilterState.isOff]
 
-  var spotFilter = ""
+  //var spotFilter = ""
   var lastSpotReceivedTime = Date()
 
   // MARK: - Initialization
@@ -185,7 +196,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     bandFilters.keys.forEach { bandFilters[$0] = .isOff }
 
     logger.info("Connecting to: \(cluster.name)")
-    self.telnetManager.connect(cluster: cluster)
+    telnetManager.connect(cluster: cluster)
   }
 
   /// Disconnect on cluster change or application termination.
@@ -193,8 +204,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     telnetManager.disconnect()
 
     // clear the status message
-    DispatchQueue.main.async {
-      self.statusMessage = [String]()
+    DispatchQueue.main.async { [self] in
+      statusMessage = [String]()
       }
   }
 
@@ -204,8 +215,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     logger.info("Reconnect attempt.")
     disconnect()
 
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-        self.reconnect()
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [self] in
+        reconnect()
     }
   }
 
@@ -278,45 +289,45 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
     switch messageKey {
     case .clusterType:
-      DispatchQueue.main.async {
-        self.statusMessage.append(message.condenseWhitespace())
+      DispatchQueue.main.async { [self] in
+        statusMessage.append(message.condenseWhitespace())
       }
 
     case .announcement:
-      DispatchQueue.main.async {
-        self.statusMessage.append(message.condenseWhitespace() )
+      DispatchQueue.main.async { [self] in
+        statusMessage.append(message.condenseWhitespace() )
       }
 
     case .clusterInformation:
-      DispatchQueue.main.async {
-        let messages = self.limitMessageLength(message: message)
+      DispatchQueue.main.async { [self] in
+        let messages = limitMessageLength(message: message)
 
         for item in messages {
-          self.statusMessage.append(item)
+          statusMessage.append(item)
         }
       }
 
     case .error:
-      DispatchQueue.main.async {
-        self.statusMessage.append(message)
+      DispatchQueue.main.async { [self] in
+        statusMessage.append(message)
       }
 
     case .spotReceived:
-        self.parseClusterSpot(message: message, messageType: messageKey)
+        parseClusterSpot(message: message, messageType: messageKey)
 
     case.htmlSpotReceived:
-      self.parseClusterSpot(message: message, messageType: messageKey)
+      parseClusterSpot(message: message, messageType: messageKey)
 
     case .showDxSpots:
-        self.parseClusterSpot(message: message, messageType: messageKey)
+        parseClusterSpot(message: message, messageType: messageKey)
 
     default:
       break
     }
 
-    DispatchQueue.main.async {
-      if self.statusMessage.count > 200 {
-        self.statusMessage.removeFirst()
+    DispatchQueue.main.async { [self] in
+      if statusMessage.count > 200 {
+        statusMessage.removeFirst()
       }
     }
   }
@@ -328,9 +339,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
    /// - qrzManager: Reference to the class sending the message.
    /// - messageKey: Key associated with this message.
    /// - message: Message text.
-  func qrzManagerDidGetSessionKey(_ qrzManager: QRZManager, messageKey: QRZManagerMessage, haveSessionKey: Bool) {
-    DispatchQueue.main.async {
-      self.haveSessionKey = haveSessionKey
+  func qrzManagerDidGetSessionKey(_ qrzManager: QRZManager, messageKey: QRZManagerMessage, doHaveSessionKey: Bool) {
+    DispatchQueue.main.async { [self] in
+      haveSessionKey = doHaveSessionKey
     }
     logger.info("Received Session Key.")
   }
@@ -460,8 +471,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
       // check band filters to see if this spot should have the overlay filtered
       if bandFilters[Int(spot.band)] == .isOn {
-        spot.isFiltered = true
-        spot.filterReason = .band
+        spot.setFilter(filterReason: .band)
+        //spot.isFiltered = true
       }
 
       // if spot already exists, don't add again
@@ -472,7 +483,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
       }
 
       if qrzManager.useCallLookupOnly == false {
-        if self.haveSessionKey {
+        if haveSessionKey {
           qrzManager.buildStationInformation(spot: spot)
         } else {
           requestQRZSessionKey()
@@ -597,81 +608,56 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
   // MARK: - Filter Call Signs
 
-  /// Remove call signs that do not match the filter.
-  /// - Parameter callSign: call sign to be filtered
+  /// Remove overlays where the call sign does not match the filter.
+  /// - Parameter callSign: String
   func setCallFilter(callSign: String) {
 
     if callSign.isEmpty {
-      spotFilter = callSign
-      setAllSpotFilters(filterState: true)
+      //spotFilter = ""
+      setAllSpotFilters(filterState: false)
       return
     }
 
-    if spotFilter == callSign {
-      return
-    } else {
-      spotFilter = callSign
-    }
+//    if spotFilter == callSign {
+//      return
+//    } else {
+//      spotFilter = callSign
+//    }
 
-    updateSpotCallFilterState(call: callSign, setFilter: false)
+    updateSpotCallFilterState(call: callSign, filterState: false)
+
     filterOverlays()
   }
 
   /// Update the filter state on a spot.
   /// - Parameters:
-  ///   - band: band to update
-  ///   - setFilter: state to set filter toggled()
-  func updateSpotCallFilterState(call: String, setFilter: Bool) {
+  ///   - call: String
+  ///   - setFilter: Bool
+  func updateSpotCallFilterState(call: String, filterState: Bool) {
     DispatchQueue.main.async { [self] in
       for (index, spot) in spots.enumerated() where spot.dxStation != call {
             var newSpot = spot
-            newSpot.isFiltered = !setFilter
+        newSpot.setFilter(filterReason: .call)
+            //newSpot.isFiltered = filterState
             spots[index] = newSpot
             //print("Filtered: \(spot.dxStation):\(index)")
       }
     }
   }
 
-//    var indexes = [Int]()
-//
-//    for (index, overlay) in overlays.enumerated() {
-//      let qrzInfoCombined = extractJSONFromString(subTitle: overlay.subtitle!)
-//      if qrzInfoCombined.dxCall != spotFilter {
-//        print("No Match: \(qrzInfoCombined.dxCall)")
-//        indexes.append(index)
-//      } else {
-//        print("Match: \(qrzInfoCombined.dxCall)")
-//      }
-//    }
-//
-//    indexes = indexes.sorted().reversed()
-//    for index in indexes {
-//      DispatchQueue.main.async {
-//        self.overlays.remove(at: index)
-//      }
-//    }
-//  }
-
   /// Remove and recreate the overlays to match the current spots.
   func regenerateOverlays() {
-
-    overlays.removeAll()
-
-//    for spot in spots {
-//      qrzManager.getConsolidatedQRZInformation(spotterCall: spot.spotter,
-//                                               dxCall: spot.dxStation, frequency:
-//                                                spot.frequency, spotId: spot.id)
-//    }
+    DispatchQueue.main.async { [self] in
+      overlays.removeAll()
+    }
   }
 
   // MARK: - Filter Bands
 
-  /**
-   Manage the band button state.
-   - parameters:
-   - buttonTag: The tag that identifies the button (0 == All).
-   - state: The state of the button .on or .off.
-   */
+  /// Manage the band button state.
+  /// - Parameters:
+  ///   - band: Int
+  ///   - state: Bool
   func setBandButtons( band: Int, state: Bool) {
 
     if band == 9999 {return}
@@ -711,13 +697,17 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
   /// Update the filter state on a spot.
   /// - Parameters:
-  ///   - band: band to update
-  ///   - setFilter: state to set filter toggled()
+  ///   - band: Int
+  ///   - setFilter: Bool
   func updateSpotBandFilterState(band: Int, filterState: Bool) {
     DispatchQueue.main.async { [self] in
       for (index, spot) in spots.enumerated() where spot.band == band {
           var newSpot = spot
-          newSpot.isFiltered = filterState
+        if filterState {
+          newSpot.setFilter(filterReason: .band)
+        } else {
+          newSpot.resetFilter(filterReason: .band)
+        }
           spots[index] = newSpot
       }
     }
@@ -729,8 +719,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     DispatchQueue.main.async { [self] in
       for (index, spot) in spots.enumerated() {
             var newSpot = spot
-            newSpot.isFiltered = filterState
-            spots[index] = newSpot
+        newSpot.resetFilter(filterReason: .band)
+        spots[index] = newSpot
       }
     }
   }
@@ -750,7 +740,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     }
   }
 
-  // MARK: - Keep Alive Timer ----------------------------------------------------------------------------
+  // MARK: - Keep Alive Timer
 
   @objc func refreshWeb() {
     sendClusterCommand(message: "", commandType: .refreshWeb)
@@ -770,8 +760,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
       _ = printDateTime(message: "Reconnecting - Last spot received: \(lastSpotReceivedTime) - Time now: ")
 
       disconnect()
-      DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-          self.reconnect()
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [self] in
+          reconnect()
       }
     }
   }
