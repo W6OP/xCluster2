@@ -184,7 +184,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
                      15: BandFilterState.isOff, 12: BandFilterState.isOff, 10: BandFilterState.isOff,
                      6: BandFilterState.isOff]
 
-  //var spotFilter = ""
+  var callFilter = ""
+
   var lastSpotReceivedTime = Date()
 
   // MARK: - Initialization
@@ -489,11 +490,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
       // GUARD
       spot.band = convertFrequencyToBand(frequency: spot.frequency)
 
-      // check band filters to see if this spot should have the overlay filtered
-      if bandFilters[Int(spot.band)] == .isOn {
-        spot.setFilter(reason: .band)
-        //spot.isFiltered = true
-      }
+      checkFilters(&spot)
 
       // if spot already exists, don't add again
       if spots.firstIndex(where: { $0.spotter == spot.spotter &&
@@ -515,6 +512,21 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
       print("parseClusterSpot error: \(error)")
       logger.info("Controller Error: \(error as NSObject)")
       return
+    }
+  }
+
+  /// Check if the incoming spot needs to be filtered.
+  /// - Parameter spot: ClusterSpot
+  fileprivate func checkFilters(_ spot: inout ClusterSpot) {
+
+    if bandFilters[Int(spot.band)] == .isOn {
+      spot.setFilter(reason: .band)
+    }
+
+    if !callFilter.isEmpty {
+      if spot.dxStation.prefix(callFilter.count) != callFilter {
+        spot.setFilter(reason: .call)
+      }
     }
   }
 
@@ -632,19 +644,13 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   /// - Parameter callSign: String
   func setCallFilter(callSign: String) {
 
+    callFilter = callSign
+
     if callSign.isEmpty {
-      //spotFilter = ""
-      setAllSpotFilters(filterState: false)
-      return
+      setAllCallSpotFilters(filterState: false)
+    } else {
+      updateSpotCallFilterState(call: callSign, filterState: false)
     }
-
-//    if spotFilter == callSign {
-//      return
-//    } else {
-//      spotFilter = callSign
-//    }
-
-    updateSpotCallFilterState(call: callSign, filterState: false)
 
     filterOverlays()
   }
@@ -655,7 +661,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   ///   - setFilter: Bool
   func updateSpotCallFilterState(call: String, filterState: Bool) {
     DispatchQueue.main.async { [self] in
-      for (index, spot) in spots.enumerated() where spot.dxStation != call {
+      for (index, spot) in spots.enumerated() where spot.dxStation.prefix(call.count) != call {
         var mutatingSpot = spot
         mutatingSpot.setFilter(reason: .call)
         spots[index] = mutatingSpot
@@ -664,10 +670,15 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     }
   }
 
-  /// Remove and recreate the overlays to match the current spots.
-  func regenerateOverlays() {
+  /// Reset all the call filters to the same state.
+  /// - Parameter setFilter: FilterState
+  func setAllCallSpotFilters(filterState: Bool) {
     DispatchQueue.main.async { [self] in
-      overlays.removeAll()
+      for (index, spot) in spots.enumerated() {
+        var mutatingSpot = spot
+        mutatingSpot.resetFilter(reason: .call)
+        spots[index] = mutatingSpot
+      }
     }
   }
 
@@ -688,7 +699,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
       } else {
         // turn off all bands
         bandFilters.keys.forEach { bandFilters[$0] = .isOn }
-        setAllSpotFilters(filterState: state)
+        setAllBandSpotFilters(filterState: state)
         DispatchQueue.main.async { [self] in
           overlays.removeAll()
         }
@@ -700,7 +711,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
       } else {
         // turn on all bands
         bandFilters.keys.forEach { bandFilters[$0] = .isOff }
-        setAllSpotFilters(filterState: state)
+        setAllBandSpotFilters(filterState: state)
         filterOverlays()
         return
       }
@@ -729,8 +740,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   }
 
   /// Reset all the band filters to the same state.
-  /// - Parameter setFilter: state to set
-  func setAllSpotFilters(filterState: Bool) {
+  /// - Parameter setFilter: FilterState
+  func setAllBandSpotFilters(filterState: Bool) {
     DispatchQueue.main.async { [self] in
       for (index, spot) in spots.enumerated() {
         var mutatingSpot = spot
@@ -740,7 +751,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     }
   }
 
-  // MARK: - Filter Ovelays
+  // MARK: - Filter Overlays
 
   /// Only allow overlays where isFiltered == false
   func filterOverlays() {
@@ -754,6 +765,13 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
           overlays = overlays.filter({ $0.subtitle != spot.id.uuidString })
         }
       }
+    }
+  }
+
+  /// Remove and recreate the overlays to match the current spots.
+  func regenerateOverlays() {
+    DispatchQueue.main.async { [self] in
+      overlays.removeAll()
     }
   }
 

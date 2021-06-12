@@ -185,9 +185,9 @@ class QRZManager: NSObject {
     var cacheHits = 0
 
     if let spotterInfo = checkCache(call: spot.spotter) {
-      logger.info("Decide 1: \(spot.id.uuidString.suffix(5))")
+      //logger.info("Decide 1: \(spot.id.uuidString.suffix(5))")
       lockQueue.async { [self] in
-        logger.info("Decide 2: \(spot.id.uuidString.suffix(5))")
+        //logger.info("Decide 2: \(spot.id.uuidString.suffix(5))")
         decide(stationInfo: spotterInfo, spot: spot)
       }
       logger.info("Cache hit for: \(spot.spotter)")
@@ -200,9 +200,9 @@ class QRZManager: NSObject {
     }
 
     if let dxInfo = checkCache(call: spot.dxStation) {
-      logger.info("Decide 3: \(spot.id.uuidString.suffix(5))")
+      //logger.info("Decide 3: \(spot.id.uuidString.suffix(5))")
       lockQueue.async { [self] in
-        logger.info("Decide 4: \(spot.id.uuidString.suffix(5))")
+        //logger.info("Decide 4: \(spot.id.uuidString.suffix(5))")
         decide(stationInfo: dxInfo, spot: spot)
       }
       logger.info("Cache hit for: \(spot.dxStation)")
@@ -233,9 +233,9 @@ class QRZManager: NSObject {
       var stationInfo = requestCallParserInformation(call: call)
       stationInfo.id = spot.id
 
-      logger.info("Decide 5: \(spot.id.uuidString.suffix(5))")
+      //logger.info("Decide 5: \(spot.id.uuidString.suffix(5))")
       lockQueue.async { [self] in
-        logger.info("Decide 6: \(spot.id.uuidString.suffix(5))")
+        //logger.info("Decide 6: \(spot.id.uuidString.suffix(5))")
         decide(stationInfo: stationInfo, spot: spot)
       }
       return true
@@ -318,9 +318,9 @@ class QRZManager: NSObject {
               callSignCache[stationInfo.call] = stationInfo
             //}
 
-            logger.info("Decide 7: \(spot.id.uuidString.suffix(5))")
+            //logger.info("Decide 7: \(spot.id.uuidString.suffix(5))")
             lockQueue.async { [self] in
-              logger.info("Decide 8: \(spot.id.uuidString.suffix(5))")
+              //logger.info("Decide 8: \(spot.id.uuidString.suffix(5))")
               decide(stationInfo: stationInfo, spot: spot)
             }
 

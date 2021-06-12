@@ -284,7 +284,6 @@ struct ControlBarView: View {
         .textFieldStyle(RoundedBorderTextFieldStyle())
         .modifier(ClearButton(boundText: $callSignFilter))
         .frame(maxWidth: 150)
-        // .textCase(.uppercase)
 
         Divider()
 
@@ -301,12 +300,7 @@ struct ControlBarView: View {
       .frame(minWidth: 500)
       .padding(.leading)
       .padding(.vertical, 2)
-      //      .onAppear {
-      //        if let url = URL(string: "xClusterApp://spots") {
-      //             openURL(url)
-      //        }
-      //      }
-      /// https://developer.apple.com/forums/thread/650419
+
       Spacer()
     }
   }
