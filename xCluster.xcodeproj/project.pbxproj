@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 52;
+	objectVersion = 54;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -166,7 +166,7 @@
 				};
 			};
 			buildConfigurationList = 9907B62E25FD455700A0859C /* Build configuration list for PBXProject "xCluster" */;
-			compatibilityVersion = "Xcode 9.3";
+			compatibilityVersion = "Xcode 12.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -215,7 +215,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if which swiftlint >/dev/null; then\n  swiftlint\nelse\n  echo \"warning: SwiftLint not installed, download from https://github.com/realm/SwiftLint\"\nfi\n";
+			shellScript = "##if which swiftlint >/dev/null; then\n##  swiftlint\n##else\n##  echo \"warning: SwiftLint not installed, download from https://github.com/realm/SwiftLint\"\n##fi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

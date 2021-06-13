@@ -573,11 +573,11 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   /// - Parameter filterState: filter/don't filter
   func setTimeFilter(filterState: Bool) {
 
-    let localDateTime = Date()
+    //let localDateTime = Date()
 
-    let iso8601DateFormatter = ISO8601DateFormatter()
-    iso8601DateFormatter.formatOptions = [.withFullTime]
-    let string = iso8601DateFormatter.string(from: localDateTime)
+    //let iso8601DateFormatter = ISO8601DateFormatter()
+    //iso8601DateFormatter.formatOptions = [.withFullTime]
+    //let string = iso8601DateFormatter.string(from: localDateTime)
     //print("utc_date-->", string.prefix(5).replacingOccurrences(of: ":", with: "")) // 18:35:17Z
 
     // set the dxcall to "expired"
@@ -610,8 +610,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     //print(utcDateFormatter.string(from: date))
 
     // Parsing a string representing a date
-    let dateString = "hmm"
-    let utcDate = utcDateFormatter.date(from: dateString)
+    //let dateString = "hmm"
+    //let utcDate = utcDateFormatter.date(from: dateString)
 
     //print("UTC: \(String(describing: utcDate))")
 
@@ -857,14 +857,18 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
   func centerMapOnLocation(location: CLLocation) {
     //          let coordinateRegion = MKCoordinateRegion(center: location.coordinate,
-    //                                                    latitudinalMeters: REGION_RADIUS, longitudinalMeters: REGION_RADIUS)
+    //          latitudinalMeters: REGION_RADIUS, longitudinalMeters: REGION_RADIUS)
     //clustermapView.setRegion(coordinateRegion, animated: true)
   }
 
   // MARK: - JSON Decode/Encode
 
   /*
-   {"dxLatitude":32.604489999999998,"band":20,"spotterLatitude":-34.526000000000003,"spotterLongitude":-58.472700000000003,"dxGrid":"EM72go","dxLongitude":-85.482693999999995,"dxCountry":"United States","dxLotw":false,"spotterGrid":"GF05sl","spotterCall":"LU4DCW","dateTime":"2021-04-10T22:03:59Z","spotterLotw":false,"expired":false,"identifier":"0","dxCall":"W4E","error":false,"formattedFrequency":14.079999923706055,"spotterCountry":"Argentina","frequency":"14.080","mode":""}
+   {"dxLatitude":32.604489999999998,"band":20,"spotterLatitude":-34.526000000000003,
+   "spotterLongitude":-58.472700000000003,"dxGrid":"EM72go","dxLongitude":-85.482693999999995,
+   "dxCountry":"United States","dxLotw":false,"spotterGrid":"GF05sl","spotterCall":"LU4DCW","dateTime":"2021-04-10T22:03:59Z",
+   "spotterLotw":false,"expired":false,"identifier":"0","dxCall":"W4E","error":false,"formattedFrequency":
+   14.079999923706055,"spotterCountry":"Argentina","frequency":"14.080","mode":""}
    */
 
   /// Build a string to hold information from the associated spot.
