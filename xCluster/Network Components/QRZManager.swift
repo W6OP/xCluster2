@@ -25,6 +25,27 @@ public enum KeyName: String {
   case recordKeyName = "Callsign"
 }
 
+actor UpdatePairs {
+  var callSignPairs = [UUID: [StationInformation]]()
+
+  func decide(stationInfo: StationInformation, spot: ClusterSpot) {
+
+    if callSignPairs[spot.id] != nil {
+      var callSignPair = callSignPairs[spot.id]
+      callSignPair?.append(stationInfo)
+//      if callSignPair!.count == 2 {
+//        combineQRZInfo(spot: spot, callSignPair: callSignPair!)
+//        callSignPairs[spot.id] = nil
+//      }
+    } else {
+      var callSignPair = [StationInformation]()
+      callSignPair.append(stationInfo)
+      callSignPairs[spot.id] = callSignPair
+    }
+  }
+
+}
+
 class QRZManager: NSObject {
 
   private let lockQueue =
@@ -336,7 +357,13 @@ class QRZManager: NSObject {
     task.resume()
   }
 
+  // -----------------------------------------------------------------------------------------------------
+  // -----------------------------------------------------------------------------------------------------
+
+  
+
   /// Determine if we have enough information to create an overlay.
+  /// Check the cache first.
   /// - Parameters:
   ///   - stationInfo: StationInformation
   ///   - spot: ClusterSpot
@@ -355,6 +382,9 @@ class QRZManager: NSObject {
       callSignPairs[spot.id] = callSignPair
     }
   }
+
+  // -----------------------------------------------------------------------------------------------------
+  // -----------------------------------------------------------------------------------------------------
 
   /// Process the information returned by the QRZ.com request.
   /// - Parameter call: call sign.

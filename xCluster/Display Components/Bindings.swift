@@ -97,7 +97,11 @@ let clusterData = [
                     port: "7300", clusterProtocol: ClusterProtocol.telnet),
   ClusterIdentifier(id: 12, name: "K1RFI", address: "k1rfi.com",
                     port: "7300", clusterProtocol: ClusterProtocol.telnet),
-  ClusterIdentifier(id: 13, name: "K1SA", address: "sebago.ddns.net", port: "7373", clusterProtocol: ClusterProtocol.telnet),
+  ClusterIdentifier(id: 13, name: "K1SA", address: "sebago.ddns.net",
+                    port: "7373", clusterProtocol: ClusterProtocol.telnet),
+  ClusterIdentifier(id: 14, name: "K4UJ-1", address: "cluster-eu.dx-is.com",
+                    port: "7300", clusterProtocol: ClusterProtocol.telnet),
+//VA3MW  va3mw.dxcluster.net  41112
 
     // telnet.reversebeacon.net port 7001, for FT8 spots
   ClusterIdentifier(id: 99, name: "FT8 RBN", address: "telnet.reversebeacon.net",

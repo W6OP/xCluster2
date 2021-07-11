@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 54;
+	objectVersion = 55;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -20,7 +20,6 @@
 		9907B66225FD4AB100A0859C /* TelnetManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9907B65E25FD4AB100A0859C /* TelnetManager.swift */; };
 		9907B66625FD4BA400A0859C /* CallParser in Frameworks */ = {isa = PBXBuildFile; productRef = 9907B66525FD4BA400A0859C /* CallParser */; };
 		9907B66925FD503C00A0859C /* ClusterDisplayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9907B66825FD503C00A0859C /* ClusterDisplayView.swift */; };
-		9936D64D260547C30079D49C /* SwiftLintFramework in Frameworks */ = {isa = PBXBuildFile; productRef = 9936D64C260547C30079D49C /* SwiftLintFramework */; };
 		99625D8326122CAF00CC4677 /* Preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99625D8226122CAF00CC4677 /* Preferences.swift */; };
 /* End PBXBuildFile section */
 
@@ -48,7 +47,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				9936D64D260547C30079D49C /* SwiftLintFramework in Frameworks */,
 				9907B66625FD4BA400A0859C /* CallParser in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -145,7 +143,6 @@
 			name = xCluster;
 			packageProductDependencies = (
 				9907B66525FD4BA400A0859C /* CallParser */,
-				9936D64C260547C30079D49C /* SwiftLintFramework */,
 			);
 			productName = xCluster;
 			productReference = 9907B63325FD455700A0859C /* xCluster.app */;
@@ -166,7 +163,7 @@
 				};
 			};
 			buildConfigurationList = 9907B62E25FD455700A0859C /* Build configuration list for PBXProject "xCluster" */;
-			compatibilityVersion = "Xcode 12.0";
+			compatibilityVersion = "Xcode 13.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -176,7 +173,6 @@
 			mainGroup = 9907B62A25FD455700A0859C;
 			packageReferences = (
 				9907B66425FD4BA400A0859C /* XCRemoteSwiftPackageReference "CallParserForMac" */,
-				9936D64B260547C30079D49C /* XCRemoteSwiftPackageReference "SwiftLint" */,
 			);
 			productRefGroup = 9907B63425FD455700A0859C /* Products */;
 			projectDirPath = "";
@@ -299,6 +295,7 @@
 				SDKROOT = macosx;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
 		};
@@ -353,6 +350,7 @@
 				SDKROOT = macosx;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
 		};
@@ -362,7 +360,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = xCluster/xCluster.entitlements;
-				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"xCluster/Preview Content\"";
@@ -387,7 +385,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = xCluster/xCluster.entitlements;
-				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"xCluster/Preview Content\"";
@@ -438,14 +436,6 @@
 				minimumVersion = 1.0.7;
 			};
 		};
-		9936D64B260547C30079D49C /* XCRemoteSwiftPackageReference "SwiftLint" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/realm/SwiftLint.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.43.1;
-			};
-		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -453,11 +443,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 9907B66425FD4BA400A0859C /* XCRemoteSwiftPackageReference "CallParserForMac" */;
 			productName = CallParser;
-		};
-		9936D64C260547C30079D49C /* SwiftLintFramework */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 9936D64B260547C30079D49C /* XCRemoteSwiftPackageReference "SwiftLint" */;
-			productName = SwiftLintFramework;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

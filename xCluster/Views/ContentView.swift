@@ -67,6 +67,8 @@ class Coordinator: NSObject, MKMapViewDelegate {
   func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
 
     let renderer = MKPolylineRenderer(overlay: overlay)
+    let lineWidth: CGFloat = 1.75
+    let alpha: CGFloat = 0.5
 
     switch overlay.title {
     case "80":
@@ -81,12 +83,14 @@ class Coordinator: NSObject, MKMapViewDelegate {
       renderer.strokeColor = .purple
     case "17":
       renderer.strokeColor = .darkGray
+    case "6":
+      renderer.strokeColor = .systemTeal
     default:
       renderer.strokeColor = .brown
     }
     //renderer.strokeColor = .blue
-    renderer.alpha = 0.5
-    renderer.lineWidth = 1.0
+    renderer.alpha = alpha
+    renderer.lineWidth = lineWidth
 
     return renderer
   }
