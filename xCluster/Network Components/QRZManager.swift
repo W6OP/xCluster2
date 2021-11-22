@@ -25,26 +25,27 @@ public enum KeyName: String {
   case recordKeyName = "Callsign"
 }
 
+// -----------------------------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------------------------------
+
 actor UpdatePairs {
-  var callSignPairs = [UUID: [StationInformation]]()
+  private var callSignPairs = [UUID: [StationInformation]]()
 
-  func decide(stationInfo: StationInformation, spot: ClusterSpot) {
-
-    if callSignPairs[spot.id] != nil {
-      var callSignPair = callSignPairs[spot.id]
-      callSignPair?.append(stationInfo)
-//      if callSignPair!.count == 2 {
-//        combineQRZInfo(spot: spot, callSignPair: callSignPair!)
-//        callSignPairs[spot.id] = nil
-//      }
-    } else {
-      var callSignPair = [StationInformation]()
-      callSignPair.append(stationInfo)
-      callSignPairs[spot.id] = callSignPair
-    }
+  func setStationInformation(spot: ClusterSpot, stationInfo: [StationInformation]) async {
+    callSignPairs[spot.id] = stationInfo
   }
 
+  func getStationInformation(spot: ClusterSpot) async -> [StationInformation] {
+    return callSignPairs[spot.id] ?? [StationInformation]()
+  }
+
+  func removeStationInformation(spot: ClusterSpot) async {
+    callSignPairs[spot.id] = nil
+  }
 }
+
+// -----------------------------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------------------------------
 
 class QRZManager: NSObject {
 
@@ -55,6 +56,10 @@ class QRZManager: NSObject {
   private let stationProcessorQueue =
     DispatchQueue(
       label: "com.w6op.virtualcluster.qrzProcessorQueue")
+
+  private let updateQueue =
+    DispatchQueue(
+      label: "com.w6op.virtualcluster.updateQueue", attributes: .concurrent)// , attributes: .concurrent
 
   // MARK: - Field Definitions
 
@@ -221,9 +226,7 @@ class QRZManager: NSObject {
     }
 
     if let dxInfo = checkCache(call: spot.dxStation) {
-      //logger.info("Decide 3: \(spot.id.uuidString.suffix(5))")
       lockQueue.async { [self] in
-        //logger.info("Decide 4: \(spot.id.uuidString.suffix(5))")
         decide(stationInfo: dxInfo, spot: spot)
       }
       logger.info("Cache hit for: \(spot.dxStation)")
@@ -254,11 +257,13 @@ class QRZManager: NSObject {
       var stationInfo = requestCallParserInformation(call: call)
       stationInfo.id = spot.id
 
-      //logger.info("Decide 5: \(spot.id.uuidString.suffix(5))")
-      lockQueue.async { [self] in
-        //logger.info("Decide 6: \(spot.id.uuidString.suffix(5))")
-        decide(stationInfo: stationInfo, spot: spot)
-      }
+//      if #available(macOS 12.0, *) {
+//        async { await self.decideEx(stationInfo: stationInfo, spot: spot) }
+//      } else {
+        lockQueue.async { [self] in
+          decide(stationInfo: stationInfo, spot: spot)
+        }
+      //}
       return true
     }
     return false
@@ -328,20 +333,15 @@ class QRZManager: NSObject {
 
       if parser.parse() {
         if self.results != nil {
-          //logger.info("Processing QRZ data for: \(call)")
 
           do {
 
             var stationInfo = try processQRZInformation(call: call)
             stationInfo.id = spot.id
 
-            //if callSignCache[stationInfo.call] == nil {
-              callSignCache[stationInfo.call] = stationInfo
-            //}
+            callSignCache[stationInfo.call] = stationInfo
 
-            //logger.info("Decide 7: \(spot.id.uuidString.suffix(5))")
             lockQueue.async { [self] in
-              //logger.info("Decide 8: \(spot.id.uuidString.suffix(5))")
               decide(stationInfo: stationInfo, spot: spot)
             }
 
@@ -360,7 +360,20 @@ class QRZManager: NSObject {
   // -----------------------------------------------------------------------------------------------------
   // -----------------------------------------------------------------------------------------------------
 
-  
+  var updatePairs = UpdatePairs()
+
+  func decideEx(stationInfo: StationInformation, spot: ClusterSpot) async {
+
+    var callSignPair = await updatePairs.getStationInformation(spot: spot)
+
+    callSignPair.append(stationInfo)
+    if callSignPair.count == 2 {
+      combineQRZInfo(spot: spot, callSignPair: callSignPair)
+    } else {
+      await updatePairs.setStationInformation(spot: spot, stationInfo: callSignPair)
+    }
+  }
+
 
   /// Determine if we have enough information to create an overlay.
   /// Check the cache first.
