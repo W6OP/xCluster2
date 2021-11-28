@@ -217,7 +217,11 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     bandFilters.keys.forEach { bandFilters[$0] = .isOff }
 
     logger.info("Connecting to: \(cluster.name)")
-    telnetManager.connect(cluster: cluster)
+
+    //telnetManager.connect(cluster: cluster)
+    Task {
+      await telnetManager.connectAsync(cluster: connectedCluster)
+    }
   }
 
   /// Disconnect on cluster change or application termination.
@@ -423,7 +427,14 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   ///   - message: The data sent.
   ///   - commandType: The type of command sent.
   func sendClusterCommand (message: String, commandType: CommandType) {
-    telnetManager.send(message, commandType: commandType)
+
+    if commandType == .refreshWeb {
+        Task {
+          try? await telnetManager.createHttpSessionAsync(host: connectedCluster)
+        }
+    } else {
+      telnetManager.send(message, commandType: commandType)
+    }
   }
 
   /// Send a message or command to the telnet manager.

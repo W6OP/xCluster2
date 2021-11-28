@@ -10,6 +10,10 @@ import Cocoa
 import Network
 import os
 
+struct ServerStatus: Codable {
+  let activeUsers: Int
+}
+
 protocol TelnetManagerDelegate: AnyObject {
 
   func connect(cluster: ClusterIdentifier)
@@ -70,7 +74,26 @@ class TelnetManager {
     connectedHost = cluster
 
     if cluster.clusterProtocol == ClusterProtocol.html { // change to ENUM
-      createHttpSession(host: cluster)
+      Task {
+        try? await createHttpSessionAsync(host: cluster)
+      }
+    } else {
+      connection = NWConnection(host: NWEndpoint.Host(cluster.address),
+                                port: NWEndpoint.Port(cluster.port) ?? defaultPort, using: .tcp)
+      connection.stateUpdateHandler = stateDidChange(to:)
+      start()
+    }
+  }
+
+
+  /// Connect to the cluster server.
+  /// - Parameter cluster: node to connect to
+  func connectAsync(cluster: ClusterIdentifier) async {
+
+    connectedHost = cluster
+
+    if cluster.clusterProtocol == ClusterProtocol.html { // change to ENUM
+        try? await createHttpSessionAsync(host: cluster)
     } else {
       connection = NWConnection(host: NWEndpoint.Host(cluster.address),
                                 port: NWEndpoint.Port(cluster.port) ?? defaultPort, using: .tcp)
@@ -123,6 +146,30 @@ class TelnetManager {
       print("Connection State Unknown")
     }
   }
+
+  func createHttpSessionAsync(host: ClusterIdentifier) async throws {
+
+    guard let url = URL(string: host.address) else {
+      print("Could not create the URL")
+      return
+    }
+
+    let (data, response) = try await
+        URLSession.shared.data(from: url)
+
+    guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+      print("The server responded with an error")
+      return
+    }
+
+    guard let mime = response.mimeType, mime == "application/json" else {
+      // if not json
+      let html = String(decoding: data, as: UTF8.self)
+      self.removeHeaderAndFooter(html: html)
+      return
+    }
+  }
+
 
   /// Use http to get data from a web site.
   /// - Parameter host: host address.
@@ -241,14 +288,17 @@ class TelnetManager {
   ///- commandType: The type of command received.
   func send(_ message: String, commandType: CommandType) {
 
-    self.currentCommandType = commandType
+    // KEEP THE SWITVCH HERE - MAY NEED IT LATER
+    //self.currentCommandType = commandType
 
-    switch commandType {
-    case .refreshWeb:
-      if self.clusterType == .html {
-        createHttpSession(host: connectedHost)
-      }
-    default:
+//    switch commandType {
+//    case .refreshWeb:
+//      if self.clusterType == .html {
+//        Task {
+//          try? await createHttpSessionAsync(host: connectedHost)
+//        }
+//      }
+//    default:
       if connected {
         let newMessage = message + "\r\n"
 
@@ -263,7 +313,7 @@ class TelnetManager {
           }))
         }
       }
-    }
+//    }
   }
 
   /// Disconnect from the telnet session and break the connection.
