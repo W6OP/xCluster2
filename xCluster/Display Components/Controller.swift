@@ -14,8 +14,13 @@ import os
 
 // MARK: - ClusterSpots
 
-// move to utility
+// move to utility ??
 enum BandFilterState: Int {
+  case isOn = 0
+  case isOff = 1
+}
+
+enum ModeFilterState: Int {
   case isOn = 0
   case isOff = 1
 }
@@ -104,6 +109,7 @@ struct ClusterSpot: Identifiable, Hashable {
   }
 }
 
+/// Metadata of the currently connected host
 struct ConnectedCluster: Identifiable, Hashable {
   var id: Int
   var clusterAddress: String
@@ -116,7 +122,7 @@ struct ConnectedCluster: Identifiable, Hashable {
 // https://www.hamradiodeluxe.com/blog/Ham-Radio-Deluxe-Newsletter-April-19-2018--Understanding-DX-Clusters.html
 
 /// Stub between view and all other classes
-public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDelegate {
+public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDelegate, WebManagerDelegate {
 
   let logger = Logger(subsystem: "com.w6op.xCluster", category: "Controller")
 
@@ -130,6 +136,12 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   @Published var bandFilter = (id: 0, state: false) {
     didSet {
       setBandButtons(band: bandFilter.id, state: bandFilter.state)
+    }
+  }
+
+  @Published var modeFilter = (id: 0, state: false) {
+    didSet {
+      setModeButtons(mode: modeFilter.id, state: modeFilter.state)
     }
   }
 
@@ -155,6 +167,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   var qrzManager = QRZManager()
   var telnetManager = TelnetManager()
   var spotProcessor = SpotProcessor()
+  var webManager = WebManager()
 
   let callSign = UserDefaults.standard.string(forKey: "callsign") ?? ""
   let fullName = UserDefaults.standard.string(forKey: "fullname") ?? ""
@@ -184,6 +197,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
                      15: BandFilterState.isOff, 12: BandFilterState.isOff, 10: BandFilterState.isOff,
                      6: BandFilterState.isOff]
 
+  var modeFilters = [ 1: ModeFilterState.isOff, 2: ModeFilterState.isOff, 3: ModeFilterState.isOff]
+
   var callFilter = ""
 
   var lastSpotReceivedTime = Date()
@@ -194,6 +209,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
     telnetManager.telnetManagerDelegate = self
     qrzManager.qrZedManagerDelegate = self
+    webManager.webManagerDelegate = self
 
     keepAliveTimer = Timer.scheduledTimer(timeInterval: TimeInterval(keepAliveInterval),
                      target: self, selector: #selector(tickleServer), userInfo: nil, repeats: true)
@@ -218,9 +234,12 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
     logger.info("Connecting to: \(cluster.name)")
 
-    //telnetManager.connect(cluster: cluster)
-    Task {
-      await telnetManager.connectAsync(cluster: connectedCluster)
+    if cluster.clusterProtocol == ClusterProtocol.html {
+      Task {
+        await webManager.connectAsync(cluster: connectedCluster)
+      }
+    } else {
+      telnetManager.connect(cluster: cluster)
     }
   }
 
@@ -245,12 +264,32 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     }
   }
 
+  // NEEDS CLEANUP
+  func webManagerDataReceived(_ webManager: WebManager, messageKey: NetworkMessage, message: String) {
+
+    switch messageKey {
+
+    case.htmlSpotReceived:
+      parseClusterSpot(message: message, messageType: messageKey)
+
+    default:
+      print ("Handle this message type \(messageKey) : \(message)")
+    }
+
+    DispatchQueue.main.async { [self] in
+      if statusMessage.count > 200 {
+        statusMessage.removeFirst()
+      }
+    }
+  }
+
+
    /// Telnet Manager protocol - Process a status message from the Telnet Manager.
    /// - parameters:
    /// - telnetManager: Reference to the class sending the message.
    /// - messageKey: Key associated with this message.
    /// - message: Message text.
-  func telnetManagerStatusMessageReceived(_ telnetManager: TelnetManager, messageKey: TelnetManagerMessage, message: String) {
+  func telnetManagerStatusMessageReceived(_ telnetManager: TelnetManager, messageKey: NetworkMessage, message: String) {
 
     switch messageKey {
     case .invalid:
@@ -299,7 +338,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     }
 
     DispatchQueue.main.async {
-        if self.statusMessage.count > 200 {
+        if self.statusMessage.count > maxStatusMessages {
         self.statusMessage.removeFirst()
       }
     }
@@ -310,7 +349,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
    /// - telnetManager: Reference to the class sending the message.
    /// - messageKey: Key associated with this message.
    /// - message: Message text.
-  func telnetManagerDataReceived(_ telnetManager: TelnetManager, messageKey: TelnetManagerMessage, message: String) {
+  func telnetManagerDataReceived(_ telnetManager: TelnetManager, messageKey: NetworkMessage, message: String) {
 
     switch messageKey {
     case .clusterType:
@@ -384,6 +423,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     spot.createOverlay(stationInfoCombined: stationInfoCombined)
 
     DispatchQueue.main.async { [self] in
+
       spots.insert(spot, at: 0)
       if !spot.isFiltered {
         overlays.append(spot.overlay)
@@ -430,7 +470,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
     if commandType == .refreshWeb {
         Task {
-          try? await telnetManager.createHttpSessionAsync(host: connectedCluster)
+          try? await webManager.createHttpSessionAsync(host: connectedCluster)
         }
     } else {
       telnetManager.send(message, commandType: commandType)
@@ -445,14 +485,18 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     switch tag {
     case 20:
       if connectedCluster.clusterProtocol == ClusterProtocol.html {
-        telnetManager.createHttpSession(host: connectedCluster)
+        Task {
+          try? await webManager.createHttpSessionAsync(host: connectedCluster)
+        }
       } else {
         telnetManager.send("show/fdx 20", commandType: .getDxSpots)
       }
     case 50:
       if connectedCluster.clusterProtocol == ClusterProtocol.html {
         connectedCluster.address = connectedCluster.address.replacingOccurrences(of: "25", with: "50")
-        telnetManager.createHttpSession(host: connectedCluster)
+        Task {
+          try? await webManager.createHttpSessionAsync(host: connectedCluster)
+        }
       } else {
         telnetManager.send("show/fdx 50", commandType: .getDxSpots)
       }
@@ -481,7 +525,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   /// - Parameters:
   ///   - message: "DX de W3EX:      28075.6  N9AMI   1912Z FN20\a\a"
   ///   - messageType: Type of spot received.
-  func parseClusterSpot(message: String, messageType: TelnetManagerMessage) {
+  func parseClusterSpot(message: String, messageType: NetworkMessage) {
 
     do {
       var spot = ClusterSpot(id: UUID(), dxStation: "", frequency: "", band: 99, spotter: "",
@@ -760,6 +804,35 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
         spots[index] = mutatingSpot
       }
     }
+  }
+
+  /// Reset all the band filters to the same state.
+  /// - Parameter setFilter: FilterState
+//  func setAllModeSpotFilters(filterState: Bool) {
+//    DispatchQueue.main.async { [self] in
+//      for (index, spot) in spots.enumerated() {
+//        var mutatingSpot = spot
+//        mutatingSpot.resetFilter(reason: .mode)
+//        spots[index] = mutatingSpot
+//      }
+//    }
+//  }
+
+  // MARK: - Filter Modes
+
+  func setModeButtons(mode: Int, state: Bool) {
+
+    switch state {
+    case true:
+      modeFilters[Int(mode)] = .isOn
+    default:
+      modeFilters[Int(mode)] = .isOff
+      break;
+    }
+
+    //updateSpotModeFilterState(mode: mode, filterState: state)
+    filterOverlays()
+
   }
 
   // MARK: - Filter Overlays

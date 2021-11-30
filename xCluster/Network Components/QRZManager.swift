@@ -83,7 +83,16 @@ class QRZManager: NSObject {
   var results: [[String: String]]?         // the whole array of dictionaries
   var results2: StationInformation!
   var sessionDictionary: [String: String]! // the current session dictionary
-  var callSignDictionary: [String: String]! // array of key/value pairs
+  var callSignDictionary: [String: String] = ["call": "", "country": "", "lat": "", "lon": "", "grid": "", "lotw": "0", "aliases": "", "Error": ""]
+
+
+//  let array = [MyStruct(key: 0, value: "a"), MyStruct(key: 0, value: "b"),
+//               MyStruct(key: 1, value: "c")]
+//
+//  let keyValues = array.lazy.map { ($0.key, $0.value) }
+//  let dict = Dictionary(keyValues, uniquingKeysWith: { _, latest in latest })
+
+
   var currentValue = ""
   var locationDictionary: (spotter: [String: String], dx: [String: String])!
 
@@ -315,6 +324,9 @@ class QRZManager: NSObject {
       }
       guard let response = response as? HTTPURLResponse, response.statusCode == 200 else {
         //fatalError("Error: invalid HTTP response code")
+        guard error != nil else {
+          return
+        }
         logger.error("Error 2: \(error!.localizedDescription)")
         return
       }
@@ -445,17 +457,30 @@ class QRZManager: NSObject {
   func populateQRZInformation(stationInfoIncomplete: StationInformation) throws -> StationInformation {
     var stationInfo = stationInfoIncomplete
 
-    if let latitude = Double(callSignDictionary["lat"]!) {
-      stationInfo.latitude = latitude
-    } else {
+    // WHY IS lat NOT IN DICTIONARY??
+//    if let latitude = Double(callSignDictionary["lat"]!) {
+//      stationInfo.latitude = latitude
+//    } else {
+//      throw RequestError.invalidLatitude
+//    }
+
+    guard let latitude = Double(callSignDictionary["lat"]!) else {
       throw RequestError.invalidLatitude
     }
 
-    if let longitude = Double(callSignDictionary["lon"]!) {
-      stationInfo.longitude = longitude
-    } else {
+    stationInfo.latitude = latitude
+
+    guard let longitude = Double(callSignDictionary["lon"]!) else {
       throw RequestError.invalidLongitude
     }
+
+    stationInfo.longitude = longitude
+
+//    if let longitude = Double(callSignDictionary["lon"]!) {
+//      stationInfo.longitude = longitude
+//    } else {
+//      throw RequestError.invalidLongitude
+//    }
     // if there is a prefix or suffix I need to find correct country and lat/lon
     stationInfo.country = callSignDictionary["country"] ?? ""
     stationInfo.grid = callSignDictionary["grid"] ?? ""

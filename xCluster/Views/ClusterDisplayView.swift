@@ -9,7 +9,8 @@
 import SwiftUI
 
 struct ClusterDisplayView: View {
-  @ObservedObject var controller: Controller
+  //@ObservedObject var controller: Controller
+  @EnvironmentObject var controller: Controller
 
   var body: some View {
     // MARK: - Spot list display.
@@ -156,7 +157,9 @@ struct StatusDisplayView: View {
 /// Preview of ClusterDisplayView
 struct ClusterDisplayView_Previews: PreviewProvider {
   static var previews: some View {
-    ClusterDisplayView(controller: Controller())
+    ClusterDisplayView()
+      .environmentObject(Controller())
+    //ClusterDisplayView(controller: Controller())
   }
 }
 

@@ -10,17 +10,17 @@ import Cocoa
 import Network
 import os
 
-struct ServerStatus: Codable {
-  let activeUsers: Int
-}
+//struct ServerStatus: Codable {
+//  let activeUsers: Int
+//}
 
 protocol TelnetManagerDelegate: AnyObject {
 
   func connect(cluster: ClusterIdentifier)
 
-  func telnetManagerStatusMessageReceived(_ telnetManager: TelnetManager, messageKey: TelnetManagerMessage, message: String)
+  func telnetManagerStatusMessageReceived(_ telnetManager: TelnetManager, messageKey: NetworkMessage, message: String)
 
-  func telnetManagerDataReceived(_ telnetManager: TelnetManager, messageKey: TelnetManagerMessage, message: String)
+  func telnetManagerDataReceived(_ telnetManager: TelnetManager, messageKey: NetworkMessage, message: String)
 }
 
 // Someday look at rewriting this from
@@ -73,33 +73,11 @@ class TelnetManager {
 
     connectedHost = cluster
 
-    if cluster.clusterProtocol == ClusterProtocol.html { // change to ENUM
-      Task {
-        try? await createHttpSessionAsync(host: cluster)
-      }
-    } else {
       connection = NWConnection(host: NWEndpoint.Host(cluster.address),
                                 port: NWEndpoint.Port(cluster.port) ?? defaultPort, using: .tcp)
       connection.stateUpdateHandler = stateDidChange(to:)
       start()
-    }
-  }
 
-
-  /// Connect to the cluster server.
-  /// - Parameter cluster: node to connect to
-  func connectAsync(cluster: ClusterIdentifier) async {
-
-    connectedHost = cluster
-
-    if cluster.clusterProtocol == ClusterProtocol.html { // change to ENUM
-        try? await createHttpSessionAsync(host: cluster)
-    } else {
-      connection = NWConnection(host: NWEndpoint.Host(cluster.address),
-                                port: NWEndpoint.Port(cluster.port) ?? defaultPort, using: .tcp)
-      connection.stateUpdateHandler = stateDidChange(to:)
-      start()
-    }
   }
 
   /// Start the telnet connection.
@@ -144,95 +122,6 @@ class TelnetManager {
 
     @unknown default:
       print("Connection State Unknown")
-    }
-  }
-
-  func createHttpSessionAsync(host: ClusterIdentifier) async throws {
-
-    guard let url = URL(string: host.address) else {
-      print("Could not create the URL")
-      return
-    }
-
-    let (data, response) = try await
-        URLSession.shared.data(from: url)
-
-    guard (response as? HTTPURLResponse)?.statusCode == 200 else {
-      print("The server responded with an error")
-      return
-    }
-
-    guard let mime = response.mimeType, mime == "application/json" else {
-      // if not json
-      let html = String(decoding: data, as: UTF8.self)
-      self.removeHeaderAndFooter(html: html)
-      return
-    }
-  }
-
-
-  /// Use http to get data from a web site.
-  /// - Parameter host: host address.
-  func createHttpSession(host: ClusterIdentifier) {
-
-    let session = URLSession.shared
-    let url = URL(string: host.address)!
-
-    connectedHost = host
-
-    let task = session.dataTask(with: url, completionHandler: { data, response, error in
-      if error != nil {
-        print("error: \(String(describing: error))")
-        //self.handleClientError(error)
-        //self.handleConnectionError(error: error as! NWError)
-        return
-      }
-
-      guard let httpResponse = response as? HTTPURLResponse,
-            (200...299).contains(httpResponse.statusCode) else {
-        print("error: \(String(describing: error))")
-        //self.handleServerError(response)
-        //self.handleConnectionError(error: error as! NWError)
-        return
-      }
-
-      guard let mime = response?.mimeType, mime == "application/json" else {
-        // if not json
-        let html = String(decoding: data!, as: UTF8.self)
-        self.removeHeaderAndFooter(html: html)
-        return
-      }
-
-      do { // for future use
-        let json = try JSONSerialization.jsonObject(with: data!, options: [])
-        print(json)
-      } catch {
-        print("JSON error: \(error.localizedDescription)")
-      }
-
-    })
-
-    task.resume()
-  }
-
-  /// Remove the header and footer from the html.
-  /// - Parameter html: html received.
-  func removeHeaderAndFooter(html: String) {
-
-    if html.contains("<PRE>") {
-
-      guard let startIndex = html.index(of: "<PRE>") else { return }
-      guard let startIndex2 = html.index(of: "</PRE>") else { return }
-
-      // remove the header and footer
-      let range = html.index(startIndex, offsetBy: 5)..<startIndex2
-
-      let substring = String(html[range])
-      let lines = substring.split(whereSeparator: \.isNewline)
-
-      for line in lines where !line.isEmpty {
-          determineMessageType(message: "<html>" + line.trimmingCharacters(in: .whitespaces))
-        }
     }
   }
 
@@ -288,17 +177,6 @@ class TelnetManager {
   ///- commandType: The type of command received.
   func send(_ message: String, commandType: CommandType) {
 
-    // KEEP THE SWITVCH HERE - MAY NEED IT LATER
-    //self.currentCommandType = commandType
-
-//    switch commandType {
-//    case .refreshWeb:
-//      if self.clusterType == .html {
-//        Task {
-//          try? await createHttpSessionAsync(host: connectedHost)
-//        }
-//      }
-//    default:
       if connected {
         let newMessage = message + "\r\n"
 
@@ -313,7 +191,7 @@ class TelnetManager {
           }))
         }
       }
-//    }
+
   }
 
   /// Disconnect from the telnet session and break the connection.
@@ -352,9 +230,6 @@ class TelnetManager {
     case _ where message.contains("DX de"):
       self.telnetManagerDelegate?.telnetManagerDataReceived(self,
                               messageKey: .spotReceived, message: message)
-
-    case _ where message.contains("<html>"):
-      determineClusterType(message: message)
 
     case _ where message.contains("Is this correct"):
       send("Y", commandType: .yes)
@@ -419,11 +294,6 @@ class TelnetManager {
       self.connectionChanged = false
       self.telnetManagerDelegate?.telnetManagerDataReceived(self,
           messageKey: .clusterType, message: "Connected to VE7CC Cluster")
-
-    case _ where message.contains("<html>"):
-      self.clusterType = .html
-      self.telnetManagerDelegate?.telnetManagerDataReceived(self,
-                  messageKey: .htmlSpotReceived, message: message)
 
     default:
       self.clusterType = .unknown

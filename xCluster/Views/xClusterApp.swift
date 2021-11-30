@@ -19,7 +19,8 @@ struct XClusterApp: App {
         }
 
         WindowGroup("Spots") {
-          ClusterDisplayView(controller: controller)
+          ClusterDisplayView().environmentObject(controller)
+          // ClusterDisplayView(controller: controller)
         }
         .handlesExternalEvents(matching: Set(arrayLiteral: "*"))
     }
@@ -30,3 +31,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       return true
   }
 }
+
+// https://developer.apple.com/forums/thread/651592 - open external windows
+//enum OpenWindows: String, CaseIterable {
+//    case SecondView = "SecondView"
+//    //case ThirdView   = "ThirdView"
+//    //As many views as you need.
+//
+//    func open(){
+//        if let url = URL(string: "xClusterApp://\(self.rawValue)") { //replace myapp with your app's name
+//            NSWorkspace.shared.open(url)
+//        }
+//    }
+//}

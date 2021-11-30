@@ -35,6 +35,12 @@ enum ClusterProtocol: String {
     case none = ""
 }
 
+enum Mode: String {
+  case phone = "Phone"
+  case cw = "CW"
+  case digi = "DIGI"
+}
+
 // MARK: - Band Definition
 
 struct BandIdentifier: Identifiable, Hashable {
@@ -56,6 +62,20 @@ let bandData = [
     BandIdentifier(band: "12m", id: 12, isSelected: true),
     BandIdentifier(band: "10m", id: 10, isSelected: true),
     BandIdentifier(band: "6m", id: 6, isSelected: true)
+]
+
+// MARK: - Mode Definition
+
+struct ModeIdentifier: Identifiable, Hashable {
+    var mode: Mode
+    var id: Int
+    var isSelected: Bool
+}
+
+let modeData = [
+  ModeIdentifier(mode: .phone, id: 1, isSelected: true),
+  ModeIdentifier(mode: .cw, id: 2, isSelected: true),
+  ModeIdentifier(mode: .digi, id: 3, isSelected: true)
 ]
 
 // MARK: - Cluster Definition

@@ -22,10 +22,10 @@
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 			<key>CFBundleURLName</key>
-			<string>xClusterApp</string>
+			<string>xCluster</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>xClusterApp</string>
+				<string>xCluster</string>
 			</array>
 		</dict>
 	</array>

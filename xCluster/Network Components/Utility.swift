@@ -9,6 +9,8 @@
 import Cocoa
 import os
 
+let maxStatusMessages = 200
+
 // https://www.hackingwithswift.com/example-code/strings/how-to-remove-a-prefix-from-a-string
 extension String {
   func condenseWhitespace() -> String {
@@ -98,7 +100,7 @@ extension QRZManager: XMLParserDelegate {
   func parserDidStartDocument(_ parser: XMLParser) {
     //logger.info("Parsing started.")
     results = []
-    callSignDictionary = [String: String]()
+    callSignDictionary = ["call": "", "country": "", "lat": "", "lon": "", "grid": "", "lotw": "0", "aliases": "", "Error": ""]//[String: String]()
   }
 
   // start element
@@ -115,7 +117,7 @@ extension QRZManager: XMLParserDelegate {
         //print("didStartElement: \(elementName)")
       }
     case KeyName.recordKeyName.rawValue:
-      callSignDictionary = [:]
+      callSignDictionary = ["call": "", "country": "", "lat": "", "lon": "", "grid": "", "lotw": "0", "aliases": "", "Error": ""] //[:]
     case KeyName.errorKeyName.rawValue:
       //logger.info("Parser error: \(elementName):\(self.currentValue)")
     break
@@ -123,6 +125,9 @@ extension QRZManager: XMLParserDelegate {
       if callSignDictionaryKeys.contains(elementName) {
         currentValue = ""
       }
+//      if callSignDictionaryKeys.contains(elementName) {
+//        currentValue = ""
+//      }
     }
   }
 
@@ -146,10 +151,10 @@ extension QRZManager: XMLParserDelegate {
       //print("Here 2s - was this an error? \(elementName)")
       break
     case KeyName.recordKeyName.rawValue:
-      results!.append(callSignDictionary!)
+      results!.append(callSignDictionary)
     case KeyName.errorKeyName.rawValue:
         //logger.info("didEndElement Error: \(self.currentValue)")
-        callSignDictionary = [:]
+        callSignDictionary = ["call": "", "country": "", "lat": "", "lon": "", "grid": "", "lotw": "0", "aliases": "", "Error": ""]//[:]
         callSignDictionary[elementName] = currentValue.trimmingCharacters(in: .whitespacesAndNewlines)
       if currentValue.contains("Session Timeout") {
         // abort this and request a session key
@@ -201,7 +206,7 @@ enum CommandType: String {
 /**
  Unify message nouns going to the view controller
  */
-enum TelnetManagerMessage: String {
+enum NetworkMessage: String {
   case announcement = "Announcement"
   case cancelled = "Cancelled"
   case clusterType = "Cluster Type"

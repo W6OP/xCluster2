@@ -19,29 +19,29 @@ struct PreferencesView: View {
             HStack {
               Text("Call Sign")
               Spacer()
-              TextField("Call Sign", text: $userSettings.callsign)
+              TextField("", text: $userSettings.callsign)
               .textFieldStyle(RoundedBorderTextFieldStyle())
-              .frame(minWidth: 230, maxWidth: 230)
+              //.frame(minWidth: 230, maxWidth: 230)
             }
             HStack {
               Text("Full Name")
-              TextField("First and Last Name", text: $userSettings.fullname)
+              TextField("", text: $userSettings.fullname)
                 .textFieldStyle(RoundedBorderTextFieldStyle())
-              .frame(minWidth: 230, maxWidth: 230)
+              //.frame(minWidth: 230, maxWidth: 230)
             }
             HStack {
-              Text("Location")
+              Text("City, State")
               Spacer()
-              TextField("City, State", text: $userSettings.location)
+              TextField("", text: $userSettings.location)
                 .textFieldStyle(RoundedBorderTextFieldStyle())
-              .frame(minWidth: 230, maxWidth: 230)
+              //.frame(minWidth: 230, maxWidth: 230)
             }
             HStack {
               Text("Grid")
               Spacer()
-              TextField("Grid", text: $userSettings.grid)
+              TextField("", text: $userSettings.grid)
                 .textFieldStyle(RoundedBorderTextFieldStyle())
-              .frame(minWidth: 230, maxWidth: 230)
+              //.frame(minWidth: 230, maxWidth: 230)
             }
           }
         }
@@ -55,15 +55,15 @@ struct PreferencesView: View {
         Form {
           Section(header: Text("QRZ Credentials")) {
             HStack {
-              Text("QRZ User Name")
-              TextField("User Name", text: $userSettings.username)
+              Text("User Name")
+              TextField("", text: $userSettings.username)
               .textFieldStyle(RoundedBorderTextFieldStyle())
             }
             HStack {
-              Text("QRZ Password")
+              Text("Password")
               Spacer()
                 .frame(minWidth: 18, maxWidth: 18)
-              SecureField("Password", text: $userSettings.password)
+              SecureField("", text: $userSettings.password)
               .textFieldStyle(RoundedBorderTextFieldStyle())
             }
             Button(action: {self.presentationMode.wrappedValue.dismiss()}) {
