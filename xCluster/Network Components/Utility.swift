@@ -47,31 +47,43 @@ extension String {
   func isAlphanumeric() -> Bool {
     return self.rangeOfCharacter(from: CharacterSet.alphanumerics.inverted) == nil && self.isEmpty
   }
+
+  func isNumeric() -> Bool {
+    return self.rangeOfCharacter(from: CharacterSet.decimalDigits) == nil && self.isEmpty
+  }
 }
 
 // https://stackoverflow.com/questions/32305891/index-of-a-substring-in-a-string-with-swift
 extension StringProtocol {
-    func index<S: StringProtocol>(of string: S, options: String.CompareOptions = []) -> Index? {
-        range(of: string, options: options)?.lowerBound
+
+  // test if double, float, int
+  // example: guard (callSignDictionary["lat"]!.double != nil) else {
+  var double: Double? { Double(self) }
+  var float: Float? { Float(self) }
+  var integer: Int? { Int(self) }
+  // ----------------------------
+
+  func index<S: StringProtocol>(of string: S, options: String.CompareOptions = []) -> Index? {
+    range(of: string, options: options)?.lowerBound
+  }
+  func endIndex<S: StringProtocol>(of string: S, options: String.CompareOptions = []) -> Index? {
+    range(of: string, options: options)?.upperBound
+  }
+  func indices<S: StringProtocol>(of string: S, options: String.CompareOptions = []) -> [Index] {
+    ranges(of: string, options: options).map(\.lowerBound)
+  }
+  func ranges<S: StringProtocol>(of string: S, options: String.CompareOptions = []) -> [Range<Index>] {
+    var result: [Range<Index>] = []
+    var startIndex = self.startIndex
+    while startIndex < endIndex,
+          let range = self[startIndex...]
+            .range(of: string, options: options) {
+      result.append(range)
+      startIndex = range.lowerBound < range.upperBound ? range.upperBound :
+      index(range.lowerBound, offsetBy: 1, limitedBy: endIndex) ?? endIndex
     }
-    func endIndex<S: StringProtocol>(of string: S, options: String.CompareOptions = []) -> Index? {
-        range(of: string, options: options)?.upperBound
-    }
-    func indices<S: StringProtocol>(of string: S, options: String.CompareOptions = []) -> [Index] {
-        ranges(of: string, options: options).map(\.lowerBound)
-    }
-    func ranges<S: StringProtocol>(of string: S, options: String.CompareOptions = []) -> [Range<Index>] {
-        var result: [Range<Index>] = []
-        var startIndex = self.startIndex
-        while startIndex < endIndex,
-            let range = self[startIndex...]
-                .range(of: string, options: options) {
-                result.append(range)
-                startIndex = range.lowerBound < range.upperBound ? range.upperBound :
-                    index(range.lowerBound, offsetBy: 1, limitedBy: endIndex) ?? endIndex
-        }
-        return result
-    }
+    return result
+  }
 }
 
 // find all items in an array that match a given predicate
@@ -100,7 +112,7 @@ extension QRZManager: XMLParserDelegate {
   func parserDidStartDocument(_ parser: XMLParser) {
     //logger.info("Parsing started.")
     results = []
-    callSignDictionary = ["call": "", "country": "", "lat": "", "lon": "", "grid": "", "lotw": "0", "aliases": "", "Error": ""]//[String: String]()
+    callSignLookup = ["call": "", "country": "", "lat": "", "lon": "", "grid": "", "lotw": "0", "aliases": "", "Error": ""]//[String: String]()
   }
 
   // start element
@@ -112,22 +124,20 @@ extension QRZManager: XMLParserDelegate {
     switch elementName {
     case KeyName.sessionKeyName.rawValue:
       if sessionKey == nil {
-        sessionDictionary = [:]
+        sessionLookup = ["Key": "", "Count": "", "SubExp": "", "GMTime": "", "Remark": ""]//[:]
       } else {
         //print("didStartElement: \(elementName)")
       }
     case KeyName.recordKeyName.rawValue:
-      callSignDictionary = ["call": "", "country": "", "lat": "", "lon": "", "grid": "", "lotw": "0", "aliases": "", "Error": ""] //[:]
+      callSignLookup = ["call": "", "country": "", "lat": "", "lon": "", "grid": "", "lotw": "0", "aliases": "", "Error": ""] //[:]
     case KeyName.errorKeyName.rawValue:
       //logger.info("Parser error: \(elementName):\(self.currentValue)")
-    break
+      break
     default:
-      if callSignDictionaryKeys.contains(elementName) {
-        currentValue = ""
+      if currentValue.condenseWhitespace() != "" {
+        logger.info("didStartElement default hit: \(self.currentValue.condenseWhitespace())")
+        //print("default hit: \(currentValue.condenseWhitespace())")
       }
-//      if callSignDictionaryKeys.contains(elementName) {
-//        currentValue = ""
-//      }
     }
   }
 
@@ -151,11 +161,11 @@ extension QRZManager: XMLParserDelegate {
       //print("Here 2s - was this an error? \(elementName)")
       break
     case KeyName.recordKeyName.rawValue:
-      results!.append(callSignDictionary)
+      results!.append(callSignLookup)
     case KeyName.errorKeyName.rawValue:
-        //logger.info("didEndElement Error: \(self.currentValue)")
-        callSignDictionary = ["call": "", "country": "", "lat": "", "lon": "", "grid": "", "lotw": "0", "aliases": "", "Error": ""]//[:]
-        callSignDictionary[elementName] = currentValue.trimmingCharacters(in: .whitespacesAndNewlines)
+      //logger.info("didEndElement Error: \(self.currentValue)")
+      callSignLookup = ["call": "", "country": "", "lat": "", "lon": "", "grid": "", "lotw": "0", "aliases": "", "Error": ""]//[:]
+      callSignLookup[elementName] = currentValue.trimmingCharacters(in: .whitespacesAndNewlines)
       if currentValue.contains("Session Timeout") {
         // abort this and request a session key
         logger.info("Session Timed Out - abort processing")
@@ -163,17 +173,18 @@ extension QRZManager: XMLParserDelegate {
         parser.abortParsing()
       }
     default:
-      if callSignDictionaryKeys.contains(elementName) {
-          callSignDictionary[elementName] = currentValue.trimmingCharacters(in: .whitespacesAndNewlines)
-      } else if sessionDictionaryKeys.contains(elementName) {
-        sessionDictionary[elementName] = currentValue.trimmingCharacters(in: .whitespacesAndNewlines)
+      // if callSignDictionaryKeys.contains(elementName) {
+      if callSignLookup.keys.contains(elementName) {
+        callSignLookup[elementName] = currentValue.trimmingCharacters(in: .whitespacesAndNewlines)
+      } else if sessionLookup.keys.contains(elementName) {
+        sessionLookup[elementName] = currentValue.trimmingCharacters(in: .whitespacesAndNewlines)
       }
       currentValue = ""
     }
   }
 
   func parserDidEndDocument(_ parser: XMLParser) {
-      //logger.info("Parsing completed.")
+    //logger.info("Parsing completed.")
   }
 
   // Just in case, if there's an error, report it. (We don't want to fly blind here.)

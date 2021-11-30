@@ -13,9 +13,7 @@ import os
 import CallParser
 
 protocol QRZManagerDelegate: AnyObject {
-
   func qrzManagerDidGetSessionKey(_ qrzManager: QRZManager, messageKey: QRZManagerMessage, doHaveSessionKey: Bool)
-
   func qrzManagerDidGetCallSignData(_ qrzManager: QRZManager, messageKey: QRZManagerMessage, stationInfoCombined: StationInformationCombined, spot: ClusterSpot)
 }
 
@@ -25,41 +23,11 @@ public enum KeyName: String {
   case recordKeyName = "Callsign"
 }
 
-// -----------------------------------------------------------------------------------------------------
-// -----------------------------------------------------------------------------------------------------
-
-actor UpdatePairs {
-  private var callSignPairs = [UUID: [StationInformation]]()
-
-  func setStationInformation(spot: ClusterSpot, stationInfo: [StationInformation]) async {
-    callSignPairs[spot.id] = stationInfo
-  }
-
-  func getStationInformation(spot: ClusterSpot) async -> [StationInformation] {
-    return callSignPairs[spot.id] ?? [StationInformation]()
-  }
-
-  func removeStationInformation(spot: ClusterSpot) async {
-    callSignPairs[spot.id] = nil
-  }
-}
-
-// -----------------------------------------------------------------------------------------------------
-// -----------------------------------------------------------------------------------------------------
-
 class QRZManager: NSObject {
 
   private let lockQueue =
     DispatchQueue(
       label: "com.w6op.virtualcluster.lockQueue")// , attributes: .concurrent
-
-  private let stationProcessorQueue =
-    DispatchQueue(
-      label: "com.w6op.virtualcluster.qrzProcessorQueue")
-
-  private let updateQueue =
-    DispatchQueue(
-      label: "com.w6op.virtualcluster.updateQueue", attributes: .concurrent)// , attributes: .concurrent
 
   // MARK: - Field Definitions
 
@@ -68,6 +36,7 @@ class QRZManager: NSObject {
 
   // delegate to pass messages back to view
   weak var qrZedManagerDelegate: QRZManagerDelegate?
+
   let callParser = PrefixFileParser()
   var callLookup = CallLookup()
 
@@ -78,24 +47,11 @@ class QRZManager: NSObject {
   var qrzPassword = ""
   var useCallLookupOnly = false
 
-  let callSignDictionaryKeys = Set<String>(["call", "country", "lat", "lon", "grid", "lotw", "aliases", "Error"])
-  let sessionDictionaryKeys = Set<String>(["Key", "Count", "SubExp", "GMTime", "Remark"])
-  var results: [[String: String]]?         // the whole array of dictionaries
-  var results2: StationInformation!
-  var sessionDictionary: [String: String]! // the current session dictionary
-  var callSignDictionary: [String: String] = ["call": "", "country": "", "lat": "", "lon": "", "grid": "", "lotw": "0", "aliases": "", "Error": ""]
-
-
-//  let array = [MyStruct(key: 0, value: "a"), MyStruct(key: 0, value: "b"),
-//               MyStruct(key: 1, value: "c")]
-//
-//  let keyValues = array.lazy.map { ($0.key, $0.value) }
-//  let dict = Dictionary(keyValues, uniquingKeysWith: { _, latest in latest })
-
+  var results: [[String: String]]?
+  var sessionLookup: [String: String] = ["Key": "", "Count": "", "SubExp": "", "GMTime": "", "Remark": ""] // the current session dictionary
+  var callSignLookup: [String: String] = ["call": "", "country": "", "lat": "", "lon": "", "grid": "", "lotw": "0", "aliases": "", "Error": ""]
 
   var currentValue = ""
-  var locationDictionary: (spotter: [String: String], dx: [String: String])!
-
   var callSignCache = [String: StationInformation]()
 
   // temp to test with
@@ -124,7 +80,7 @@ class QRZManager: NSObject {
     qrzUserName = name
     qrzPassword = password
 
-    sessionDictionary = [String: String]()
+    sessionLookup = ["Key": "", "Count": "", "SubExp": "", "GMTime": "", "Remark": ""] //[String: String]()
 
     guard let url = URL(string: "https://xmldata.qrz.com/xml/current/?username=\(name);password=\(password);xCluster=1.0") else {
       logger.info("Invalid user name or password: \(name)")
@@ -142,16 +98,12 @@ class QRZManager: NSObject {
             fatalError("Error: missing response data")
         }
 
-        //do {
           let parser = XMLParser(data: data)
           parser.delegate = self
 
-          //let stringValue = String(decoding: data, as: UTF8.self)
-          //print("DATA: \(stringValue)")
-
           if parser.parse() {
             if self.results != nil {
-              sessionKey = self.sessionDictionary?["Key"]
+              sessionKey = self.sessionLookup["Key"]
               isSessionKeyValid = true
               qrZedManagerDelegate?.qrzManagerDidGetSessionKey(self,
                                                                messageKey: .session,
@@ -220,9 +172,7 @@ class QRZManager: NSObject {
     var cacheHits = 0
 
     if let spotterInfo = checkCache(call: spot.spotter) {
-      //logger.info("Decide 1: \(spot.id.uuidString.suffix(5))")
       lockQueue.async { [self] in
-        //logger.info("Decide 2: \(spot.id.uuidString.suffix(5))")
         decide(stationInfo: spotterInfo, spot: spot)
       }
       logger.info("Cache hit for: \(spot.spotter)")
@@ -230,7 +180,9 @@ class QRZManager: NSObject {
       cacheRequestCount += 1
     } else {
       if !requestStationInformation(call: spot.spotter, spot: spot) {
-        requestQRZInformation(call: spot.spotter, spot: spot)
+        Task {
+          try? await requestQRZInformationAsync(call: spot.spotter, spot: spot)
+        }
       }
     }
 
@@ -243,7 +195,10 @@ class QRZManager: NSObject {
       cacheRequestCount += 1
     } else {
       if !requestStationInformation(call: spot.spotter, spot: spot) {
-        requestQRZInformation(call: spot.dxStation, spot: spot)
+        Task {
+          try? await requestQRZInformationAsync(call: spot.dxStation, spot: spot)
+        }
+        //requestQRZInformation(call: spot.dxStation, spot: spot)
       }
     }
 
@@ -265,14 +220,9 @@ class QRZManager: NSObject {
       logger.info("Use callparser (2) \(call)")
       var stationInfo = requestCallParserInformation(call: call)
       stationInfo.id = spot.id
-
-//      if #available(macOS 12.0, *) {
-//        async { await self.decideEx(stationInfo: stationInfo, spot: spot) }
-//      } else {
         lockQueue.async { [self] in
           decide(stationInfo: stationInfo, spot: spot)
         }
-      //}
       return true
     }
     return false
@@ -302,6 +252,7 @@ class QRZManager: NSObject {
     return stationInfo
   }
 
+
   func requestQRZInformation(call: String, spot: ClusterSpot) {
 
     if isSessionKeyValid == false {
@@ -319,70 +270,83 @@ class QRZManager: NSObject {
 
     let task = URLSession.shared.dataTask(with: url) { [self] data, response, error in
       if let error = error {
-        //fatalError("Error 1: \(error.localizedDescription)")
         logger.error("Error 1: \(error.localizedDescription)")
       }
+
       guard let response = response as? HTTPURLResponse, response.statusCode == 200 else {
-        //fatalError("Error: invalid HTTP response code")
         guard error != nil else {
           return
         }
         logger.error("Error 2: \(error!.localizedDescription)")
         return
       }
+
       guard let data = data else {
-        //fatalError("Error: missing response data")
         logger.error("Error 3: \(error!.localizedDescription)")
         return
       }
 
-      stationProcessorQueue.async { [self] in
-      // to look at xml input for debugging
-      //let str = String(decoding: data, as: UTF8.self)
-      //print(str)
-      let parser = XMLParser(data: data)
-      parser.delegate = self
+      parseReceivedData(data: data, call: call, spot: spot)
 
-      if parser.parse() {
-        if self.results != nil {
-
-          do {
-
-            var stationInfo = try processQRZInformation(call: call)
-            stationInfo.id = spot.id
-
-            callSignCache[stationInfo.call] = stationInfo
-
-            lockQueue.async { [self] in
-              decide(stationInfo: stationInfo, spot: spot)
-            }
-
-          } catch {
-            logger.info("RequestError Error: \(error as NSObject)")
-          }
-        } else {
-          logger.info("Use CallParser: (0) \(call)") // above I think
-        }
       }
-      }
-    }
     task.resume()
   }
 
-  // -----------------------------------------------------------------------------------------------------
-  // -----------------------------------------------------------------------------------------------------
+  func requestQRZInformationAsync(call: String, spot: ClusterSpot) async throws {
 
-  var updatePairs = UpdatePairs()
+    if isSessionKeyValid == false {
+      requestSessionKey(name: qrzUserName, password: qrzPassword)
+      // throw?
+    }
 
-  func decideEx(stationInfo: StationInformation, spot: ClusterSpot) async {
+    // this dies if session key is missing
+    guard let url = URL(string: "https://xmldata.qrz.com/xml/current/?s=\(String(self.sessionKey));callsign=\(call)") else {
+      logger.info("Session key is invalid: \(self.sessionKey)")
+      return
+    }
 
-    var callSignPair = await updatePairs.getStationInformation(spot: spot)
+    qrzRequestCount += 1
 
-    callSignPair.append(stationInfo)
-    if callSignPair.count == 2 {
-      combineQRZInfo(spot: spot, callSignPair: callSignPair)
-    } else {
-      await updatePairs.setStationInformation(spot: spot, stationInfo: callSignPair)
+    let (data, response) = try await
+        URLSession.shared.data(from: url)
+
+    guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+      print("The server responded with an error")
+      return
+    }
+
+    parseReceivedData(data: data, call: call, spot: spot)
+  }
+
+
+  fileprivate func parseReceivedData(data: Data, call: String, spot: ClusterSpot) {
+    //stationProcessorQueue.async { [self] in
+    // if you need to look at xml input for debugging
+    //let str = String(decoding: data, as: UTF8.self)
+    //print(str)
+    let parser = XMLParser(data: data)
+    parser.delegate = self
+
+    if parser.parse() {
+      if self.results != nil {
+
+        do {
+
+          var stationInfo = try processQRZInformation(call: call)
+          stationInfo.id = spot.id
+
+          callSignCache[stationInfo.call] = stationInfo
+
+          lockQueue.async { [self] in
+            decide(stationInfo: stationInfo, spot: spot)
+          }
+
+        } catch {
+          logger.info("RequestError Error: \(error as NSObject)")
+        }
+      } else {
+        logger.info("Use CallParser: (0) \(call)") // above I think
+      }
     }
   }
 
@@ -408,9 +372,6 @@ class QRZManager: NSObject {
     }
   }
 
-  // -----------------------------------------------------------------------------------------------------
-  // -----------------------------------------------------------------------------------------------------
-
   /// Process the information returned by the QRZ.com request.
   /// - Parameter call: call sign.
   /// - Returns: a station information struct.
@@ -419,20 +380,19 @@ class QRZManager: NSObject {
     var isProcessed = false
 
     // need to check if dictionary is empty
-    if callSignDictionary.isEmpty {
+    if callSignLookup.isEmpty {
       logger.info("callSignDictionary is empty")
       // need to throw here
       return stationInfo
     }
 
-    stationInfo.call = callSignDictionary["call"] ?? ""
+    stationInfo.call = callSignLookup["call"] ?? ""
 
-    // CallSignDictionary not found: Optional("Session Timeout")
-    if callSignDictionary[KeyName.errorKeyName.rawValue] != nil {
-      print("CallSignDictionary not found: \(String(describing: callSignDictionary["Error"]))")
+    if callSignLookup[KeyName.errorKeyName.rawValue] != "" {
+      print("CallSignDictionary error found: \(String(describing: callSignLookup["Error"]))")
 
       // QRZ.com could not find it
-      let error = callSignDictionary["Error"]
+      let error = callSignLookup["Error"]
       if let range = error!.range(of: "found: ") {
         let callSign = error![range.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
         stationInfo = requestCallParserInformation(call: callSign)
@@ -442,7 +402,7 @@ class QRZManager: NSObject {
 
       if !isProcessed {
         do {
-          stationInfo = try populateQRZInformation(stationInfoIncomplete: stationInfo)
+          stationInfo = try populateQRZInformation(stationInfo: stationInfo)
         } catch {
           // throw
         }
@@ -454,38 +414,26 @@ class QRZManager: NSObject {
   /// Populate the qrzInfo with latitude, longitude, etc.
   /// - Parameter stationInfoIncomplete: partial station information.
   /// - Returns: station information.
-  func populateQRZInformation(stationInfoIncomplete: StationInformation) throws -> StationInformation {
-    var stationInfo = stationInfoIncomplete
+  func populateQRZInformation(stationInfo: StationInformation) throws -> StationInformation {
+    var stationInfo = stationInfo
 
-    // WHY IS lat NOT IN DICTIONARY??
-//    if let latitude = Double(callSignDictionary["lat"]!) {
-//      stationInfo.latitude = latitude
-//    } else {
-//      throw RequestError.invalidLatitude
-//    }
-
-    guard let latitude = Double(callSignDictionary["lat"]!) else {
+    guard (callSignLookup["lat"]!.double != nil) else {
       throw RequestError.invalidLatitude
     }
 
-    stationInfo.latitude = latitude
+    stationInfo.latitude = Double(callSignLookup["lat"]!)!
 
-    guard let longitude = Double(callSignDictionary["lon"]!) else {
+    guard (callSignLookup["lon"]!.double != nil) else {
       throw RequestError.invalidLongitude
     }
 
-    stationInfo.longitude = longitude
+    stationInfo.longitude = Double(callSignLookup["lon"]!)!
 
-//    if let longitude = Double(callSignDictionary["lon"]!) {
-//      stationInfo.longitude = longitude
-//    } else {
-//      throw RequestError.invalidLongitude
-//    }
     // if there is a prefix or suffix I need to find correct country and lat/lon
-    stationInfo.country = callSignDictionary["country"] ?? ""
-    stationInfo.grid = callSignDictionary["grid"] ?? ""
-    stationInfo.lotw = Bool(callSignDictionary["lotw"] ?? "0") ?? false
-    stationInfo.aliases = callSignDictionary["aliases"] ?? ""
+    stationInfo.country = callSignLookup["country"] ?? ""
+    stationInfo.grid = callSignLookup["grid"] ?? ""
+    stationInfo.lotw = Bool(callSignLookup["lotw"] ?? "0") ?? false
+    stationInfo.aliases = callSignLookup["aliases"] ?? ""
 
     stationInfo.isInitialized = true
 
@@ -521,22 +469,11 @@ class QRZManager: NSObject {
     return stationInfo
   }
 
-  /*
-   CallSignDictionary not found: Optional("Session Timeout")
-   2021-05-02 17:00:05.600866-0700 xCluster[17220:877565] [QRZManager] Latitude error:
-   2021-05-02 17:00:05.600888-0700 xCluster[17220:877565] [QRZManager] Longitude error:
-   Swift/ContiguousArrayBuffer.swift:580: Fatal error: Index out of range
-   2021-05-02 17:00:05.601234-0700 xCluster[17220:877565] Swift/ContiguousArrayBuffer.swift:580: Fatal error: Index out of range
-   */
-
   /// Combine the QRZ information and send it to the view controller for a line to be drawn.
   /// - Parameter spot: cluster spot.
   func combineQRZInfo(spot: ClusterSpot, callSignPair: [StationInformation]) {
 
     var qrzInfoCombined = StationInformationCombined()
-
-     //logger.info("Combine QRZ Information: \(callSignPair[0].call):\(callSignPair[1].call)")
-     //logger.info("Combine QRZ Information: \(callSignPair[0].country):\(callSignPair[1].country)")
 
       qrzInfoCombined.setFrequency(frequency: spot.frequency)
 

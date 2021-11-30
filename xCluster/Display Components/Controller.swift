@@ -184,9 +184,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   let keepAliveInterval = 300 // 5 minutes
   let dxSummitRefreshInterval = 60 // 1 minute
 
-  let standardStrokeColor = NSColor.blue
-  let ft8StrokeColor = NSColor.red
-  let lineWidth: Float = 5.0 //1.0
+//  let standardStrokeColor = NSColor.blue
+//  let ft8StrokeColor = NSColor.red
+//  let lineWidth: Float = 5.0 //1.0
 
   weak var keepAliveTimer: Timer!
   weak var webRefreshTimer: Timer!
