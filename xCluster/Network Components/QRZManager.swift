@@ -31,7 +31,8 @@ class QRZManager: NSObject {
 
   // MARK: - Field Definitions
 
-  var callSignPairs = [UUID: [StationInformation]]()
+  //var callSignPairs = [UUID: [StationInformation]]()
+  var callSignPairs = [Int: [StationInformation]]()
   let logger = Logger(subsystem: "com.w6op.xCluster", category: "QRZManager")
 
   // delegate to pass messages back to view
@@ -253,44 +254,44 @@ class QRZManager: NSObject {
   }
 
 
-  func requestQRZInformation(call: String, spot: ClusterSpot) {
-
-    if isSessionKeyValid == false {
-      requestSessionKey(name: qrzUserName, password: qrzPassword)
-      // throw?
-    }
-
-    // this dies if session key is missing
-    guard let url = URL(string: "https://xmldata.qrz.com/xml/current/?s=\(String(self.sessionKey));callsign=\(call)") else {
-      logger.info("Session key is invalid: \(self.sessionKey)")
-      return
-    }
-
-    qrzRequestCount += 1
-
-    let task = URLSession.shared.dataTask(with: url) { [self] data, response, error in
-      if let error = error {
-        logger.error("Error 1: \(error.localizedDescription)")
-      }
-
-      guard let response = response as? HTTPURLResponse, response.statusCode == 200 else {
-        guard error != nil else {
-          return
-        }
-        logger.error("Error 2: \(error!.localizedDescription)")
-        return
-      }
-
-      guard let data = data else {
-        logger.error("Error 3: \(error!.localizedDescription)")
-        return
-      }
-
-      parseReceivedData(data: data, call: call, spot: spot)
-
-      }
-    task.resume()
-  }
+//  func requestQRZInformation(call: String, spot: ClusterSpot) {
+//
+//    if isSessionKeyValid == false {
+//      requestSessionKey(name: qrzUserName, password: qrzPassword)
+//      // throw?
+//    }
+//
+//    // this dies if session key is missing
+//    guard let url = URL(string: "https://xmldata.qrz.com/xml/current/?s=\(String(self.sessionKey));callsign=\(call)") else {
+//      logger.info("Session key is invalid: \(self.sessionKey)")
+//      return
+//    }
+//
+//    qrzRequestCount += 1
+//
+//    let task = URLSession.shared.dataTask(with: url) { [self] data, response, error in
+//      if let error = error {
+//        logger.error("Error 1: \(error.localizedDescription)")
+//      }
+//
+//      guard let response = response as? HTTPURLResponse, response.statusCode == 200 else {
+//        guard error != nil else {
+//          return
+//        }
+//        logger.error("Error 2: \(error!.localizedDescription)")
+//        return
+//      }
+//
+//      guard let data = data else {
+//        logger.error("Error 3: \(error!.localizedDescription)")
+//        return
+//      }
+//
+//      parseReceivedData(data: data, call: call, spot: spot)
+//
+//      }
+//    task.resume()
+//  }
 
   func requestQRZInformationAsync(call: String, spot: ClusterSpot) async throws {
 
@@ -317,7 +318,6 @@ class QRZManager: NSObject {
 
     parseReceivedData(data: data, call: call, spot: spot)
   }
-
 
   fileprivate func parseReceivedData(data: Data, call: String, spot: ClusterSpot) {
     //stationProcessorQueue.async { [self] in

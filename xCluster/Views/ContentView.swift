@@ -139,6 +139,8 @@ struct ContentView: View {
                    openURL(url)
               }
           }
+          .padding(.top, 5)
+          .padding(.leading, 5)
             Divider()
             Button(action: {self.showPreferences.toggle()}) {
               Text("Settings")
@@ -202,8 +204,8 @@ struct ButtonBarView: View {
     HStack {
       Divider()
       ClusterPickerView(controller: controller, clusters: clusters)
-      Divider()
-      ModeViewToggle(controller: controller, modes: modes)
+      //Divider()
+      //ModeViewToggle(controller: controller, modes: modes)
       Divider()
       BandViewToggle(controller: controller, bands: bands)
     }
@@ -294,6 +296,7 @@ struct ClusterPickerView: View {
           Text("\(cluster.name)")
         }
       }
+      .padding(.top, 5)
       .frame(minWidth: 200, maxWidth: 200)
       .onReceive([selectedCluster].publisher.first()) { value in
         if value.id != 9999 {
@@ -304,7 +307,7 @@ struct ClusterPickerView: View {
         }
       }
     }
-    .padding(.trailing)
+    //.padding(.trailing)
     .border(.green)
   }
 }

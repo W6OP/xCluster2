@@ -132,6 +132,7 @@ class WebManager {
 
     default:
       self.clusterType = .unknown
+      print("line 135")
     }
   }
 

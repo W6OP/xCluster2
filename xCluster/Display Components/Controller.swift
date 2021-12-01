@@ -44,7 +44,7 @@ struct ClusterSpot: Identifiable, Hashable {
     case none
   }
 
-  var id: UUID
+  var id: Int //UUID
   var dxStation: String
   var frequency: String
   var band: Int
@@ -70,7 +70,9 @@ struct ClusterSpot: Identifiable, Hashable {
 
     let polyline = MKGeodesicPolyline(coordinates: locations, count: locations.count)
     polyline.title = String(stationInfoCombined.band)
-    polyline.subtitle = id.uuidString
+    polyline.subtitle = stationInfoCombined.mode
+    //polyline.subtitle = id.uuidString
+    id = polyline.hashValue
 
     self.overlay = polyline
   }
@@ -277,12 +279,11 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     }
 
     DispatchQueue.main.async { [self] in
-      if statusMessage.count > 200 {
+      if statusMessage.count > maxStatusMessages {
         statusMessage.removeFirst()
       }
     }
   }
-
 
    /// Telnet Manager protocol - Process a status message from the Telnet Manager.
    /// - parameters:
@@ -431,7 +432,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
       if spots.count > maxNumberOfSpots {
         let spot = spots[spots.count - 1]
-        overlays = overlays.filter({ $0.subtitle != spot.id.uuidString })
+        //overlays = overlays.filter({ $0.subtitle != spot.id.uuidString })
+        overlays = overlays.filter({ $0.hashValue != spot.id })
         spots.removeLast()
       }
     }
@@ -470,7 +472,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
     if commandType == .refreshWeb {
         Task {
-          try? await webManager.createHttpSessionAsync(host: connectedCluster)
+          await webManager.connectAsync(cluster: connectedCluster)
         }
     } else {
       telnetManager.send(message, commandType: commandType)
@@ -486,7 +488,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     case 20:
       if connectedCluster.clusterProtocol == ClusterProtocol.html {
         Task {
-          try? await webManager.createHttpSessionAsync(host: connectedCluster)
+          await webManager.connectAsync(cluster: connectedCluster)
         }
       } else {
         telnetManager.send("show/fdx 20", commandType: .getDxSpots)
@@ -528,14 +530,14 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   func parseClusterSpot(message: String, messageType: NetworkMessage) {
 
     do {
-      var spot = ClusterSpot(id: UUID(), dxStation: "", frequency: "", band: 99, spotter: "",
+      var spot = ClusterSpot(id: 0, dxStation: "", frequency: "", band: 99, spotter: "",
                              timeUTC: "", comment: "", grid: "", isFiltered: false)
 
       switch messageType {
       case .spotReceived:
-        spot = try self.spotProcessor.processSpot(rawSpot: message)
+        spot = try self.spotProcessor.processHtmlSpot(rawSpot: message, isTelnet: true)
       case .htmlSpotReceived:
-        spot = try self.spotProcessor.processHtmlSpot(rawSpot: message)
+        spot = try self.spotProcessor.processHtmlSpot(rawSpot: message, isTelnet: false)
       default:
         return
       }
@@ -842,11 +844,12 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     DispatchQueue.main.async { [self] in
       for spot in spots {
         if spot.isFiltered == false {
-          if overlays.first(where: {$0.subtitle == spot.id.uuidString}) == nil {
+          // if overlays.first(where: {$0.subtitle == spot.id.uuidString}) == nil {
+          if overlays.first(where: {$0.hashValue == spot.id}) == nil {
             overlays.append(spot.overlay!)
           }
         } else {
-          overlays = overlays.filter({ $0.subtitle != spot.id.uuidString })
+          overlays = overlays.filter({ $0.hashValue != spot.id })
         }
       }
     }
@@ -971,17 +974,17 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   /// Build a QRZInfoCombined from a string.
   /// - Parameter subTitle: subtitle from overlay.
   /// - Returns: QRZInfoCombined
-  func extractJSONFromString(subTitle: String) -> StationInformationCombined {
-
-    let decoder = JSONDecoder()
-
-    let data = subTitle.data(using: .utf8)!
-    guard let qrzInfoCombined = try? decoder.decode(StationInformationCombined.self, from: data) else {
-      return StationInformationCombined()
-    }
-
-    return qrzInfoCombined
-  }
+//  func extractJSONFromString(subTitle: String) -> StationInformationCombined {
+//
+//    let decoder = JSONDecoder()
+//
+//    let data = subTitle.data(using: .utf8)!
+//    guard let qrzInfoCombined = try? decoder.decode(StationInformationCombined.self, from: data) else {
+//      return StationInformationCombined()
+//    }
+//
+//    return qrzInfoCombined
+//  }
 
 } // end class
 

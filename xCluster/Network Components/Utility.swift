@@ -264,7 +264,7 @@ enum SpotError: Error {
  - parameters:
  */
 struct StationInformation: Identifiable {
-  var id = UUID()
+  var id = 0 //UUID()
   var call = ""
   var aliases = ""
   var country = ""

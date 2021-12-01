@@ -94,7 +94,8 @@ class TelnetManager {
     case .ready:
       self.connected = true
       self.connectionChanged = true
-      self.clusterType = .unknown
+      //self.clusterType = .unknown
+      //print("line 99")
 
       self.telnetManagerDelegate?.telnetManagerStatusMessageReceived(self,
         messageKey: .connected, message: "Connected to \(connectedHost)")
@@ -296,7 +297,9 @@ class TelnetManager {
           messageKey: .clusterType, message: "Connected to VE7CC Cluster")
 
     default:
-      self.clusterType = .unknown
+      //break
+      print("line 299: \(message)")
+      //self.clusterType = .unknown
     }
   }
 
