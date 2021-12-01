@@ -301,7 +301,7 @@ struct ClusterPickerView: View {
       .onReceive([selectedCluster].publisher.first()) { value in
         if value.id != 9999 {
           if self.controller.connectedCluster.id != value.id {
-            controller.spots = [ClusterSpot]()
+            controller.displayedSpots = [ClusterSpot]()
             self.controller.connectedCluster = clusterData.first {$0.id == value.id}!
           }
         }

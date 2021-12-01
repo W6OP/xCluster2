@@ -23,67 +23,64 @@ class SpotProcessor {
   /// - Parameter rawSpot: the string received via telnet.
   /// - Throws: spot error
   /// - Returns: ClusterSpot
-  func processSpot(rawSpot: String) throws -> ClusterSpot {
-
-//    var spot = ClusterSpot(id: UUID(), dxStation: "", frequency: "", band: 99, spotter: "",
-//                           timeUTC: "", comment: "", grid: "", isFiltered: false)
-
-    var spot = ClusterSpot(id: 0, dxStation: "", frequency: "", band: 99, spotter: "",
-                           timeUTC: "", comment: "", grid: "", isFiltered: false)
-
-    if rawSpot.count < 75 {
-      print("\(rawSpot.count) -- \(rawSpot)")
-      throw SpotError.spotError("processRawSpot: spot length too short")
-    }
-
-    let component = rawSpot.components(separatedBy: ":")
-    // replacing -# for AE5E - don't know why he does that "W6OP-#" and "W6OP-2-#"
-    spot.spotter =  convertStringSliceToString(component[0].components(separatedBy: " ")[2])
-    spot.spotter = cleanCallSign(callSign: spot.spotter)
-
-    if spot.spotter.filter({ $0.isLetter }).isEmpty ||
-        spot.spotter.filter({ $0.isNumber }).isEmpty {
-      throw SpotError.spotError("processRawSpot: invalid spotter call sign: \(spot.dxStation)")
-    }
-
-    var startIndex = rawSpot.index(rawSpot.startIndex, offsetBy: 16)
-    var endIndex = rawSpot.index(startIndex, offsetBy: 9)
-    let frequency = convertStringSliceToString(String(rawSpot[startIndex..<endIndex])).condenseWhitespace()
-    guard Float(frequency) != nil else {
-      throw SpotError.spotError("processRawSpot: unable to parse frequency")
-    }
-    spot.frequency = convertFrequencyToDecimalString(frequency: frequency)
-
-    startIndex = rawSpot.index(rawSpot.startIndex, offsetBy: 26)
-    endIndex = rawSpot.index(startIndex, offsetBy: 11)
-    spot.dxStation = convertStringSliceToString(String(rawSpot[startIndex..<endIndex]))
-    spot.dxStation = cleanCallSign(callSign: spot.dxStation)
-
-    if spot.dxStation.filter({ $0.isLetter }).isEmpty ||
-        spot.dxStation.filter({ $0.isNumber }).isEmpty {
-      throw SpotError.spotError("processRawSpot: invalid dx call sign: \(spot.dxStation)")
-    }
-
-    startIndex = rawSpot.index(rawSpot.startIndex, offsetBy: 39)
-    endIndex = rawSpot.index(startIndex, offsetBy: 30)
-    spot.comment = convertStringSliceToString(String(rawSpot[startIndex..<endIndex]))
-
-    startIndex = rawSpot.index(rawSpot.startIndex, offsetBy: 70)
-    endIndex = rawSpot.index(startIndex, offsetBy: 4)
-    // clean of junk on end so it displays correctly when no grid supplied
-    spot.timeUTC = convertStringSliceToString(String(rawSpot[startIndex..<endIndex])).condenseWhitespace()
-
-    endIndex = rawSpot.endIndex
-    startIndex = rawSpot.index(rawSpot.startIndex, offsetBy: 75)
-
-    // clean of junk on end so it displays correctly
-    spot.grid = convertStringSliceToString(String(rawSpot[startIndex..<endIndex])).condenseWhitespace()
-    // remove /a/a at end
-    spot.grid = spot.grid.components(separatedBy: CharacterSet.alphanumerics.inverted)
-      .joined()
-
-    return spot
-  }
+//  func processSpot(rawSpot: String) throws -> ClusterSpot {
+//
+//    var spot = ClusterSpot(id: 0, dxStation: "", frequency: "", band: 99, spotter: "",
+//                           timeUTC: "", comment: "", grid: "", country: "", isFiltered: false)
+//
+//    if rawSpot.count < 75 {
+//      print("\(rawSpot.count) -- \(rawSpot)")
+//      throw SpotError.spotError("processRawSpot: spot length too short")
+//    }
+//
+//    let component = rawSpot.components(separatedBy: ":")
+//    // replacing -# for AE5E - don't know why he does that "W6OP-#" and "W6OP-2-#"
+//    spot.spotter =  convertStringSliceToString(component[0].components(separatedBy: " ")[2])
+//    spot.spotter = cleanCallSign(callSign: spot.spotter)
+//
+//    if spot.spotter.filter({ $0.isLetter }).isEmpty ||
+//        spot.spotter.filter({ $0.isNumber }).isEmpty {
+//      throw SpotError.spotError("processRawSpot: invalid spotter call sign: \(spot.dxStation)")
+//    }
+//
+//    var startIndex = rawSpot.index(rawSpot.startIndex, offsetBy: 16)
+//    var endIndex = rawSpot.index(startIndex, offsetBy: 9)
+//    let frequency = convertStringSliceToString(String(rawSpot[startIndex..<endIndex])).condenseWhitespace()
+//    guard Float(frequency) != nil else {
+//      throw SpotError.spotError("processRawSpot: unable to parse frequency")
+//    }
+//    spot.frequency = convertFrequencyToDecimalString(frequency: frequency)
+//
+//    startIndex = rawSpot.index(rawSpot.startIndex, offsetBy: 26)
+//    endIndex = rawSpot.index(startIndex, offsetBy: 11)
+//    spot.dxStation = convertStringSliceToString(String(rawSpot[startIndex..<endIndex]))
+//    spot.dxStation = cleanCallSign(callSign: spot.dxStation)
+//
+//    if spot.dxStation.filter({ $0.isLetter }).isEmpty ||
+//        spot.dxStation.filter({ $0.isNumber }).isEmpty {
+//      throw SpotError.spotError("processRawSpot: invalid dx call sign: \(spot.dxStation)")
+//    }
+//
+//    startIndex = rawSpot.index(rawSpot.startIndex, offsetBy: 39)
+//    endIndex = rawSpot.index(startIndex, offsetBy: 30)
+//    spot.comment = convertStringSliceToString(String(rawSpot[startIndex..<endIndex]))
+//
+//    startIndex = rawSpot.index(rawSpot.startIndex, offsetBy: 70)
+//    endIndex = rawSpot.index(startIndex, offsetBy: 4)
+//    // clean of junk on end so it displays correctly when no grid supplied
+//    spot.timeUTC = convertStringSliceToString(String(rawSpot[startIndex..<endIndex])).condenseWhitespace()
+//
+//    endIndex = rawSpot.endIndex
+//    startIndex = rawSpot.index(rawSpot.startIndex, offsetBy: 75)
+//
+//    // clean of junk on end so it displays correctly
+//    spot.grid = convertStringSliceToString(String(rawSpot[startIndex..<endIndex])).condenseWhitespace()
+//    // remove /a/a at end
+//    spot.grid = spot.grid.components(separatedBy: CharacterSet.alphanumerics.inverted)
+//      .joined()
+//
+//    return spot
+//  }
 
   func cleanCallSign(callSign: String) -> String {
     var cleanedCall = ""
@@ -123,21 +120,22 @@ class SpotProcessor {
 
   /// Parse the spots from a html feed.
   /// Telnet: -- DX de LY3AB:     1887.0  LY2RJ   cq cq cq                   1743Z KO25
+  /// "          DX de OH6BG-#:    3573.0  UI4P           FT8  -10 dB  LO45" too short
   /// HTML: ---- LZ3YG            7165.0  YU1JW   TNX FOR qso 5/9 73 Lazare  1558 19 Mar
   /// - Parameter rawSpot: rawSpot
   /// - Throws: spot error
   /// - Returns: ClusterSpot
-  func processHtmlSpot(rawSpot: String, isTelnet: Bool) throws -> ClusterSpot {
+  func processRawSpot(rawSpot: String, isTelnet: Bool) throws -> ClusterSpot {
 
-//    var spot = ClusterSpot(id: UUID(), dxStation: "", frequency: "", band: 99, spotter: "",
-//                           timeUTC: "", comment: "", grid: "", isFiltered: false)
     var spot = ClusterSpot(id: 0, dxStation: "", frequency: "", band: 99, spotter: "",
-                           timeUTC: "", comment: "", grid: "", isFiltered: false)
+                           timeUTC: "", comment: "", grid: "", country: "", isFiltered: false)
 
-    print(rawSpot)
-    // DX de JR6RRD:     7074.0  TZ1CE        FT8                            2134Z (70)
-    // <html>JR6RRD      7074.0 TZ1CE      FT8                           2134 30 Nov (77)
 
+    if rawSpot.count < 75 {
+      print("\(rawSpot.count) -- \(rawSpot)")
+      throw SpotError.spotError("processRawSpot: spot length too short")
+    }
+    
     // first strip first 6 chars (<html>)
     var balance = rawSpot.dropFirst(6)
     var endIndex = balance.endIndex
@@ -157,7 +155,9 @@ class SpotProcessor {
       print(frequency)
       throw SpotError.spotError("processRawShowDxSpot: unable to parse frequency")
     }
+
     spot.frequency = convertFrequencyToDecimalString(frequency: frequency)
+    spot.band = convertFrequencyToBand(frequency: spot.frequency)
 
     balance = balance.dropFirst(9)
     endIndex = balance.index(balance.startIndex, offsetBy: 10)
@@ -182,6 +182,12 @@ class SpotProcessor {
     endIndex = balance.index(balance.startIndex, offsetBy: 4)
 
     spot.timeUTC = convertStringSliceToString(String(balance[balance.startIndex..<endIndex]))
+
+    // clean of junk on end so it displays correctly
+//    spot.grid = convertStringSliceToString(String(rawSpot[startIndex..<endIndex])).condenseWhitespace()
+//    // remove /a/a at end
+//    spot.grid = spot.grid.components(separatedBy: CharacterSet.alphanumerics.inverted)
+//      .joined()
 
     return spot
   }
@@ -268,6 +274,43 @@ class SpotProcessor {
     }
 
     return converted
+  }
+
+  /// Convert a frequency to a band.
+  /// - Parameter frequency: string describing a frequency
+  /// - Returns: band
+  func convertFrequencyToBand(frequency: String) -> Int {
+    var band: Int
+    let frequencyMajor = frequency.prefix(while: {$0 != "."})
+
+    switch frequencyMajor {
+    case "1":
+      band = 160
+    case "3", "4":
+      band = 80
+    case "5":
+      band = 60
+    case "7":
+      band = 40
+    case "10":
+      band = 30
+    case "14":
+      band = 20
+    case "18":
+      band = 17
+    case "21":
+      band = 15
+    case "24":
+      band = 12
+    case "28":
+      band = 10
+    case "50", "51", "52", "53", "54":
+      band = 6
+    default:
+      band = 99
+    }
+
+    return band
   }
 
 } // end class

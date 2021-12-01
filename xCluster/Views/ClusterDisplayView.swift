@@ -20,7 +20,7 @@ struct ClusterDisplayView: View {
 
       StatusDisplayView(controller: controller)
     }
-    .frame(maxWidth: 600, minHeight: 1000, maxHeight: .infinity)// , maxHeight: 300
+    .frame(maxWidth: 700, minHeight: 1000, maxHeight: .infinity)
     .padding(.vertical, 0)
   }
 }
@@ -37,7 +37,7 @@ struct ListDisplayView: View {
           Divider()
             .frame(maxHeight: 1)
             .padding(-5)
-          ForEach(controller.spots, id: \.self) { spot in
+          ForEach(controller.displayedSpots, id: \.self) { spot in
             SpotRow(spot: spot)
           }
         }
@@ -57,23 +57,23 @@ struct SpotHeader: View {
 
     HStack {
       Text("DX")
-        .frame(minWidth: 75)
+        .frame(minWidth: 75, maxWidth: 75)
         .border(width: 1, edges: [.trailing], color: .gray)
       Text("Frequency")
-        .frame(minWidth: 90)
+        .frame(minWidth: 90, maxWidth: 90)
         .border(width: 1, edges: [.trailing], color: .gray)
       Text("Spotter")
-        .frame(minWidth: 75)
+        .frame(minWidth: 75, maxWidth: 75)
         .border(width: 1, edges: [.trailing], color: .gray)
       Text("Time")
-        .frame(minWidth: 60)
+        .frame(minWidth: 60, maxWidth: 60)
         .border(width: 1, edges: [.trailing], color: .gray)
       Text("Comment")
         .padding(.leading, 20)
         .frame(minWidth: 200, maxWidth: 200, alignment: .leading)
         .border(width: 1, edges: [.trailing], color: .gray)
-      Text("Grid")
-        .frame(minWidth: 50)
+      Text("Country")
+        .frame(minWidth: 120, maxWidth: 120)
     }
     .foregroundColor(Color.red)
     .font(.system(size: 14))
@@ -90,25 +90,25 @@ struct SpotRow: View {
     VStack {
       HStack {
         Text(spot.dxStation)
-          .frame(minWidth: 75, alignment: .leading)
+          .frame(minWidth: 75, maxWidth: 75, alignment: .leading)
           .padding(.leading, 5)
           .border(width: 1, edges: [.trailing], color: .gray)
         Text(spot.frequency)
-          .frame(minWidth: 90, alignment: .leading)
+          .frame(minWidth: 90, maxWidth: 90, alignment: .leading)
           .border(width: 1, edges: [.trailing], color: .gray)
         Text(spot.spotter)
-          .frame(minWidth: 75, alignment: .leading)
+          .frame(minWidth: 75, maxWidth: 75, alignment: .leading)
           .border(width: 1, edges: [.trailing], color: .gray)
         Text(spot.timeUTC)
-          .frame(minWidth: 60, alignment: .leading)
+          .frame(minWidth: 60, maxWidth: 60, alignment: .leading)
           .border(width: 1, edges: [.trailing], color: .gray)
         Text(spot.comment)
           .frame(minWidth: 200, maxWidth: 200, alignment: .leading)
           .padding(.leading, 5)
           .padding(.trailing, 5)
           .border(width: 1, edges: [.trailing], color: .gray)
-        Text(spot.grid)
-          .frame(minWidth: 50, alignment: .leading)
+        Text(spot.country)
+          .frame(minWidth: 120, maxWidth: 120, alignment: .leading)
           .border(width: 1, edges: [.trailing], color: .gray)
       }
       .frame(maxWidth: .infinity, maxHeight: 15)
