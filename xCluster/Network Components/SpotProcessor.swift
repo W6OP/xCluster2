@@ -265,6 +265,14 @@ class SpotProcessor {
       endIndex = frequencyString.endIndex
       let end = frequencyString[startIndex..<endIndex]
       converted = ("\(start).\(end)")
+    case 3: // 707
+      startIndex = frequencyString.startIndex
+      endIndex = frequencyString.index(startIndex, offsetBy: 2)
+      let start = frequencyString[startIndex..<endIndex]
+      startIndex = frequencyString.index(frequencyString.startIndex, offsetBy: 2)
+      endIndex = frequencyString.endIndex
+      let end = frequencyString[startIndex..<endIndex]
+      converted = ("\(start).\(end)")
     default:
       return frequency
     }

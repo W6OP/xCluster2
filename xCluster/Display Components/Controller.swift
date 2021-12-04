@@ -29,6 +29,8 @@ enum RequestError: Error {
   case invalidCallSign
   case invalidLatitude
   case invalidLongitude
+  case invalidParameter
+  case lookupIsEmpty
 }
 
 /// Definition of a ClusterSpot
@@ -563,24 +565,15 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
         return
       }
 
-//      if qrzManager.useCallLookupOnly == false {
-//        if haveSessionKey {
-//          qrzManager.buildStationInformation(spot: spot)
-//        } else {
-//          requestQRZSessionKey()
-//        }
-//      } else {
-//        qrzManager.buildStationInformation(spot: spot)
-//      }
-
-      // ensure we have a QRZ session key
+      // ensure we have a QRZ session key if we are going to use qrz.com
       if !qrzManager.useCallLookupOnly {
         if !haveSessionKey {
           requestQRZSessionKey()
         }
       }
 
-      qrzManager.requestAdditionalInformation(spot: spot)
+      qrzManager.getSpotterInformation(spot: spot)
+      qrzManager.getDxInformation(spot: spot)
 
     } catch {
       print("parseClusterSpot error: \(error)")
@@ -604,42 +597,25 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     }
   }
 
-//  /// Convert a frequency to a band.
-//  /// - Parameter frequency: string describing a frequency
-//  /// - Returns: band
-//  func convertFrequencyToBand(frequency: String) -> Int {
-//    var band: Int
-//    let frequencyMajor = frequency.prefix(while: {$0 != "."})
-//
-//    switch frequencyMajor {
-//    case "1":
-//      band = 160
-//    case "3", "4":
-//      band = 80
-//    case "5":
-//      band = 60
-//    case "7":
-//      band = 40
-//    case "10":
-//      band = 30
-//    case "14":
-//      band = 20
-//    case "18":
-//      band = 17
-//    case "21":
-//      band = 15
-//    case "24":
-//      band = 12
-//    case "28":
-//      band = 10
-//    case "50", "51", "52", "53", "54":
-//      band = 6
-//    default:
-//      band = 99
+// MARK: - Moved From QRZ Manager
+
+//  func getSpotterInformation(spot: ClusterSpot) {
+//    // check if the spotter is in the cache
+//    Task {
+//      let spotterInfo = await stationInfoCache.checkCache(call: spot.spotter)
+//      if  spotterInfo != nil {
+//        buildCallSignPair(stationInfo: spotterInfo!, spot: spot)
+//        logger.info("Cache hit for: \(spot.spotter)")
+//    } else {
+//      if !requestCallParserInformation(call: spot.spotter, spot: spot) {
+//        Task {
+//          try? await requestQRZInformationAsync(call: spot.spotter, spot: spot)
+//          }
+//        }
+//      }
 //    }
-//
-//    return band
 //  }
+
 
   // MARK: - Filter by Time
 
