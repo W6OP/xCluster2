@@ -13,6 +13,8 @@ import CallParser
 protocol QRZManagerDelegate: AnyObject {
   func qrzManagerDidGetSessionKey(_ qrzManager: QRZManager, messageKey: QRZManagerMessage, doHaveSessionKey: Bool)
   func qrzManagerDidGetCallSignData(_ qrzManager: QRZManager, messageKey: QRZManagerMessage, stationInfoCombined: StationInformationCombined, spot: ClusterSpot)
+
+  func qrzManagerDidGetCallSignData(_ qrzManager: QRZManager, messageKey: QRZManagerMessage, spot: ClusterSpot, call: String)
 }
 
 public enum KeyName: String {
@@ -21,64 +23,64 @@ public enum KeyName: String {
   case recordKeyName = "Callsign"
 }
 
-actor StationInfoCache {
-  var cache = [String: StationInformation]()
-
-  func updateCache(call: String, stationInfo: StationInformation) {
-    // check if already there?
-    cache[call] = stationInfo
-  }
-
-  /// Check to see if we already have all the information needed.
-  /// - Parameter call: call sign to lookup.
-  /// - Returns: StationInformation
-  func checkCache(call: String) -> StationInformation? {
-     if cache[call] != nil { return cache[call] }
-     return nil
-   }
-} // end actor
-
-
-/// Array of Station Information
-actor StationInformationPairs {
-  var callSignPairs = [Int: [StationInformation]]()
-
-  private func add(spotId: Int, stationInformation: StationInformation) {
-
-    var callSignPair = [StationInformation]()
-    callSignPair.append(stationInformation)
-    callSignPairs[spotId] = callSignPair
-  }
-
-  func checkCallSignPair(spotId: Int, stationInformation: StationInformation) -> [StationInformation] {
-    var callSignPair = [StationInformation]()
-
-    if callSignPairs[spotId] != nil {
-      callSignPair = updateCallSignPair(spotId: spotId, stationInformation: stationInformation)
-    } else {
-      add(spotId: spotId, stationInformation: stationInformation)
-    }
-    return callSignPair
-  }
-
-  private func updateCallSignPair(spotId: Int, stationInformation: StationInformation) -> [StationInformation] {
-
-    var callSignPair = [StationInformation]()
-
-    if callSignPairs[spotId] != nil {
-      callSignPair = callSignPairs[spotId]!
-      callSignPair.append(stationInformation)
-      return callSignPair
-    }
-
-    return callSignPair
-  }
-
-  func clear() {
-    callSignPairs.removeAll()
-  }
-
-} // end actor
+//actor StationInfoCache {
+//  var cache = [String: StationInformation]()
+//
+//  func updateCache(call: String, stationInfo: StationInformation) {
+//    // check if already there?
+//    cache[call] = stationInfo
+//  }
+//
+//  /// Check to see if we already have all the information needed.
+//  /// - Parameter call: call sign to lookup.
+//  /// - Returns: StationInformation
+//  func checkCache(call: String) -> StationInformation? {
+//     if cache[call] != nil { return cache[call] }
+//     return nil
+//   }
+//} // end actor
+//
+//
+///// Array of Station Information
+//actor StationInformationPairs {
+//  var callSignPairs = [Int: [StationInformation]]()
+//
+//  private func add(spotId: Int, stationInformation: StationInformation) {
+//
+//    var callSignPair = [StationInformation]()
+//    callSignPair.append(stationInformation)
+//    callSignPairs[spotId] = callSignPair
+//  }
+//
+//  func checkCallSignPair(spotId: Int, stationInformation: StationInformation) -> [StationInformation] {
+//    var callSignPair = [StationInformation]()
+//
+//    if callSignPairs[spotId] != nil {
+//      callSignPair = updateCallSignPair(spotId: spotId, stationInformation: stationInformation)
+//    } else {
+//      add(spotId: spotId, stationInformation: stationInformation)
+//    }
+//    return callSignPair
+//  }
+//
+//  private func updateCallSignPair(spotId: Int, stationInformation: StationInformation) -> [StationInformation] {
+//
+//    var callSignPair = [StationInformation]()
+//
+//    if callSignPairs[spotId] != nil {
+//      callSignPair = callSignPairs[spotId]!
+//      callSignPair.append(stationInformation)
+//      return callSignPair
+//    }
+//
+//    return callSignPair
+//  }
+//
+//  func clear() {
+//    callSignPairs.removeAll()
+//  }
+//
+//} // end actor
 
 class QRZManager: NSObject {
 
@@ -103,16 +105,16 @@ class QRZManager: NSObject {
 
   var qrzUserName = ""
   var qrzPassword = ""
-  var useCallLookupOnly = false
+  //var useCallLookupOnly = false
 
   var results: [[String: String]]?
   var sessionLookup: [String: String] = ["Key": "", "Count": "", "SubExp": "", "GMTime": "", "Remark": ""] // the current session dictionary
   var callSignLookup: [String: String] = ["call": "", "country": "", "lat": "", "lon": "", "grid": "", "lotw": "0", "aliases": "", "Error": ""]
 
   var currentValue = ""
-  var callSignCache = [String: StationInformation]()
-  var stationInfoCache = StationInfoCache()
-  var stationInformationPairs = StationInformationPairs()
+  //var callSignCache = [String: StationInformation]()
+  //var stationInfoCache = StationInfoCache()
+  //var stationInformationPairs = StationInformationPairs()
 
   // temp to test with
   //var qrzRequestCount = 0
@@ -127,7 +129,7 @@ class QRZManager: NSObject {
     callLookup = CallLookup(prefixFileParser: callParser)
   }
 
-  // MARK: - Network Implementation
+  // MARK: - Request Session Key
 
   /// Get a Session Key from QRZ.com.
   /// - Parameters:
@@ -174,39 +176,40 @@ class QRZManager: NSObject {
     task.resume()
   }
 
-  func getSpotterInformation(spot: ClusterSpot) {
-    // check if the spotter is in the cache
-    Task {
-      let spotterInfo = await stationInfoCache.checkCache(call: spot.spotter)
-      if  spotterInfo != nil {
-        buildCallSignPair(stationInfo: spotterInfo!, spot: spot)
-        logger.info("Cache hit for: \(spot.spotter)")
-    } else {
-      if !requestCallParserInformation(call: spot.spotter, spot: spot) {
-        Task {
-          try? await requestQRZInformationAsync(call: spot.spotter, spot: spot)
-          }
-        }
-      }
-    }
-  }
+//  func getSpotterInformation(spot: ClusterSpot) {
+//    // check if the spotter is in the cache
+//    Task {
+//      let spotterInfo = await stationInfoCache.checkCache(call: spot.spotter)
+//      if  spotterInfo != nil {
+//        buildCallSignPair(stationInfo: spotterInfo!, spot: spot)
+//        logger.info("Cache hit for: \(spot.spotter)")
+//    } else {
+//      if !requestCallParserInformation(call: spot.spotter, spot: spot) {
+//        Task {
+//          try? await requestQRZInformationAsync(call: spot.spotter, spot: spot)
+//          }
+//        }
+//      }
+//    }
+//  }
 
-  func getDxInformation(spot: ClusterSpot) {
-    Task {
-       let dxInfo = await stationInfoCache.checkCache(call: spot.dxStation)
-      if  dxInfo != nil {
-        buildCallSignPair(stationInfo: dxInfo!, spot: spot)
-        logger.info("Cache hit for: \(spot.dxStation)")
-      } else {
-        if !requestCallParserInformation(call: spot.spotter, spot: spot) {
-          Task {
-            try? await requestQRZInformationAsync(call: spot.dxStation, spot: spot)
-          }
-          logger.info("QRZ request for: \(spot.dxStation)")
-        }
-      }
-    }
-  }
+//  func getDxInformation(spot: ClusterSpot) {
+//
+//    Task {
+//       let dxInfo = await stationInfoCache.checkCache(call: spot.dxStation)
+//      if  dxInfo != nil {
+//        buildCallSignPair(stationInfo: dxInfo!, spot: spot)
+//        logger.info("Cache hit for: \(spot.dxStation)")
+//      } else {
+//        if !requestCallParserInformation(call: spot.spotter, spot: spot) {
+//          Task {
+//            try? await requestQRZInformationAsync(call: spot.dxStation, spot: spot)
+//          }
+//          logger.info("QRZ request for: \(spot.dxStation)")
+//        }
+//      }
+//    }
+//  }
 
   /// Request all the call information from QRZ.com
   /// If there is a prefix or suffix the QRZ info will
@@ -217,45 +220,45 @@ class QRZManager: NSObject {
   ///   - call: call sign
   ///   - spot: cluster spot
   ///   - isSpotter: is it the spotter or the dx call sign
-  func requestCallParserInformation(call: String, spot: ClusterSpot) -> Bool {
+//  func requestCallParserInformation(call: String, spot: ClusterSpot) -> Bool {
+//
+//    if call.contains("/") {
+//      logger.info("Use callparser (2) \(call)")
+//      var stationInfo = requestCallParserInformation(call: call)
+//      stationInfo.id = spot.id
+//
+//      buildCallSignPair(stationInfo: stationInfo, spot: spot)
+//
+//      return true
+//    }
+//    return false
+//  }
 
-    if call.contains("/") {
-      logger.info("Use callparser (2) \(call)")
-      var stationInfo = requestCallParserInformation(call: call)
-      stationInfo.id = spot.id
-
-      buildCallSignPair(stationInfo: stationInfo, spot: spot)
-
-      return true
-    }
-    return false
-  }
-
-  /// Request the information about a call sign from the Call Parser.
-  /// - Parameter call: call sign to lookup
-  /// - Returns: StationInformation
-  func requestCallParserInformation(call: String) -> StationInformation {
-
-    var stationInfo = StationInformation()
-
-      let hitList: [Hit] = callLookup.lookupCall(call: call)
-      if !hitList.isEmpty {
-        logger.info("Use callparser(5) success \(call)")
-        stationInfo = populateStationInformation(hitList: hitList)
-
-        let stationInfo = stationInfo
-        Task {
-          await stationInfoCache.updateCache(call: stationInfo.call, stationInfo: stationInfo)
-          //logger.info("Cache update for: \(stationInfo.call)")
-        }
-    }
-    //          // THIS IS AN ERROR 9W64BW/E46V
-    //          // THIS IS AN ERROR D1DX
-    //          logger.info("THIS IS AN ERROR \(callSign)")
-    //          throw (RequestError.invalidCallSign)
-
-    return stationInfo
-  }
+//  /// Request the information about a call sign from the Call Parser.
+//  /// - Parameter call: call sign to lookup
+//  /// - Returns: StationInformation
+//  func requestCallParserInformation(call: String) -> StationInformation {
+//
+//    var stationInfo = StationInformation()
+//
+//      let hitList: [Hit] = callLookup.lookupCall(call: call)
+//      if !hitList.isEmpty {
+//        logger.info("Use callparser(5) success \(call)")
+//        stationInfo = populateStationInformation(hitList: hitList)
+//
+//        let stationInfo = stationInfo
+//        Task {
+//          await stationInfoCache.updateCache(call: stationInfo.call, stationInfo: stationInfo)
+//          //logger.info("Cache update for: \(stationInfo.call)")
+//        }
+//    }
+//    //          // THIS IS AN ERROR 9W64BW/E46V
+//    //          // THIS IS AN ERROR D1DX
+//    //          logger.info("THIS IS AN ERROR \(callSign)")
+//    //          throw (RequestError.invalidCallSign)
+//
+//    return stationInfo
+//  }
 
   func requestQRZInformationAsync(call: String, spot: ClusterSpot) async throws {
 
@@ -269,8 +272,6 @@ class QRZManager: NSObject {
       logger.info("Session key is invalid: \(self.sessionKey)")
       return
     }
-
-    //qrzRequestCount += 1
 
     let (data, response) = try await
         URLSession.shared.data(from: url)
@@ -302,21 +303,24 @@ class QRZManager: NSObject {
       if parser.parse() {
         if self.results != nil {
 
-          do {
+          //do {
 
-            var stationInfo = try processQRZInformation(call: call)
-            stationInfo.id = spot.id
+            self.qrZedManagerDelegate?.qrzManagerDidGetCallSignData(
+              self, messageKey: .qrzInformation, spot: spot, call: call)
+//            var stationInfo = try processQRZInformation(call: call)
+//            stationInfo.id = spot.id
+//
+//            let stationInfo2 = stationInfo
+//            Task {
+//              await stationInfoCache.updateCache(call: stationInfo2.call, stationInfo: stationInfo2)
+//              // THIS IS THE PRIMARY UPDATE SPOT
+//              //logger.info("Cache update for: \(stationInfo2.call)")
+//            }
 
-            let stationInfo2 = stationInfo
-            Task {
-              await stationInfoCache.updateCache(call: stationInfo2.call, stationInfo: stationInfo2)
-              // THIS IS THE PRIMARY UPDATE SPOT
-              //logger.info("Cache update for: \(stationInfo2.call)")
-            }
-
-          } catch {
-            logger.info("RequestError Error: \(error as NSObject)")
-          }
+//          } catch {
+//            //throw "RequestError Error: \(error as NSObject)"
+//            logger.info("RequestError Error: \(error as NSObject)")
+//          }
         } else {
           logger.info("Use CallParser: (0) \(call)") // above I think
         }
@@ -346,144 +350,146 @@ class QRZManager: NSObject {
 //    }
 //  }
 
-  func buildCallSignPair(stationInfo: StationInformation, spot: ClusterSpot) {
-    Task {
-      let callSignPair = await stationInformationPairs.checkCallSignPair(spotId: spot.id, stationInformation: stationInfo)
+//  func buildCallSignPair(stationInfo: StationInformation, spot: ClusterSpot) {
+//    Task {
+//      let callSignPair = await stationInformationPairs.checkCallSignPair(spotId: spot.id, stationInformation: stationInfo)
+//
+//      if callSignPair.count == 2 {
+//           combineQRZInfo(spot: spot, callSignPair: callSignPair)
+//        await stationInformationPairs.clear()
+//        }
+//    }
+//  }
 
-      if callSignPair.count == 2 {
-           combineQRZInfo(spot: spot, callSignPair: callSignPair)
-        await stationInformationPairs.clear()
-        }
-    }
-  }
+//  /// Process the information returned by the QRZ.com request.
+//  /// - Parameter call: call sign.
+//  /// - Returns: a station information struct.
+//  func processQRZInformation(call: String) throws -> StationInformation {
+//    var stationInfo = StationInformation()
+//
+//    // need to check if dictionary is empty
+//    if callSignLookup.isEmpty {
+//      logger.info("callSignDictionary is empty")
+//      throw RequestError.lookupIsEmpty
+//    }
+//
+//    stationInfo.call = callSignLookup["call"] ?? ""
+//
+//    if callSignLookup[KeyName.errorKeyName.rawValue] != "" {
+//      print("CallSignDictionary error found: \(String(describing: callSignLookup["Error"]))")
+//
+//      // QRZ.com could not find it so use the call parser
+//      let error = callSignLookup["Error"]
+//      if let range = error!.range(of: "found: ") {
+//        let callSign = error![range.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
+//
+//        // USE DELEGATE TO RETURN DATA
+//        stationInfo = requestCallParserInformation(call: callSign)
+//        return stationInfo
+//      }
+//    }
+//
+//      do {
+//        stationInfo = try populateQRZInformation(stationInfo: stationInfo)
+//      } catch {
+//        // throw
+//      }
+//
+//    return stationInfo
+//  }
 
-  /// Process the information returned by the QRZ.com request.
-  /// - Parameter call: call sign.
-  /// - Returns: a station information struct.
-  func processQRZInformation(call: String) throws -> StationInformation {
-    var stationInfo = StationInformation()
+//  /// Populate the qrzInfo with latitude, longitude, etc.
+//  /// - Parameter stationInfoIncomplete: partial station information.
+//  /// - Returns: station information.
+//  func populateQRZInformation(stationInfo: StationInformation) throws -> StationInformation {
+//    var stationInfo = stationInfo
+//
+//    guard (callSignLookup["lat"]?.double != nil) else {
+//      throw RequestError.invalidLatitude
+//    }
+//
+//    guard (callSignLookup["lon"]?.double != nil) else {
+//      throw RequestError.invalidLongitude
+//    }
+//
+//    stationInfo.latitude = Double(callSignLookup["lat"]!)!
+//    stationInfo.longitude = Double(callSignLookup["lon"]!)!
+//
+//    // if there is a prefix or suffix I need to find correct country and lat/lon
+//    stationInfo.country = callSignLookup["country"] ?? ""
+//    stationInfo.grid = callSignLookup["grid"] ?? ""
+//    stationInfo.lotw = Bool(callSignLookup["lotw"] ?? "0") ?? false
+//    stationInfo.aliases = callSignLookup["aliases"] ?? ""
+//
+//    stationInfo.isInitialized = true
+//
+//    return stationInfo
+//  }
 
-    // need to check if dictionary is empty
-    if callSignLookup.isEmpty {
-      logger.info("callSignDictionary is empty")
-      throw RequestError.lookupIsEmpty
-    }
+//  /// Populate the latitude and longitude from the hit.
+//  /// - Parameter hitList: collection of hits.
+//  /// - Returns: StationInformation
+//  func populateStationInformation(hitList: [Hit]) -> StationInformation {
+//    var stationInfo = StationInformation()
+//
+//    let hit = hitList[hitList.count - 1]
+//
+//    stationInfo.call = hit.call
+//    stationInfo.country = hit.country
+//
+//    if let latitude = Double(hit.latitude) {
+//      stationInfo.latitude = latitude
+//    }
+//
+//    if let longitude = Double(hit.longitude) {
+//      stationInfo.longitude = longitude
+//    }
+//
+//    stationInfo.isInitialized = true
+//
+//    // debugging only
+//    if stationInfo.longitude == 00 || stationInfo.longitude == 00 {
+//      logger.info("Longitude/Lattitude error: \(stationInfo.call):\(stationInfo.country)")
+//    }
+//
+//    return stationInfo
+//  }
 
-    stationInfo.call = callSignLookup["call"] ?? ""
-
-    if callSignLookup[KeyName.errorKeyName.rawValue] != "" {
-      print("CallSignDictionary error found: \(String(describing: callSignLookup["Error"]))")
-
-      // QRZ.com could not find it so use the call parser
-      let error = callSignLookup["Error"]
-      if let range = error!.range(of: "found: ") {
-        let callSign = error![range.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
-        stationInfo = requestCallParserInformation(call: callSign)
-        return stationInfo
-      }
-    }
-
-      do {
-        stationInfo = try populateQRZInformation(stationInfo: stationInfo)
-      } catch {
-        // throw
-      }
-
-    return stationInfo
-  }
-
-  /// Populate the qrzInfo with latitude, longitude, etc.
-  /// - Parameter stationInfoIncomplete: partial station information.
-  /// - Returns: station information.
-  func populateQRZInformation(stationInfo: StationInformation) throws -> StationInformation {
-    var stationInfo = stationInfo
-
-    guard (callSignLookup["lat"]?.double != nil) else {
-      throw RequestError.invalidLatitude
-    }
-
-    guard (callSignLookup["lon"]?.double != nil) else {
-      throw RequestError.invalidLongitude
-    }
-
-    stationInfo.latitude = Double(callSignLookup["lat"]!)!
-    stationInfo.longitude = Double(callSignLookup["lon"]!)!
-
-    // if there is a prefix or suffix I need to find correct country and lat/lon
-    stationInfo.country = callSignLookup["country"] ?? ""
-    stationInfo.grid = callSignLookup["grid"] ?? ""
-    stationInfo.lotw = Bool(callSignLookup["lotw"] ?? "0") ?? false
-    stationInfo.aliases = callSignLookup["aliases"] ?? ""
-
-    stationInfo.isInitialized = true
-
-    return stationInfo
-  }
-
-  /// Populate the latitude and longitude from the hit.
-  /// - Parameter hitList: collection of hits.
-  /// - Returns: StationInformation
-  func populateStationInformation(hitList: [Hit]) -> StationInformation {
-    var stationInfo = StationInformation()
-
-    let hit = hitList[hitList.count - 1]
-
-    stationInfo.call = hit.call
-    stationInfo.country = hit.country
-
-    if let latitude = Double(hit.latitude) {
-      stationInfo.latitude = latitude
-    }
-
-    if let longitude = Double(hit.longitude) {
-      stationInfo.longitude = longitude
-    }
-
-    stationInfo.isInitialized = true
-
-    // debugging only
-    if stationInfo.longitude == 00 || stationInfo.longitude == 00 {
-      logger.info("Longitude/Lattitude error: \(stationInfo.call):\(stationInfo.country)")
-    }
-
-    return stationInfo
-  }
-
-  /// Combine the QRZ information and send it to the view controller for a line to be drawn.
-  /// - Parameter spot: cluster spot.
-  func combineQRZInfo(spot: ClusterSpot, callSignPair: [StationInformation]) {
-
-    var qrzInfoCombined = StationInformationCombined()
-
-      qrzInfoCombined.setFrequency(frequency: spot.frequency)
-
-      qrzInfoCombined.spotterCall = callSignPair[0].call
-      qrzInfoCombined.spotterCountry = callSignPair[0].country
-      qrzInfoCombined.spotterLatitude = callSignPair[0].latitude
-      qrzInfoCombined.spotterLongitude = callSignPair[0].longitude
-      qrzInfoCombined.spotterGrid = callSignPair[0].grid
-      qrzInfoCombined.spotterLotw = callSignPair[0].lotw
-      //qrzInfoCombined.spotId = qrzCallSignPairCopy[0].spotId
-      qrzInfoCombined.error = callSignPair[0].error
-
-      qrzInfoCombined.dxCall = callSignPair[1].call
-      qrzInfoCombined.dxCountry = callSignPair[1].country
-      qrzInfoCombined.dxLatitude = callSignPair[1].latitude
-      qrzInfoCombined.dxLongitude = callSignPair[1].longitude
-      qrzInfoCombined.dxGrid = callSignPair[1].grid
-      qrzInfoCombined.dxLotw = callSignPair[1].lotw
-      if !qrzInfoCombined.error {
-        qrzInfoCombined.error = callSignPair[1].error
-      }
-
-      var spot = spot
-      spot.country = qrzInfoCombined.dxCountry
-
-      self.qrZedManagerDelegate?.qrzManagerDidGetCallSignData(
-        self, messageKey: .qrzInformation,
-        stationInfoCombined: qrzInfoCombined,
-        spot: spot)
-  }
+//  /// Combine the QRZ information and send it to the view controller for a line to be drawn.
+//  /// - Parameter spot: cluster spot.
+//  func combineQRZInfo(spot: ClusterSpot, callSignPair: [StationInformation]) {
+//
+//    var qrzInfoCombined = StationInformationCombined()
+//
+//      qrzInfoCombined.setFrequency(frequency: spot.frequency)
+//
+//      qrzInfoCombined.spotterCall = callSignPair[0].call
+//      qrzInfoCombined.spotterCountry = callSignPair[0].country
+//      qrzInfoCombined.spotterLatitude = callSignPair[0].latitude
+//      qrzInfoCombined.spotterLongitude = callSignPair[0].longitude
+//      qrzInfoCombined.spotterGrid = callSignPair[0].grid
+//      qrzInfoCombined.spotterLotw = callSignPair[0].lotw
+//      //qrzInfoCombined.spotId = qrzCallSignPairCopy[0].spotId
+//      qrzInfoCombined.error = callSignPair[0].error
+//
+//      qrzInfoCombined.dxCall = callSignPair[1].call
+//      qrzInfoCombined.dxCountry = callSignPair[1].country
+//      qrzInfoCombined.dxLatitude = callSignPair[1].latitude
+//      qrzInfoCombined.dxLongitude = callSignPair[1].longitude
+//      qrzInfoCombined.dxGrid = callSignPair[1].grid
+//      qrzInfoCombined.dxLotw = callSignPair[1].lotw
+//      if !qrzInfoCombined.error {
+//        qrzInfoCombined.error = callSignPair[1].error
+//      }
+//
+//      var spot = spot
+//      spot.country = qrzInfoCombined.dxCountry
+//
+//      self.qrZedManagerDelegate?.qrzManagerDidGetCallSignData(
+//        self, messageKey: .qrzInformation,
+//        stationInfoCombined: qrzInfoCombined,
+//        spot: spot)
+//  }
 
 } // end class
 

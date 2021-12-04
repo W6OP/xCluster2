@@ -11,6 +11,7 @@ import SwiftUI
 import MapKit
 import Combine
 import os
+import CallParser
 
 // MARK: - ClusterSpots
 
@@ -121,13 +122,74 @@ struct ConnectedCluster: Identifiable, Hashable {
   var clusterType: ClusterType
 }
 
+// MARK: - Actors
+
+actor StationInfoCache {
+  var cache = [String: StationInformation]()
+
+  func updateCache(call: String, stationInfo: StationInformation) {
+    // check if already there?
+    cache[call] = stationInfo
+  }
+
+  /// Check to see if we already have all the information needed.
+  /// - Parameter call: call sign to lookup.
+  /// - Returns: StationInformation
+  func checkCache(call: String) -> StationInformation? {
+     if cache[call] != nil { return cache[call] }
+     return nil
+   }
+} // end actor
+
+
+/// Array of Station Information
+actor StationInformationPairs {
+  var callSignPairs = [Int: [StationInformation]]()
+
+  private func add(spotId: Int, stationInformation: StationInformation) {
+
+    var callSignPair = [StationInformation]()
+    callSignPair.append(stationInformation)
+    callSignPairs[spotId] = callSignPair
+  }
+
+  func checkCallSignPair(spotId: Int, stationInformation: StationInformation) -> [StationInformation] {
+    var callSignPair = [StationInformation]()
+
+    if callSignPairs[spotId] != nil {
+      callSignPair = updateCallSignPair(spotId: spotId, stationInformation: stationInformation)
+    } else {
+      add(spotId: spotId, stationInformation: stationInformation)
+    }
+    return callSignPair
+  }
+
+  private func updateCallSignPair(spotId: Int, stationInformation: StationInformation) -> [StationInformation] {
+
+    var callSignPair = [StationInformation]()
+
+    if callSignPairs[spotId] != nil {
+      callSignPair = callSignPairs[spotId]!
+      callSignPair.append(stationInformation)
+      return callSignPair
+    }
+
+    return callSignPair
+  }
+
+  func clear() {
+    callSignPairs.removeAll()
+  }
+
+} // end actor
+
 // MARK: - Controller Class
 
 // Good read on clusters
 // https://www.hamradiodeluxe.com/blog/Ham-Radio-Deluxe-Newsletter-April-19-2018--Understanding-DX-Clusters.html
 
 /// Stub between view and all other classes
-public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDelegate, WebManagerDelegate {
+public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDelegate {
 
   let logger = Logger(subsystem: "com.w6op.xCluster", category: "Controller")
 
@@ -169,10 +231,19 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
   // MARK: - Private Properties
 
-  var qrzManager = QRZManager()
+  //var qrzManager = QRZManager()
   var telnetManager = TelnetManager()
   var spotProcessor = SpotProcessor()
   var webManager = WebManager()
+
+  // Call Parser
+  let callParser = PrefixFileParser()
+  var callLookup = CallLookup()
+  var callSignCache = [String: StationInformation]()
+  var stationInfoCache = StationInfoCache()
+  var stationInformationPairs = StationInformationPairs()
+
+  var callSignLookup: [String: String] = ["call": "", "country": "", "lat": "", "lon": "", "grid": "", "lotw": "0", "aliases": "", "Error": ""]
 
   let callSign = UserDefaults.standard.string(forKey: "callsign") ?? ""
   let fullName = UserDefaults.standard.string(forKey: "fullname") ?? ""
@@ -213,8 +284,10 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   init () {
 
     telnetManager.telnetManagerDelegate = self
-    qrzManager.qrZedManagerDelegate = self
+    //qrzManager.qrZedManagerDelegate = self
     webManager.webManagerDelegate = self
+
+    callLookup = CallLookup(prefixFileParser: callParser)
 
     keepAliveTimer = Timer.scheduledTimer(timeInterval: TimeInterval(keepAliveInterval),
                      target: self, selector: #selector(tickleServer), userInfo: nil, repeats: true)
@@ -407,19 +480,19 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
     }
   }
 
-  // MARK: - QRZ Session Data Received
+  // MARK: - QRZ Session Key Data Received
 
    /// QRZ Manager protocol - Retrieve the session key from QRZ.com
    /// - parameters:
    /// - qrzManager: Reference to the class sending the message.
    /// - messageKey: Key associated with this message.
    /// - message: Message text.
-  func qrzManagerDidGetSessionKey(_ qrzManager: QRZManager, messageKey: QRZManagerMessage, doHaveSessionKey: Bool) {
-    DispatchQueue.main.async { [self] in
-      haveSessionKey = doHaveSessionKey
-    }
-    logger.info("Received Session Key.")
-  }
+//  func qrzManagerDidGetSessionKey(_ qrzManager: QRZManager, messageKey: QRZManagerMessage, doHaveSessionKey: Bool) {
+//    DispatchQueue.main.async { [self] in
+//      haveSessionKey = doHaveSessionKey
+//    }
+//    logger.info("Received Session Key.")
+//  }
 
   // MARK: - QRZ Call Data Received
 
@@ -429,36 +502,36 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
   ///   - messageKey: Key associated with this message.
   ///   - qrzInfoCombined: Message text.
   ///   - spot: Associated Cluster spot.
-  func qrzManagerDidGetCallSignData(_ qrzManager: QRZManager, messageKey: QRZManagerMessage, stationInfoCombined: StationInformationCombined, spot: ClusterSpot) {
-
-    // need to make spot mutable
-    var spot = spot
-    spot.createOverlay(stationInfoCombined: stationInfoCombined)
-
-    DispatchQueue.main.async { [self] in
-      displayedSpots.insert(spot, at: 0)
-      if !spot.isFiltered {
-        overlays.append(spot.overlay)
-      }
-
-      if displayedSpots.count > maxNumberOfSpots {
-        let spot = displayedSpots[displayedSpots.count - 1]
-        overlays = overlays.filter({ $0.hashValue != spot.id })
-        displayedSpots.removeLast()
-      }
-    }
-  }
+//  func qrzManagerDidGetCallSignData(_ qrzManager: QRZManager, messageKey: QRZManagerMessage, stationInfoCombined: StationInformationCombined, spot: ClusterSpot) {
+//
+//    // need to make spot mutable
+//    var spot = spot
+//    spot.createOverlay(stationInfoCombined: stationInfoCombined)
+//
+//    DispatchQueue.main.async { [self] in
+//      displayedSpots.insert(spot, at: 0)
+//      if !spot.isFiltered {
+//        overlays.append(spot.overlay)
+//      }
+//
+//      if displayedSpots.count > maxNumberOfSpots {
+//        let spot = displayedSpots[displayedSpots.count - 1]
+//        overlays = overlays.filter({ $0.hashValue != spot.id })
+//        displayedSpots.removeLast()
+//      }
+//    }
+//  }
 
   // MARK: - QRZ Request Session Key
 
   /// Get the session key from QRZ.com
   func requestQRZSessionKey() {
-    if !qrzUserName.isEmpty && !qrzPassword.isEmpty {
-      qrzManager.useCallLookupOnly = false
-      qrzManager.requestSessionKey(name: qrzUserName, password: qrzPassword)
-    } else {
-      qrzManager.useCallLookupOnly = true
-    }
+//    if !qrzUserName.isEmpty && !qrzPassword.isEmpty {
+//      //qrzManager.useCallLookupOnly = false
+//      qrzManager.requestSessionKey(name: qrzUserName, password: qrzPassword)
+//    } else {
+//      //qrzManager.useCallLookupOnly = true
+//    }
   }
 
   // MARK: - Cluster Login and Commands
@@ -565,15 +638,21 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
         return
       }
 
-      // ensure we have a QRZ session key if we are going to use qrz.com
-      if !qrzManager.useCallLookupOnly {
-        if !haveSessionKey {
-          requestQRZSessionKey()
-        }
+      logger.info("Spot for: \(spot.spotter):\(spot.dxStation)")
+
+
+      let spotter = spot
+      Task {
+        await getSpotterInformation(spot: spotter, call: spotter.spotter)
       }
 
-      qrzManager.getSpotterInformation(spot: spot)
-      qrzManager.getDxInformation(spot: spot)
+      let dxSpot = spot
+      Task {
+        await getSpotterInformation(spot: dxSpot, call: dxSpot.dxStation)
+      }
+
+      //getSpotterInformation(spot: spot, call: spot.dxStation)
+      //getDxInformation(spot: spot)
 
     } catch {
       print("parseClusterSpot error: \(error)")
@@ -599,22 +678,174 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, QRZManagerDel
 
 // MARK: - Moved From QRZ Manager
 
-//  func getSpotterInformation(spot: ClusterSpot) {
-//    // check if the spotter is in the cache
-//    Task {
-//      let spotterInfo = await stationInfoCache.checkCache(call: spot.spotter)
-//      if  spotterInfo != nil {
-//        buildCallSignPair(stationInfo: spotterInfo!, spot: spot)
-//        logger.info("Cache hit for: \(spot.spotter)")
-//    } else {
-//      if !requestCallParserInformation(call: spot.spotter, spot: spot) {
-//        Task {
-//          try? await requestQRZInformationAsync(call: spot.spotter, spot: spot)
-//          }
-//        }
-//      }
-//    }
-//  }
+  func getSpotterInformation(spot: ClusterSpot, call: String) async {
+
+    // check if the spotter is in the cache
+    //Task {
+      let spotterInfo = await stationInfoCache.checkCache(call: call)
+      if  spotterInfo != nil {
+        logger.info("Cache hit for spotter: \(call)")
+        await buildCallSignPair(stationInfo: spotterInfo!, spot: spot)
+    } else {
+        //Task {
+            logger.info("CallParser request for: \(call)")
+            let stationInfo = requestCallParserInformation(call: call, spotId: spot.id)
+            await buildCallSignPair(stationInfo: stationInfo, spot: spot)
+          }
+        //}
+     // }
+  }
+
+  func buildCallSignPair(stationInfo: StationInformation, spot: ClusterSpot) async {
+    //Task {
+      let callSignPair = await stationInformationPairs.checkCallSignPair(spotId: spot.id, stationInformation: stationInfo)
+
+      if callSignPair.count == 2 {
+          logger.info("Combine for: \(callSignPair[0].call):\(callSignPair[1].call)")
+           combineQRZInfo(spot: spot, callSignPair: callSignPair)
+        await stationInformationPairs.clear()
+        }
+    //}
+  }
+
+  /// Request the information about a call sign from the Call Parser.
+  /// - Parameter call: call sign to lookup
+  /// - Returns: StationInformation
+  func requestCallParserInformation(call: String, spotId: Int) -> StationInformation {
+
+    var stationInfo = StationInformation()
+
+      let hitList: [Hit] = callLookup.lookupCall(call: call)
+
+      if !hitList.isEmpty {
+        logger.info("Use callparser - success \(call)")
+        stationInfo = populateStationInformation(hitList: hitList)
+        stationInfo.id = spotId
+
+        let stationInfo = stationInfo
+        Task {
+          await stationInfoCache.updateCache(call: stationInfo.call, stationInfo: stationInfo)
+          logger.info("Cache update for: \(stationInfo.call)")
+        }
+      } else {
+        logger.info("Use callparser - failure \(call)")
+      }
+
+    return stationInfo
+  }
+
+  /// Request the information about a call sign from the Call Parser.
+  /// - Parameter call: call sign to lookup
+  /// - Returns: StationInformation
+  func requestCallParserInformationAsync(call: String, spotId: Int) async -> StationInformation {
+
+    var stationInfo = StationInformation()
+
+      let hitList: [Hit] = callLookup.lookupCall(call: call)
+
+      if !hitList.isEmpty {
+        logger.info("Use callparser - success \(call)")
+        stationInfo = populateStationInformation(hitList: hitList)
+        stationInfo.id = spotId
+
+        let stationInfo = stationInfo
+        Task {
+          await stationInfoCache.updateCache(call: stationInfo.call, stationInfo: stationInfo)
+          logger.info("Cache update for: \(stationInfo.call)")
+        }
+      } else {
+        logger.info("Use callparser - failure \(call)")
+      }
+
+    return stationInfo
+  }
+
+  /// Populate the latitude and longitude from the hit.
+  /// - Parameter hitList: collection of hits.
+  /// - Returns: StationInformation
+  func populateStationInformation(hitList: [Hit]) -> StationInformation {
+    var stationInfo = StationInformation()
+
+    let hit = hitList[hitList.count - 1]
+
+    stationInfo.call = hit.call
+    stationInfo.country = hit.country
+
+    if let latitude = Double(hit.latitude) {
+      stationInfo.latitude = latitude
+    }
+
+    if let longitude = Double(hit.longitude) {
+      stationInfo.longitude = longitude
+    }
+
+    stationInfo.isInitialized = true
+
+    // debugging only
+    if stationInfo.longitude == 00 || stationInfo.longitude == 00 {
+      logger.info("Longitude/Lattitude error: \(stationInfo.call):\(stationInfo.country)")
+    }
+
+    return stationInfo
+  }
+
+  /// Combine the QRZ information and send it to the view controller for a line to be drawn.
+  /// - Parameter spot: cluster spot.
+  func combineQRZInfo(spot: ClusterSpot, callSignPair: [StationInformation]) {
+
+    var qrzInfoCombined = StationInformationCombined()
+
+      qrzInfoCombined.setFrequency(frequency: spot.frequency)
+
+      qrzInfoCombined.spotterCall = callSignPair[0].call
+      qrzInfoCombined.spotterCountry = callSignPair[0].country
+      qrzInfoCombined.spotterLatitude = callSignPair[0].latitude
+      qrzInfoCombined.spotterLongitude = callSignPair[0].longitude
+      qrzInfoCombined.spotterGrid = callSignPair[0].grid
+      qrzInfoCombined.spotterLotw = callSignPair[0].lotw
+      //qrzInfoCombined.spotId = qrzCallSignPairCopy[0].spotId
+      qrzInfoCombined.error = callSignPair[0].error
+
+      qrzInfoCombined.dxCall = callSignPair[1].call
+      qrzInfoCombined.dxCountry = callSignPair[1].country
+      qrzInfoCombined.dxLatitude = callSignPair[1].latitude
+      qrzInfoCombined.dxLongitude = callSignPair[1].longitude
+      qrzInfoCombined.dxGrid = callSignPair[1].grid
+      qrzInfoCombined.dxLotw = callSignPair[1].lotw
+      if !qrzInfoCombined.error {
+        qrzInfoCombined.error = callSignPair[1].error
+      }
+
+      var spot = spot
+      spot.country = qrzInfoCombined.dxCountry
+
+    // DON't USE DELEGATE HERE
+    processCallSignData(stationInfoCombined: qrzInfoCombined, spot: spot)
+//      self.qrZedManagerDelegate?.qrzManagerDidGetCallSignData(
+//        self, messageKey: .qrzInformation,
+//        stationInfoCombined: qrzInfoCombined,
+//        spot: spot)
+  }
+
+  func processCallSignData(stationInfoCombined: StationInformationCombined, spot: ClusterSpot) {
+    // need to make spot mutable
+    var spot = spot
+    spot.createOverlay(stationInfoCombined: stationInfoCombined)
+    logger.info("Overlay built for: \(stationInfoCombined.spotterCall):\(stationInfoCombined.dxCall)")
+
+    DispatchQueue.main.async { [self] in
+      displayedSpots.insert(spot, at: 0)
+      if !spot.isFiltered {
+        overlays.append(spot.overlay)
+      }
+
+      if displayedSpots.count > maxNumberOfSpots {
+        let spot = displayedSpots[displayedSpots.count - 1]
+        overlays = overlays.filter({ $0.hashValue != spot.id })
+        displayedSpots.removeLast()
+      }
+    }
+  }
 
 
   // MARK: - Filter by Time
