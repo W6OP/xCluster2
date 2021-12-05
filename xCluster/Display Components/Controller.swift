@@ -75,8 +75,10 @@ struct ClusterSpot: Identifiable, Hashable {
     let polyline = MKGeodesicPolyline(coordinates: locations, count: locations.count)
     polyline.title = String(stationInfoCombined.band)
     polyline.subtitle = stationInfoCombined.mode
-    //polyline.subtitle = id.uuidString
-    id = polyline.hashValue
+    polyline.subtitle = String(id)
+
+    // THIS IS WHY IT DOESN'T WORK - I NEED ID BEFORE THIS HAPPENS
+    //id = polyline.hashValue
 
     self.overlay = polyline
   }
@@ -124,49 +126,51 @@ struct ConnectedCluster: Identifiable, Hashable {
 
 // MARK: - Actors
 
-actor StationInfoCache {
-  var cache = [String: StationInformation]()
-
-  func updateCache(call: String, stationInfo: StationInformation) {
-    // check if already there?
-    cache[call] = stationInfo
-  }
-
-  /// Check to see if we already have all the information needed.
-  /// - Parameter call: call sign to lookup.
-  /// - Returns: StationInformation
-  func checkCache(call: String) -> StationInformation? {
-     if cache[call] != nil { return cache[call] }
-     return nil
-   }
-} // end actor
+//actor StationInfoCache {
+//  var cache = [String: StationInformation]()
+//
+//  func updateCache(call: String, stationInfo: StationInformation) {
+//    // check if already there?
+//    cache[call] = stationInfo
+//  }
+//
+//  /// Check to see if we already have all the information needed.
+//  /// - Parameter call: call sign to lookup.
+//  /// - Returns: StationInformation
+//  func checkCache(call: String) -> StationInformation? {
+//     if cache[call] != nil { return cache[call] }
+//     return nil
+//   }
+//} // end actor
 
 
 /// Array of Station Information
 actor StationInformationPairs {
   var callSignPairs = [Int: [StationInformation]]()
 
-  private func add(spotId: Int, stationInformation: StationInformation) {
+  private func add(spotId: Int, stationInformation: StationInformation) -> [StationInformation] {
 
-    var callSignPair = [StationInformation]()
+    var callSignPair: [StationInformation] = []
     callSignPair.append(stationInformation)
     callSignPairs[spotId] = callSignPair
+
+    return callSignPair
   }
 
   func checkCallSignPair(spotId: Int, stationInformation: StationInformation) -> [StationInformation] {
-    var callSignPair = [StationInformation]()
+    var callSignPair: [StationInformation] = []
 
     if callSignPairs[spotId] != nil {
       callSignPair = updateCallSignPair(spotId: spotId, stationInformation: stationInformation)
     } else {
-      add(spotId: spotId, stationInformation: stationInformation)
+      callSignPair = add(spotId: spotId, stationInformation: stationInformation)
     }
     return callSignPair
   }
 
   private func updateCallSignPair(spotId: Int, stationInformation: StationInformation) -> [StationInformation] {
 
-    var callSignPair = [StationInformation]()
+    var callSignPair: [StationInformation] = []
 
     if callSignPairs[spotId] != nil {
       callSignPair = callSignPairs[spotId]!
@@ -240,7 +244,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   let callParser = PrefixFileParser()
   var callLookup = CallLookup()
   var callSignCache = [String: StationInformation]()
-  var stationInfoCache = StationInfoCache()
+  //var stationInfoCache = StationInfoCache()
   var stationInformationPairs = StationInformationPairs()
 
   var callSignLookup: [String: String] = ["call": "", "country": "", "lat": "", "lon": "", "grid": "", "lotw": "0", "aliases": "", "Error": ""]
@@ -607,6 +611,18 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     return messages
   }
 
+
+  /// Generate a random int to use as the spot id
+  /// - Parameter digits: number of digits in Int
+  /// - Returns: Int
+  func random(digits:Int) -> String {
+      var number = String()
+      for _ in 1...digits {
+         number += "\(Int.random(in: 1...9))"
+      }
+      return number
+  }
+
   /// Parse the cluster spot message. This is where all cluster spots
   /// are first created. Handles all telnet and web spots.
   /// - Parameters:
@@ -629,6 +645,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         return
       }
 
+      // create the id number for the spot - this will match the polyline
+      spot.id = Int(random(digits: 10000)) ?? 0
       checkFilters(&spot)
 
       // if spot already exists, don't add again
@@ -638,19 +656,14 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         return
       }
 
-      logger.info("Spot for: \(spot.spotter):\(spot.dxStation)")
+          logger.info("Building Spot for: \(spot.spotter):\(spot.dxStation)")
 
+          var stationInformation = getSpotterInformation(spot: spot, call: spot.spotter)
+          buildCallSignPair(stationInfo: stationInformation, spot: spot)
+          stationInformation = getSpotterInformation(spot: spot, call: spot.dxStation)
+          buildCallSignPair(stationInfo: stationInformation, spot: spot)
 
-      let spotter = spot
-      Task {
-        await getSpotterInformation(spot: spotter, call: spotter.spotter)
-      }
-
-      let dxSpot = spot
-      Task {
-        await getSpotterInformation(spot: dxSpot, call: dxSpot.dxStation)
-      }
-
+          logger.info("Completed Spot for: \(spot.spotter):\(spot.dxStation)")
       //getSpotterInformation(spot: spot, call: spot.dxStation)
       //getDxInformation(spot: spot)
 
@@ -678,30 +691,52 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
 // MARK: - Moved From QRZ Manager
 
-  func getSpotterInformation(spot: ClusterSpot, call: String) async {
+  func getSpotterInformation(spot: ClusterSpot, call: String) -> StationInformation {
+            logger.info("CallParser request for: \(call)")
+            let stationInfo = requestCallParserInformation(call: call, spotId: spot.id)
+            return stationInfo
+  }
+
+  func getSpotterInformationAsync(spot: ClusterSpot, call: String) async {
 
     // check if the spotter is in the cache
     //Task {
-      let spotterInfo = await stationInfoCache.checkCache(call: call)
-      if  spotterInfo != nil {
-        logger.info("Cache hit for spotter: \(call)")
-        await buildCallSignPair(stationInfo: spotterInfo!, spot: spot)
-    } else {
+//      let spotterInfo = await stationInfoCache.checkCache(call: call)
+//      if  spotterInfo != nil {
+//        logger.info("Cache hit for spotter: \(call)")
+//        await buildCallSignPairAsync(stationInfo: spotterInfo!, spot: spot)
+//    } else {
         //Task {
             logger.info("CallParser request for: \(call)")
             let stationInfo = requestCallParserInformation(call: call, spotId: spot.id)
-            await buildCallSignPair(stationInfo: stationInfo, spot: spot)
-          }
+            await buildCallSignPairAsync(stationInfo: stationInfo, spot: spot)
+          //}
         //}
      // }
   }
 
-  func buildCallSignPair(stationInfo: StationInformation, spot: ClusterSpot) async {
+  func buildCallSignPair(stationInfo: StationInformation, spot: ClusterSpot) {
+    Task {
+      let callSignPair = await stationInformationPairs.checkCallSignPair(spotId: spot.id, stationInformation: stationInfo)
+
+      //logger.info("Count for callSignPair: \(callSignPair.count)")
+
+      if callSignPair.count == 2 {
+          logger.info("Combine for: \(callSignPair[0].call):\(callSignPair[1].call)")
+           //combineQRZInfo(spot: spot, callSignPair: callSignPair)
+
+          await stationInformationPairs.clear()
+        }
+    }
+  }
+
+
+  func buildCallSignPairAsync(stationInfo: StationInformation, spot: ClusterSpot) async {
     //Task {
       let callSignPair = await stationInformationPairs.checkCallSignPair(spotId: spot.id, stationInformation: stationInfo)
 
       if callSignPair.count == 2 {
-          logger.info("Combine for: \(callSignPair[0].call):\(callSignPair[1].call)")
+          //logger.info("Combine for: \(callSignPair[0].call):\(callSignPair[1].call)")
            combineQRZInfo(spot: spot, callSignPair: callSignPair)
         await stationInformationPairs.clear()
         }
@@ -718,15 +753,15 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       let hitList: [Hit] = callLookup.lookupCall(call: call)
 
       if !hitList.isEmpty {
-        logger.info("Use callparser - success \(call)")
+        //logger.info("Use callparser - success \(call)")
         stationInfo = populateStationInformation(hitList: hitList)
         stationInfo.id = spotId
 
-        let stationInfo = stationInfo
-        Task {
-          await stationInfoCache.updateCache(call: stationInfo.call, stationInfo: stationInfo)
-          logger.info("Cache update for: \(stationInfo.call)")
-        }
+//        let stationInfo = stationInfo
+//        Task {
+//          await stationInfoCache.updateCache(call: stationInfo.call, stationInfo: stationInfo)
+//          logger.info("Cache update for: \(stationInfo.call)")
+//        }
       } else {
         logger.info("Use callparser - failure \(call)")
       }
@@ -737,28 +772,28 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   /// Request the information about a call sign from the Call Parser.
   /// - Parameter call: call sign to lookup
   /// - Returns: StationInformation
-  func requestCallParserInformationAsync(call: String, spotId: Int) async -> StationInformation {
-
-    var stationInfo = StationInformation()
-
-      let hitList: [Hit] = callLookup.lookupCall(call: call)
-
-      if !hitList.isEmpty {
-        logger.info("Use callparser - success \(call)")
-        stationInfo = populateStationInformation(hitList: hitList)
-        stationInfo.id = spotId
-
-        let stationInfo = stationInfo
-        Task {
-          await stationInfoCache.updateCache(call: stationInfo.call, stationInfo: stationInfo)
-          logger.info("Cache update for: \(stationInfo.call)")
-        }
-      } else {
-        logger.info("Use callparser - failure \(call)")
-      }
-
-    return stationInfo
-  }
+//  func requestCallParserInformationAsync(call: String, spotId: Int) async -> StationInformation {
+//
+//    var stationInfo = StationInformation()
+//
+//      let hitList: [Hit] = callLookup.lookupCall(call: call)
+//
+//      if !hitList.isEmpty {
+//        logger.info("Use callparser - success \(call)")
+//        stationInfo = populateStationInformation(hitList: hitList)
+//        stationInfo.id = spotId
+//
+////        let stationInfo = stationInfo
+////        Task {
+////          await stationInfoCache.updateCache(call: stationInfo.call, stationInfo: stationInfo)
+////          logger.info("Cache update for: \(stationInfo.call)")
+////        }
+//      } else {
+//        logger.info("Use callparser - failure \(call)")
+//      }
+//
+//    return stationInfo
+//  }
 
   /// Populate the latitude and longitude from the hit.
   /// - Parameter hitList: collection of hits.
