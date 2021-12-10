@@ -71,7 +71,7 @@ class TelnetManager {
    */
   func connect(cluster: ClusterIdentifier) {
 
-    connectedHost = cluster
+      connectedHost = cluster
 
       connection = NWConnection(host: NWEndpoint.Host(cluster.address),
                                 port: NWEndpoint.Port(cluster.port) ?? defaultPort, using: .tcp)

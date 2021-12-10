@@ -76,7 +76,7 @@ class Coordinator: NSObject, MKMapViewDelegate {
     case "40":
       renderer.strokeColor = .green
     case "30":
-      renderer.strokeColor = .cyan
+      renderer.strokeColor = .black
     case "20":
       renderer.strokeColor = .red
     case "15":
@@ -88,7 +88,6 @@ class Coordinator: NSObject, MKMapViewDelegate {
     default:
       renderer.strokeColor = .brown
     }
-    //renderer.strokeColor = .blue
     renderer.alpha = alpha
     renderer.lineWidth = lineWidth
 
@@ -352,14 +351,20 @@ struct ControlBarView: View {
 
         Divider()
 
-        Button(action: {self.controller.clusterCommand = (20, "show dx/20")}) {
+        Button(action: {self.controller.clusterMessage = CommandType.show20}) {
           Text("show dx/20")
         }
 
         Divider()
 
-        Button(action: {self.controller.clusterCommand = (50, "show dx/50")}) {
+        Button(action: {self.controller.clusterMessage = CommandType.show50}) {
           Text("show dx/50")
+        }
+        
+        Divider()
+
+        Button(action: {self.controller.applicationMessage = CommandType.clear}) {
+          Text("Clear")
         }
       }
       .frame(minWidth: 500)

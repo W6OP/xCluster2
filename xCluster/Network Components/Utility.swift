@@ -199,6 +199,8 @@ extension QRZManager: XMLParserDelegate {
   }
 }
 
+
+/// Type of command sent to the cluster server.
 enum CommandType: String {
   case announce = "Announcement"
   case callsign = "Callsign"
@@ -212,11 +214,13 @@ enum CommandType: String {
   case keepAlive = "Keep alive"
   case refreshWeb = "Web Refresh"
   case setQth = "Your QTH"
+  case none = ""
+  case show20 = "show/fdx 20"
+  case show50 = "show/fdx 50"
+  case clear = "clear"
 }
 
-/**
- Unify message nouns going to the view controller
- */
+/// Unify message nouns going to the view controller
 enum NetworkMessage: String {
   case announcement = "Announcement"
   case cancelled = "Cancelled"

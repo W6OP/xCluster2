@@ -80,6 +80,9 @@ let modeData = [
 
 // MARK: - Cluster Definition
 
+
+/// Struct that identifies the cluster and protocol.
+/// Includes the cluster address and port.
 struct ClusterIdentifier: Identifiable, Hashable {
   var id: Int
   var name: String
