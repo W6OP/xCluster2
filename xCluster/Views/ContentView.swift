@@ -123,11 +123,6 @@ struct ContentView: View {
   var body: some View {
 
     HStack {
-      // MARK: - Cluster display and status messages.
-//      VStack {
-//        ClusterDisplayView(controller: controller)
-//      }
-
       // MARK: - Main Mapping Container
       VStack {
         // MARK: - Band buttons.
@@ -212,37 +207,37 @@ struct ButtonBarView: View {
 }
 
 /// Mode filter buttons at top of display
-struct ModeViewToggle: View {
-  @ObservedObject var controller: Controller
-  @State var modes: [ModeIdentifier]
-
-  var body: some View {
-    HStack {
-      Spacer()
-      ForEach(modes.indices) { item in
-        Toggle(self.modes[item].mode.rawValue, isOn: self.$modes[item].isSelected.didSet { (state) in
-          if self.modes[item].id != 0 {
-            // Invert the state to reduce confusion. A button as false means isFiltered = true.
-            self.controller.modeFilter = (self.modes[item].id, !state)
-          } else {
-            for (index, mode) in modes.enumerated() where mode.id != 0 {
-              self.modes[index].isSelected = self.modes[0].isSelected
-            }
-            // Invert the state to reduce confusion. A button as false means isFiltered = true.
-            self.controller.modeFilter = (0, !state)
-          }
-        })
-        .tag(self.modes[item].id)
-        .padding(.top, 5)
-        .toggleStyle(SwitchToggleStyle(tint: .red))
-        Divider()
-      }
-      Spacer()
-    }
-    .frame(width: 300, alignment: .leading)
-    .border(.red)
-  }
-}
+//struct ModeViewToggle: View {
+//  @ObservedObject var controller: Controller
+//  @State var modes: [ModeIdentifier]
+//
+//  var body: some View {
+//    HStack {
+//      Spacer()
+//      ForEach(modes.indices) { item in
+//        Toggle(self.modes[item].mode.rawValue, isOn: self.$modes[item].isSelected.didSet { (state) in
+//          if self.modes[item].id != 0 {
+//            // Invert the state to reduce confusion. A button as false means isFiltered = true.
+//            self.controller.modeFilter = (self.modes[item].id, !state)
+//          } else {
+//            for (index, mode) in modes.enumerated() where mode.id != 0 {
+//              self.modes[index].isSelected = self.modes[0].isSelected
+//            }
+//            // Invert the state to reduce confusion. A button as false means isFiltered = true.
+//            self.controller.modeFilter = (0, !state)
+//          }
+//        })
+//        .tag(self.modes[item].id)
+//        .padding(.top, 5)
+//        .toggleStyle(SwitchToggleStyle(tint: .red))
+//        Divider()
+//      }
+//      Spacer()
+//    }
+//    .frame(width: 300, alignment: .leading)
+//    .border(.red)
+//  }
+//}
 
 // MARK: - List of band toggles
 
@@ -283,10 +278,11 @@ struct BandViewToggle: View {
 
 struct ClusterPickerView: View {
   var controller: Controller
-
-  @State private var selectedCluster = clusterData[0]
   var clusters: [ClusterIdentifier]
   let characterLimit = 10
+
+  @State private var selectedCluster = clusterData[0]
+
 
   var body: some View {
     HStack {
@@ -302,6 +298,36 @@ struct ClusterPickerView: View {
           if self.controller.connectedCluster.id != value.id {
             controller.displayedSpots = [ClusterSpot]()
             self.controller.connectedCluster = clusterData.first {$0.id == value.id}!
+          }
+        }
+      }
+    }
+    //.padding(.trailing)
+    .border(.green)
+  }
+}
+
+// MARK: - Number of Lines Picker
+
+struct NumberOfSpotsPickerView: View {
+  var controller: Controller
+  let numberOfSpots: [SpotsIdentifier] = spotsData
+
+  @State private var selectedNumberOfSpots = spotsData[1]
+
+  var body: some View {
+    HStack {
+      Picker(selection: $selectedNumberOfSpots.id, label: Text("")) {
+        ForEach(numberOfSpots) { spot in
+          Text("\(spot.displayedLines)")
+        }
+      }
+      .padding(.top, 5)
+      .frame(minWidth: 75, maxWidth: 75)
+      .onReceive([selectedNumberOfSpots].publisher.first()) { value in
+        if value.id != 999 {
+          if self.controller.selectedNumberOfSpots.id != value.id {
+            self.controller.selectedNumberOfSpots = spotsData.first {$0.id == value.id}!
           }
         }
       }
@@ -327,6 +353,11 @@ struct ControlBarView: View {
     HStack {
       Spacer()
       HStack {
+
+        NumberOfSpotsPickerView(controller: controller)
+
+        Divider()
+
         Toggle("Last 30 minutes", isOn: $filterByTime.didSet { (filterByTime) in
           controller.setTimeFilter(filterState: filterByTime)
         })
@@ -349,29 +380,40 @@ struct ControlBarView: View {
         .modifier(ClearButton(boundText: $callSignFilter))
         .frame(maxWidth: 150)
 
-        Divider()
-
-        Button(action: {self.controller.clusterMessage = CommandType.show20}) {
-          Text("show dx/20")
-        }
-
-        Divider()
-
-        Button(action: {self.controller.clusterMessage = CommandType.show50}) {
-          Text("show dx/50")
-        }
-        
-        Divider()
-
-        Button(action: {self.controller.applicationMessage = CommandType.clear}) {
-          Text("Clear")
-        }
+        CommandButtonsView(controller: controller)
       }
       .frame(minWidth: 500)
       .padding(.leading)
       .padding(.vertical, 2)
 
       Spacer()
+    }
+  }
+}
+
+struct CommandButtonsView: View {
+  var controller: Controller
+
+  var body: some View {
+    HStack {
+      Divider()
+
+      Button(action: {self.controller.clusterMessage = CommandType.show20}) {
+        Text("show dx/20")
+      }
+
+      Divider()
+
+      Button(action: {self.controller.clusterMessage = CommandType.show50}) {
+        Text("show dx/50")
+      }
+
+      Divider()
+
+      Button(action: {self.controller.applicationMessage = CommandType.clear}) {
+        Text("Clear")
+      }
+
     }
   }
 }

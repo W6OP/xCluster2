@@ -10,12 +10,12 @@ import Cocoa
 import os
 import CallParser
 
-protocol QRZManagerDelegate: AnyObject {
-  func qrzManagerDidGetSessionKey(_ qrzManager: QRZManager, messageKey: QRZManagerMessage, doHaveSessionKey: Bool)
-  func qrzManagerDidGetCallSignData(_ qrzManager: QRZManager, messageKey: QRZManagerMessage, stationInfoCombined: StationInformationCombined, spot: ClusterSpot)
-
-  func qrzManagerDidGetCallSignData(_ qrzManager: QRZManager, messageKey: QRZManagerMessage, spot: ClusterSpot, call: String)
-}
+//protocol QRZManagerDelegate: AnyObject {
+//  func qrzManagerDidGetSessionKey(_ qrzManager: QRZManager, messageKey: QRZManagerMessage, doHaveSessionKey: Bool)
+//  func qrzManagerDidGetCallSignData(_ qrzManager: QRZManager, messageKey: QRZManagerMessage, stationInfoCombined: StationInformationCombined, spot: ClusterSpot)
+//
+//  func qrzManagerDidGetCallSignData(_ qrzManager: QRZManager, messageKey: QRZManagerMessage, spot: ClusterSpot, call: String)
+//}
 
 public enum KeyName: String {
   case errorKeyName = "Error"
@@ -95,7 +95,7 @@ class QRZManager: NSObject {
   let logger = Logger(subsystem: "com.w6op.xCluster", category: "QRZManager")
 
   // delegate to pass messages back to view
-  weak var qrZedManagerDelegate: QRZManagerDelegate?
+  //weak var qrZedManagerDelegate: QRZManagerDelegate?
 
   let callParser = PrefixFileParser()
   var callLookup = CallLookup()
@@ -135,46 +135,46 @@ class QRZManager: NSObject {
   /// - Parameters:
   ///   - name: logon name with xml plan.
   ///   - password: password for account.
-  func requestSessionKey(name: String, password: String) {
-
-    logger.info("Request Session Key.")
-
-    qrzUserName = name
-    qrzPassword = password
-
-    sessionLookup = ["Key": "", "Count": "", "SubExp": "", "GMTime": "", "Remark": ""] //[String: String]()
-
-    guard let url = URL(string: "https://xmldata.qrz.com/xml/current/?username=\(name);password=\(password);xCluster=1.0") else {
-      logger.info("Invalid user name or password: \(name)")
-      return
-    }
-
-    let task = URLSession.shared.dataTask(with: url) { [self] data, response, error in
-        if let error = error {
-            fatalError("Error: \(error.localizedDescription)")
-        }
-        guard let response = response as? HTTPURLResponse, response.statusCode == 200 else {
-            fatalError("Error: invalid HTTP response code")
-        }
-        guard let data = data else {
-            fatalError("Error: missing response data")
-        }
-
-          let parser = XMLParser(data: data)
-          parser.delegate = self
-
-          if parser.parse() {
-            if self.results != nil {
-              sessionKey = self.sessionLookup["Key"]
-              isSessionKeyValid = true
-              qrZedManagerDelegate?.qrzManagerDidGetSessionKey(self,
-                                                               messageKey: .session,
-                                                               doHaveSessionKey: true)
-            }
-          }
-    }
-    task.resume()
-  }
+//  func requestSessionKey(name: String, password: String) {
+//
+//    logger.info("Request Session Key.")
+//
+//    qrzUserName = name
+//    qrzPassword = password
+//
+//    sessionLookup = ["Key": "", "Count": "", "SubExp": "", "GMTime": "", "Remark": ""] //[String: String]()
+//
+//    guard let url = URL(string: "https://xmldata.qrz.com/xml/current/?username=\(name);password=\(password);xCluster=1.0") else {
+//      logger.info("Invalid user name or password: \(name)")
+//      return
+//    }
+//
+//    let task = URLSession.shared.dataTask(with: url) { [self] data, response, error in
+//        if let error = error {
+//            fatalError("Error: \(error.localizedDescription)")
+//        }
+//        guard let response = response as? HTTPURLResponse, response.statusCode == 200 else {
+//            fatalError("Error: invalid HTTP response code")
+//        }
+//        guard let data = data else {
+//            fatalError("Error: missing response data")
+//        }
+//
+//          let parser = XMLParser(data: data)
+//          parser.delegate = self
+//
+//          if parser.parse() {
+//            if self.results != nil {
+//              sessionKey = self.sessionLookup["Key"]
+//              isSessionKeyValid = true
+//              qrZedManagerDelegate?.qrzManagerDidGetSessionKey(self,
+//                                                               messageKey: .session,
+//                                                               doHaveSessionKey: true)
+//            }
+//          }
+//    }
+//    task.resume()
+//  }
 
 //  func getSpotterInformation(spot: ClusterSpot) {
 //    // check if the spotter is in the cache
@@ -260,29 +260,29 @@ class QRZManager: NSObject {
 //    return stationInfo
 //  }
 
-  func requestQRZInformationAsync(call: String, spot: ClusterSpot) async throws {
-
-    if isSessionKeyValid == false {
-      requestSessionKey(name: qrzUserName, password: qrzPassword)
-      // throw?
-    }
-
-    // this dies if session key is missing
-    guard let url = URL(string: "https://xmldata.qrz.com/xml/current/?s=\(String(self.sessionKey));callsign=\(call)") else {
-      logger.info("Session key is invalid: \(self.sessionKey)")
-      return
-    }
-
-    let (data, response) = try await
-        URLSession.shared.data(from: url)
-
-    guard (response as? HTTPURLResponse)?.statusCode == 200 else {
-      print("The server responded with an error")
-      return
-    }
-
-    parseReceivedData(data: data, call: call, spot: spot)
-  }
+//  func requestQRZInformationAsync(call: String, spot: ClusterSpot) async throws {
+//
+//    if isSessionKeyValid == false {
+//      requestSessionKey(name: qrzUserName, password: qrzPassword)
+//      // throw?
+//    }
+//
+//    // this dies if session key is missing
+//    guard let url = URL(string: "https://xmldata.qrz.com/xml/current/?s=\(String(self.sessionKey));callsign=\(call)") else {
+//      logger.info("Session key is invalid: \(self.sessionKey)")
+//      return
+//    }
+//
+//    let (data, response) = try await
+//        URLSession.shared.data(from: url)
+//
+//    guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+//      print("The server responded with an error")
+//      return
+//    }
+//
+//    parseReceivedData(data: data, call: call, spot: spot)
+//  }
 
 
   /// Process the received information
@@ -290,43 +290,43 @@ class QRZManager: NSObject {
   ///   - data: data
   ///   - call: String
   ///   - spot: Cluster Spot
-  fileprivate func parseReceivedData(data: Data, call: String, spot: ClusterSpot) {
-
-    //var stationInfo = StationInformation()
-    // if you need to look at xml input for debugging
-    //let str = String(decoding: data, as: UTF8.self)
-    //print(str)
-    stationProcessorQueue.async { [self] in
-      let parser = XMLParser(data: data)
-      parser.delegate = self
-
-      if parser.parse() {
-        if self.results != nil {
-
-          //do {
-
-            self.qrZedManagerDelegate?.qrzManagerDidGetCallSignData(
-              self, messageKey: .qrzInformation, spot: spot, call: call)
-//            var stationInfo = try processQRZInformation(call: call)
-//            stationInfo.id = spot.id
+//  fileprivate func parseReceivedData(data: Data, call: String, spot: ClusterSpot) {
 //
-//            let stationInfo2 = stationInfo
-//            Task {
-//              await stationInfoCache.updateCache(call: stationInfo2.call, stationInfo: stationInfo2)
-//              // THIS IS THE PRIMARY UPDATE SPOT
-//              //logger.info("Cache update for: \(stationInfo2.call)")
-//            }
-
-//          } catch {
-//            //throw "RequestError Error: \(error as NSObject)"
-//            logger.info("RequestError Error: \(error as NSObject)")
-//          }
-        } else {
-          logger.info("Use CallParser: (0) \(call)") // above I think
-        }
-      }
-    }
-  }
+//    //var stationInfo = StationInformation()
+//    // if you need to look at xml input for debugging
+//    //let str = String(decoding: data, as: UTF8.self)
+//    //print(str)
+//    stationProcessorQueue.async { [self] in
+//      let parser = XMLParser(data: data)
+//      parser.delegate = self
+//
+//      if parser.parse() {
+//        if self.results != nil {
+//
+//          //do {
+//
+//            self.qrZedManagerDelegate?.qrzManagerDidGetCallSignData(
+//              self, messageKey: .qrzInformation, spot: spot, call: call)
+////            var stationInfo = try processQRZInformation(call: call)
+////            stationInfo.id = spot.id
+////
+////            let stationInfo2 = stationInfo
+////            Task {
+////              await stationInfoCache.updateCache(call: stationInfo2.call, stationInfo: stationInfo2)
+////              // THIS IS THE PRIMARY UPDATE SPOT
+////              //logger.info("Cache update for: \(stationInfo2.call)")
+////            }
+//
+////          } catch {
+////            //throw "RequestError Error: \(error as NSObject)"
+////            logger.info("RequestError Error: \(error as NSObject)")
+////          }
+//        } else {
+//          logger.info("Use CallParser: (0) \(call)") // above I think
+//        }
+//      }
+//    }
+//  }
 
 
   /// Determine if we have enough information to create an overlay.

@@ -192,10 +192,10 @@ extension QRZManager: XMLParserDelegate {
     logger.info("parser failed: \(parseError as NSObject)")
     currentValue = ""
 
-    if !isSessionKeyValid {
-      logger.info("Request a new Session Key")
-      requestSessionKey(name: qrzUserName, password: qrzPassword)
-    }
+//    if !isSessionKeyValid {
+//      logger.info("Request a new Session Key")
+//      requestSessionKey(name: qrzUserName, password: qrzPassword)
+//    }
   }
 }
 
@@ -214,11 +214,14 @@ enum CommandType: String {
   case keepAlive = "Keep alive"
   case refreshWeb = "Web Refresh"
   case setQth = "Your QTH"
+
   case none = ""
   case show20 = "show/fdx 20"
   case show50 = "show/fdx 50"
-  case clear = "clear"
+  case clear = "Clear"
 }
+
+
 
 /// Unify message nouns going to the view controller
 enum NetworkMessage: String {
@@ -242,11 +245,10 @@ enum NetworkMessage: String {
   case location = "Your grid"
 }
 
-enum QRZManagerMessage: String {
-  case session = "Session key available"
-  case qrzInformation = "Call sign information"
-
-}
+//enum QRZManagerMessage: String {
+//  case session = "Session key available"
+//  case qrzInformation = "Call sign information"
+//}
 
 enum ClusterType: String {
   case arCluster = "AR-Cluster"

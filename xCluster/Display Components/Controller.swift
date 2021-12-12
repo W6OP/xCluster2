@@ -224,6 +224,16 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     }
   }
 
+  @Published var selectedNumberOfSpots = SpotsIdentifier(id: 25, maxLines: 25, displayedLines: "25") {
+    didSet {
+      print("selectedNumberOfLines id: \(selectedNumberOfSpots.id), name: \(selectedNumberOfSpots.displayedLines)")
+      maxNumberOfSpots = selectedNumberOfSpots.maxLines
+      Task {
+        await manageSpots(spot: nil, doInsert: false)
+      }
+    }
+  }
+
   @Published var clusterMessage = CommandType.none {
     didSet {
       sendClusterCommand(command: clusterMessage)
@@ -258,7 +268,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   let qrzPassword = UserDefaults.standard.string(forKey: "password") ?? ""
 
   // mapping
-  let maxNumberOfSpots = 100
+  var maxNumberOfSpots = 100
   let regionRadius: CLLocationDistance = 10000000
   let centerLatitude = 28.282778
   let centerLongitude = -40.829444
@@ -486,8 +496,10 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     switch command {
     case .clear:
       Task {
+        await MainActor.run {
         overlays.removeAll()
         displayedSpots.removeAll()
+        }
       }
     default:
       break
@@ -620,36 +632,34 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     var spot = spot
 
     // create the id number for the spot - this will later
-    // change to the polyline hash value but need an id now
+    // change to the polyline hash value but need a temp id now
     spot.id = Int(random(digits: 10000)) ?? 0
 
     checkForFilters(&spot)
 
-    // if spot already exists, don't add again
-    // probably should add but somehow not create the polyline
-    // I'm not sure about implementing this yet
-//    if displayedSpots.firstIndex(where: { $0.spotter == spot.spotter &&
-//      $0.dxStation == spot.dxStation && $0.frequency == spot.frequency
-//    }) != nil {
-//      spot.overlayExists = true
-//      //return ???
-//    }
-
-    logger.info("Building Spot for: \(spot.spotter):\(spot.dxStation)")
+    logger.info("Processing Spot for: \(spot.spotter):\(spot.dxStation) - 1")
 
     let spotAsync = spot
-    Task {
-      await getStationInformation(spot: spotAsync, call: spotAsync.spotter)
-      await getStationInformation(spot: spotAsync, call: spotAsync.dxStation)
+    let task = Task {
+      do {
+        try await getStationInformation(spot: spotAsync, call: spotAsync.spotter)
+        try await getStationInformation(spot: spotAsync, call: spotAsync.dxStation)
+      } catch {
+        //await stationInformationPairs.clear()
+        logger.info("Completed Spot with errors for: \(spotAsync.spotter):\(spotAsync.dxStation) - 5A")
+        return
+      }
     }
 
-    logger.info("Completed Spot for: \(spot.spotter):\(spot.dxStation)")
-
+    if task.isCancelled {
+      logger.info("Completed Spot for: \(spot.spotter):\(spot.dxStation) - canceled")
+    }
+    //logger.info("Completed Spot for: \(spot.spotter):\(spot.dxStation) - 5B")
   }
 
   /// Check if the incoming spot needs to be filtered.
   /// - Parameter spot: ClusterSpot
-  fileprivate func checkForFilters(_ spot: inout ClusterSpot) {
+  func checkForFilters(_ spot: inout ClusterSpot) {
 
     if bandFilters[Int(spot.band)] == .isOn {
       spot.setFilter(reason: .band)
@@ -669,17 +679,19 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   /// - Parameters:
   ///   - spot: ClusterSpot
   ///   - call: String
-  func getStationInformation(spot: ClusterSpot, call: String) async {
+  func getStationInformation(spot: ClusterSpot, call: String) async throws {
 
-     async let hitList = callLookup.lookupCall(call: call)
+    async let hitList = callLookup.lookupCall(call: call)
 
     if  await !hitList.isEmpty {
       var stationInformation =  await populateStationInformation(hitList: hitList)
       stationInformation.id = spot.id
+
       buildCallSignPair(stationInfo: stationInformation, spot: spot)
     } else {
-      // Throw
-      logger.info("Use callparser - failure \(call)")
+      await stationInformationPairs.clear()
+      logger.info("------------------------ Use callparser - failure \(call) -------------------------")
+      throw (RequestError.invalidCallSign)
     }
   }
 
@@ -690,6 +702,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   ///   - stationInfo: StationInformation
   ///   - spot: ClusterSpot
   func buildCallSignPair(stationInfo: StationInformation, spot: ClusterSpot) {
+
     Task {
       let callSignPair = await stationInformationPairs.checkCallSignPair(spotId: spot.id, stationInformation: stationInfo)
 
@@ -747,7 +760,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     stationInformationCombined.spotterLongitude = callSignPair[0].longitude
     stationInformationCombined.spotterGrid = callSignPair[0].grid
     stationInformationCombined.spotterLotw = callSignPair[0].lotw
-    //qrzInfoCombined.spotId = qrzCallSignPairCopy[0].spotId
     stationInformationCombined.error = callSignPair[0].error
 
     stationInformationCombined.dxCall = callSignPair[1].call
@@ -776,41 +788,41 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     spot.country = stationInformationCombined.dxCountry
 
     spot.createOverlay(stationInfoCombined: stationInformationCombined)
-    logger.info("Overlay built for: \(stationInformationCombined.spotterCall):\(stationInformationCombined.dxCall)")
-
 
     let spot2 = spot
     Task {
+      await manageSpots(spot: spot2, doInsert: true)
+    }
+  }
+
+  /// Insert and delete spots and overlays.
+  /// - Parameter spot: ClusterSpot
+  /// - Parameter doDelete: Bool
+  func manageSpots(spot: ClusterSpot?, doInsert: Bool) async {
+
+    Task {
         await MainActor.run {
-          displayedSpots.insert(spot2, at: 0)
-          if spot2.isFiltered == false && spot2.overlayExists == false {
-            overlays.append(spot2.overlay)
+          if doInsert {
+            displayedSpots.insert(spot!, at: 0)
+            if spot!.isFiltered == false && spot!.overlayExists == false {
+              overlays.append(spot!.overlay)
+              print("Overlay added: \(spot!.spotter):\(spot!.dxStation)")
+            }
           }
 
           if displayedSpots.count > maxNumberOfSpots {
-            let spot = displayedSpots[displayedSpots.count - 1]
             print("Overlays before: \(overlays.count):\(displayedSpots.count)")
-            overlays = overlays.filter({ $0.hashValue != spot.id })
-            displayedSpots.removeLast()
+            while displayedSpots.count > maxNumberOfSpots {
+              let spot = displayedSpots[displayedSpots.count - 1]
+              overlays = overlays.filter({ $0.hashValue != spot.id })
+              displayedSpots.removeLast()
+            }
+
             print("Overlays after: \(overlays.count):\(displayedSpots.count)")
           }
         }
     }
-
-//    DispatchQueue.main.async { [self] in
-//      displayedSpots.insert(spot, at: 0)
-//      if spot.isFiltered == false && spot.overlayExists == false {
-//        overlays.append(spot.overlay)
-//      }
-//
-//      if displayedSpots.count > maxNumberOfSpots {
-//        let spot = displayedSpots[displayedSpots.count - 1]
-//        overlays = overlays.filter({ $0.hashValue != spot.id })
-//        displayedSpots.removeLast()
-//      }
-//    }
   }
-
 
   // MARK: - Filter by Time
 
