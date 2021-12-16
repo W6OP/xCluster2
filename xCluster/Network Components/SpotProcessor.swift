@@ -183,14 +183,25 @@ class SpotProcessor {
 
     spot.timeUTC = convertStringSliceToString(String(balance[balance.startIndex..<endIndex]))
 
-    // clean of junk on end so it displays correctly
-//    spot.grid = convertStringSliceToString(String(rawSpot[startIndex..<endIndex])).condenseWhitespace()
-//    // remove /a/a at end
-//    spot.grid = spot.grid.components(separatedBy: CharacterSet.alphanumerics.inverted)
-//      .joined()
-
+    // create the id number for the spot - this will later
+    // change to the polyline hash value but need a temp id now
+    spot.id = Int(random(digits: 10000)) ?? 0
+    
     return spot
   }
+
+  /// Generate a random int to use as the spot id.
+  /// The number of digits is the length of the returned integer.
+  /// - Parameter digits: Int
+  /// - Returns: Int
+  func random(digits:Int) -> String {
+    var number = String()
+    for _ in 1...digits {
+      number += "\(Int.random(in: 1...9))"
+    }
+    return number
+  }
+
   /**
    Read handler.
    - parameters:
