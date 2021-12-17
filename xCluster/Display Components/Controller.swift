@@ -272,9 +272,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   let callParser = PrefixFileParser()
   var callLookup = CallLookup()
 
-  var stationInformationPairs = StationInformationPairs()
-  var hitPairs = HitPair()
-
   var callSignLookup: [String: String] = ["call": "", "country": "", "lat": "", "lon": "", "grid": "", "lotw": "0", "aliases": "", "Error": ""]
 
   let callSign = UserDefaults.standard.string(forKey: "callsign") ?? ""
@@ -600,18 +597,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
   // MARK: - Process Spots
 
-  /// Generate a random int to use as the spot id.
-  /// The number of digits is the length of the returned integer.
-  /// - Parameter digits: Int
-  /// - Returns: Int
-//  func random(digits:Int) -> String {
-//    var number = String()
-//    for _ in 1...digits {
-//      number += "\(Int.random(in: 1...9))"
-//    }
-//    return number
-//  }
-
   /// Parse the cluster spot message. This is where all cluster spots
   /// are first created. Handles all telnet and web spots.
   /// - Parameters:
@@ -635,7 +620,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
       let asyncSpot = spot
       Task {
-        await processCompletedSpotEx(spot: asyncSpot)
+        try await processCompletedSpotEx(spot: asyncSpot)
       }
 
     } catch {
@@ -645,87 +630,69 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     }
   }
 
-
   /// Process the completed cluster spot.
   /// - Parameter spot: ClusterSpot
-  func processCompletedSpot(spot: ClusterSpot) {
+  func processCompletedSpotEx(spot: ClusterSpot) async throws {
     var spot = spot
 
-    // create the id number for the spot - this will later
-    // change to the polyline hash value but need a temp id now
-    //spot.id = Int(random(digits: 10000)) ?? 0
-
     applyFilters(&spot)
-
-    logger.info("Processing Spot for: \(spot.spotter):\(spot.dxStation) - 1")
-
-    let spotAsync = spot
-    let task = Task {
-      do {
-        try await getStationInformation(spot: spotAsync, call: spotAsync.spotter)
-        try await getStationInformation(spot: spotAsync, call: spotAsync.dxStation)
-      } catch {
-        //await stationInformationPairs.clear()
-        logger.info("Completed Spot with errors for: \(spotAsync.spotter):\(spotAsync.dxStation) - 5A")
-        return
-      }
-    }
-
-    if task.isCancelled {
-      logger.info("Completed Spot for: \(spot.spotter):\(spot.dxStation) - canceled")
-    }
-    //logger.info("Completed Spot for: \(spot.spotter):\(spot.dxStation) - 5B")
-  }
-
-  func processCompletedSpotEx(spot: ClusterSpot) async {
-    var spot = spot
-
-    // create the id number for the spot - this will later
-    // change to the polyline hash value but need a temp id now
-    //spot.id = Int(random(digits: 10000)) ?? 0
-
-    applyFilters(&spot)
-
-    await hitPairs.clear()
-    logger.info("Processing Spot for: \(spot.spotter):\(spot.dxStation) - 1")
 
     let spots = [spot.spotter, spot.dxStation]
-    await withThrowingTaskGroup(of: Void.self) { [unowned self] group in
+    try await withThrowingTaskGroup(of: Hit.self) { [unowned self] group in
+      let hitPairs = HitPair()
       for index in 0..<2 {
         group.addTask {
-          //print("add task 1: \(index)")
-          await hitPairs.addHit(hit: try await lookupCallSign(call: spots[index]))
-        }
-      }
-      logger.info("Collected Hits for: \(spot.spotter):\(spot.dxStation) - 2")
-    }
-
-    let asyncSpot = spot
-    await withTaskGroup(of: Void.self) { [unowned self] group in
-      for index in 0..<2 {
-        group.addTask {
-          let stationInformation =  await populateStationInformationEx(hit: hitPairs.hits[index], spotId: asyncSpot.id)
-
-          let callSignPair = await stationInformationPairs.checkCallSignPair(spotId: asyncSpot.id, stationInformation: stationInformation)
-
-          if callSignPair.count == 2 {
-            combineHitInformation(spot: asyncSpot, callSignPair: callSignPair)
-            await stationInformationPairs.clear()
+          do {
+          return try await lookupCallSign(call: spots[index])
+          } catch {
+            print("Controller Error: \(error as NSObject)")
+            throw (RequestError.invalidCallSign)
           }
         }
       }
-      logger.info("Completed combineHitInformation for: \(asyncSpot.spotter):\(asyncSpot.dxStation) - 3")
+
+      for try await hit in group {
+        await hitPairs.addHit(hit: hit)
+      }
+
+      if await hitPairs.hits.count == 2 {
+        await processStationInformation(hitPairs: hitPairs, spot: spot)
+      } else {
+        print("Failed: \(spot.spotter):\(spot.dxStation)")
+        throw (RequestError.invalidCallSign)
+      }
     }
   }
 
-  /*
-   Have getStationInformation() do a callLookup and then if
-   both return build and return the stationInfo object x2
 
-   Or: maybe just do the callLookup on both callsigns.
-   If that works we can continue
+  /// Build the station information for both calls in the spot.
+  /// - Parameters:
+  ///   - hitPairs2: HitPair
+  ///   - spot: ClusterSpot
+  func processStationInformation(hitPairs: HitPair, spot: ClusterSpot) async {
 
-   */
+    await withTaskGroup(of: StationInformation.self) { [unowned self] group in
+      for index in 0..<2 {
+        group.addTask {
+          return await populateStationInformationEx(hit: hitPairs.hits[index],
+                                                    spotId: spot.id)
+        }
+      }
+
+      let stationInformationPairs = StationInformationPairs()
+      var callSignPairs = [StationInformation]()
+      for await stationInformation in group {
+        callSignPairs = await stationInformationPairs.checkCallSignPair(
+          spotId: spot.id, stationInformation: stationInformation)
+      }
+
+      if callSignPairs.count == 2 {
+        combineHitInformation(spot: spot, callSignPair: callSignPairs)
+      } else {
+        // throw
+      }
+    }
+  }
 
   /// Check if the incoming spot needs to be filtered.
   /// - Parameter spot: ClusterSpot
@@ -744,6 +711,10 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
   // MARK: - Call Parser Operations
 
+
+  /// Use the CallParser to get the information about the call sign.
+  /// - Parameter call: String
+  /// - Returns: Hit
   func lookupCallSign(call: String) async throws -> Hit {
 
     let hitList: [Hit] = await callLookup.lookupCall(call: call)
@@ -757,113 +728,42 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     throw (RequestError.invalidCallSign)
   }
 
-
-
-  /// Retrieve the call information from the CallParser.
-  /// This is an asynchronous operation.
-  /// - Parameters:
-  ///   - spot: ClusterSpot
-  ///   - call: String
-  func getStationInformation(spot: ClusterSpot, call: String) async throws {
-
-    async let hitList = callLookup.lookupCall(call: call)
-
-    if  await !hitList.isEmpty {
-      let stationInformation =  await populateStationInformation(hitList: hitList, spotId: spot.id)
-
-      buildCallSignPair(stationInfo: stationInformation, spot: spot)
-    } else {
-      await stationInformationPairs.clear()
-      logger.info("------------------------ Use callparser - failure \(call) -------------------------")
-      throw (RequestError.invalidCallSign)
-    }
-  }
-
-  // MARK: - Build Station Information
-
-  /// Build a component with information of the spotter and the DX.
-  /// - Parameters:
-  ///   - stationInfo: StationInformation
-  ///   - spot: ClusterSpot
-  func buildCallSignPair(stationInfo: StationInformation, spot: ClusterSpot) {
-
-
-    Task {
-      let callSignPair = await stationInformationPairs.checkCallSignPair(spotId: spot.id, stationInformation: stationInfo)
-
-      logger.info("callSignPair: \(stationInfo.call)")
-
-      if callSignPair.count == 2 {
-        combineHitInformation(spot: spot, callSignPair: callSignPair)
-        logger.info("combineHitInformation: \(callSignPair[0].call): \(callSignPair[1].call)")
-        await stationInformationPairs.clear()
-      }
-    }
-  }
-
   // MARK: - Populate Station Info and Create Overlays
 
+  /// Populate a StationInformation object with the data from the hit.
+  /// - Parameters:
+  ///   - hit: Hit
+  ///   - spotId: Int
+  /// - Returns: StationInformation
   func populateStationInformationEx(hit: Hit, spotId: Int) -> StationInformation {
 
-    var stationInfo = StationInformation()
+    var stationInformation = StationInformation()
 
-    //let hit = hitList[hitList.count - 1]
-    logger.info("Processing stationInformation for: \(hit.call)")
+    logger.info("Processing stationInformation for: \(hit.call) - 2a")
 
-    stationInfo.id = spotId
-    stationInfo.call = hit.call
-    stationInfo.country = hit.country
+    stationInformation.id = spotId
+    stationInformation.call = hit.call
+    stationInformation.country = hit.country
 
     if let latitude = Double(hit.latitude) {
-      stationInfo.latitude = latitude
+      stationInformation.latitude = latitude
     }
 
     if let longitude = Double(hit.longitude) {
-      stationInfo.longitude = longitude
+      stationInformation.longitude = longitude
     }
 
-    stationInfo.isInitialized = true
+    stationInformation.isInitialized = true
 
     // debugging only
-    if stationInfo.longitude == 00 || stationInfo.longitude == 00 {
-      logger.info("Longitude/Lattitude error: \(stationInfo.call):\(stationInfo.country)")
+    if stationInformation.longitude == 00 || stationInformation.longitude == 00 {
+      logger.info("Longitude/Lattitude error: \(stationInformation.call):\(stationInformation.country)")
     }
 
-    return stationInfo
+    return stationInformation
   }
 
-  /// Populate the latitude and longitude from the hit.
-  /// - Parameter hitList: collection of hits.
-  /// - Returns: StationInformation
-  func populateStationInformation(hitList: [Hit], spotId: Int) -> StationInformation {
-
-    var stationInfo = StationInformation()
-
-    let hit = hitList[hitList.count - 1]
-
-    stationInfo.id = spotId
-    stationInfo.call = hit.call
-    stationInfo.country = hit.country
-
-    if let latitude = Double(hit.latitude) {
-      stationInfo.latitude = latitude
-    }
-
-    if let longitude = Double(hit.longitude) {
-      stationInfo.longitude = longitude
-    }
-
-    stationInfo.isInitialized = true
-
-    // debugging only
-    if stationInfo.longitude == 00 || stationInfo.longitude == 00 {
-      logger.info("Longitude/Lattitude error: \(stationInfo.call):\(stationInfo.country)")
-    }
-
-    return stationInfo
-  }
-
-  /// Combine the Call Parser information.
+  /// Combine the CallParser information.
   /// - Parameters:
   ///   - spot: ClusterSpot
   ///   - callSignPair: [StationInformation]
@@ -893,9 +793,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       stationInformationCombined.error = callSignPair[1].error
     }
 
-    // WHY DO I DO THIS ???
-//    var spot = spot
-//    spot.country = stationInformationCombined.dxCountry
+    // used in the ListView for display
+    var spot = spot
+    spot.country = stationInformationCombined.dxCountry
 
     processCallSignData(stationInformationCombined: stationInformationCombined, spot: spot)
   }
@@ -929,7 +829,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
             displayedSpots.insert(spot!, at: 0)
             if spot!.isFiltered == false && spot!.overlayExists == false {
               overlays.append(spot!.overlay)
-              print("Overlay added: \(spot!.spotter):\(spot!.dxStation)")
+              print("Overlay added: \(spot!.spotter):\(spot!.dxStation) - 6")
             }
           }
 
