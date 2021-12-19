@@ -74,7 +74,7 @@ class Coordinator: NSObject, MKMapViewDelegate {
     case "80":
       renderer.strokeColor = .blue
     case "40":
-      renderer.strokeColor = .green
+      renderer.strokeColor = .magenta
     case "30":
       renderer.strokeColor = .black
     case "20":
@@ -84,7 +84,7 @@ class Coordinator: NSObject, MKMapViewDelegate {
     case "17":
       renderer.strokeColor = .darkGray
     case "6":
-      renderer.strokeColor = .systemTeal
+      renderer.strokeColor = .orange
     default:
       renderer.strokeColor = .brown
     }
@@ -254,19 +254,17 @@ struct BandViewToggle: View {
       ForEach(bands.indices) { item in
         Toggle(self.bands[item].band, isOn: self.$bands[item].isSelected.didSet { (state) in
           if self.bands[item].id != 0 {
-            // Invert the state to reduce confusion. A button as false means isFiltered = true.
-            self.controller.bandFilter = (self.bands[item].id, !state)
+            self.controller.bandFilter = (self.bands[item].id, state)
           } else {
             for (index, band) in bands.enumerated() where band.id != 0 {
               self.bands[index].isSelected = self.bands[0].isSelected
             }
-            // Invert the state to reduce confusion. A button as false means isFiltered = true.
-            self.controller.bandFilter = (0, !state)
+            self.controller.bandFilter = (0, state)
           }
         })
         .tag(self.bands[item].id)
         .padding(.top, 5)
-        .toggleStyle(SwitchToggleStyle(tint: .red))
+        .toggleStyle(SwitchToggleStyle(tint: .mint))
         Divider()
       }
       Spacer()
@@ -277,12 +275,10 @@ struct BandViewToggle: View {
 // MARK: - Cluster Picker
 
 struct ClusterPickerView: View {
+  @State private var selectedCluster = clusterData[0]
   var controller: Controller
   var clusters: [ClusterIdentifier]
   let characterLimit = 10
-
-  @State private var selectedCluster = clusterData[0]
-
 
   var body: some View {
     HStack {
@@ -302,7 +298,6 @@ struct ClusterPickerView: View {
         }
       }
     }
-    //.padding(.trailing)
     .border(.green)
   }
 }
@@ -332,7 +327,6 @@ struct NumberOfSpotsPickerView: View {
         }
       }
     }
-    //.padding(.trailing)
     .border(.green)
   }
 }

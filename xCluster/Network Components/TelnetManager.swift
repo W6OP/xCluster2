@@ -10,10 +10,8 @@ import Cocoa
 import Network
 import os
 
-//struct ServerStatus: Codable {
-//  let activeUsers: Int
-//}
 
+/// Telnet Manager Protocol
 protocol TelnetManagerDelegate: AnyObject {
 
   func connect(cluster: ClusterIdentifier)
@@ -31,7 +29,7 @@ class TelnetManager {
   // MARK: - Field Definitions ----------------------------------------------------------------------------
 
   private let serialTelnetQueue =
-    DispatchQueue(label: "com.w6op.virtualCluster.telnetQueue") // ,attributes: .concurrent
+    DispatchQueue(label: "com.w6op.virtualCluster.telnetQueue")
 
   let logger = Logger(subsystem: "com.w6op.xCluster", category: "TelnetManager")
 
@@ -52,29 +50,24 @@ class TelnetManager {
   // MARK: - init Overrides ----------------------------------------------------------------------------
 
   init() {
-
     self.connected = false
     self.currentCommandType = .ignore
     self.clusterType = ClusterType.unknown
     self.connectionChanged = false
     self.isLoggedOn = false
-
   }
 
   // MARK: - Network Implementation ----------------------------------------------------------------------------
 
-  /**
-   Connect to the cluster server.
-   - parameters:
-   - host: The host name to connect to.
-   - port: The port to connect to.
-   */
+  /// Connect to the cluster server.
+  /// - Parameter cluster: ClusterIdentifier
   func connect(cluster: ClusterIdentifier) {
 
       connectedHost = cluster
 
       connection = NWConnection(host: NWEndpoint.Host(cluster.address),
-                                port: NWEndpoint.Port(cluster.port) ?? defaultPort, using: .tcp)
+                                port: NWEndpoint.Port(cluster.port) ??
+                                defaultPort, using: .tcp)
       connection.stateUpdateHandler = stateDidChange(to:)
       start()
 
@@ -86,7 +79,7 @@ class TelnetManager {
   }
 
   /// Handle state changes to the connection.
-  /// - Parameter state: state description.
+  /// - Parameter state: NWConnection.State
   private func stateDidChange(to state: NWConnection.State) {
 
     switch state {
@@ -94,8 +87,6 @@ class TelnetManager {
     case .ready:
       self.connected = true
       self.connectionChanged = true
-      //self.clusterType = .unknown
-      //print("line 99")
 
       self.telnetManagerDelegate?.telnetManagerStatusMessageReceived(self,
         messageKey: .connected, message: "Connected to \(connectedHost)")
@@ -104,23 +95,17 @@ class TelnetManager {
         messageKey: .clusterType, message: "Connected")
 
       self.startReceive()
-
     case .waiting(let error):
       self.connection.restart()
       print("Restarted: \(error)")
-
     case .failed(let error):
       self.handleConnectionError(error: error)
-
     case .cancelled:
       print("Connection Cancelled")
-
     case .setup:
       print("Connection Setup")
-
     case .preparing:
       print("Connection Preparing")
-
     @unknown default:
       print("Connection State Unknown")
     }
@@ -128,7 +113,9 @@ class TelnetManager {
 
   /// Start receiving data.
   func startReceive() {
-    connection.receive(minimumIncompleteLength: 1, maximumLength: Int(UINT32_MAX), completion: receiveMessage)
+    connection.receive(minimumIncompleteLength: 1,
+                       maximumLength: Int(UINT32_MAX),
+                       completion: receiveMessage)
   }
 
   /**
@@ -139,7 +126,15 @@ class TelnetManager {
    - isComplete:
    - error:
    */
-  func receiveMessage(data: Data?, context: NWConnection.ContentContext?, isComplete: Bool, error: NWError?) {
+
+  /// Receive completion handler.
+  /// - Parameters:
+  ///   - data: Data
+  ///   - context: NWConnection.ContentContext
+  ///   - isComplete: Bool
+  ///   - error: NWError
+  func receiveMessage(data: Data?, context: NWConnection.ContentContext?,
+                      isComplete: Bool, error: NWError?) {
 
     if let error = error {
       print("receiveMessage: \(error)")
@@ -150,7 +145,8 @@ class TelnetManager {
     guard data != nil else { return }
     if currentCommandType == .keepAlive {currentCommandType = .ignore}
 
-    guard let response = String(data: data!, encoding: .utf8)?.trimmingCharacters(in: .whitespaces) else {
+    guard let response = String(data: data!, encoding: .utf8)?
+            .trimmingCharacters(in: .whitespaces) else {
       return
     }
 
@@ -165,7 +161,6 @@ class TelnetManager {
 
     if isComplete {
       logger.info("Data receive completed.")
-      //os_log("Data receive completed.", log: TelnetManager.modelLog, type: .info)
     }
 
     startReceive()
@@ -174,25 +169,24 @@ class TelnetManager {
   ///Send a message or command to the cluster server.
   ///
   ///- parameters:
-  ///- message: The data sent.
-  ///- commandType: The type of command received.
+  ///- message: String
+  ///- commandType: CommandType
   func send(_ message: String, commandType: CommandType) {
-
       if connected {
         let newMessage = message + "\r\n"
 
         if let data = newMessage.data(using: .utf8) {
-          connection.send(content: data, completion: .contentProcessed({(error) in
+          connection.send(content: data, completion:
+                              .contentProcessed({(error) in
             if let error = error {
               print("send: \(error)")
               self.telnetManagerDelegate?.telnetManagerStatusMessageReceived(self,
-                              messageKey: .error, message: "SEND ERROR: \(error)")
+                              messageKey: .error, message: "Send error: \(error)")
               self.handleConnectionError(error: error)
             }
           }))
         }
       }
-
   }
 
   /// Disconnect from the telnet session and break the connection.
@@ -204,7 +198,7 @@ class TelnetManager {
   }
 
   /// Determine if the message is a spot or a status message.
-  /// - Parameter message: The message text.
+  /// - Parameter message: String
   func determineMessageType(message: String) {
 
     switch message.description {

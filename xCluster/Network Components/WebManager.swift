@@ -8,11 +8,12 @@
 import Foundation
 import os
 
+/// Web Manager Protocol
 protocol WebManagerDelegate: AnyObject {
-
   func connect(cluster: ClusterIdentifier)
-
-  func webManagerDataReceived(_ webManager: WebManager, messageKey: NetworkMessage, message: String)
+  func webManagerDataReceived(_ webManager: WebManager,
+                              messageKey: NetworkMessage,
+                              message: String)
 }
 
 class WebManager {
@@ -25,7 +26,9 @@ class WebManager {
   var connected: Bool
   var connectionChanged: Bool
   var isLoggedOn: Bool
-  var connectedHost = ClusterIdentifier(id: 0, name: "", address: "", port: "", clusterProtocol: ClusterProtocol.none)
+  var connectedHost = ClusterIdentifier(id: 0, name: "", address: "",
+                                        port: "",
+                                        clusterProtocol: ClusterProtocol.none)
 
   var clusterType: ClusterType
   var currentCommandType: CommandType
@@ -39,7 +42,7 @@ class WebManager {
   }
 
   /// Connect to the cluster server.
-  /// - Parameter cluster: node to connect to
+  /// - Parameter cluster: ClusterIdentifier
   func connectAsync(cluster: ClusterIdentifier) async {
 
     connectedHost = cluster
@@ -51,6 +54,8 @@ class WebManager {
     }
   }
 
+  /// Create an http session.
+  /// - Parameter host: ClusterIdentifier
   func createHttpSessionAsync(host: ClusterIdentifier) async throws {
 
     guard let url = URL(string: host.address) else {
@@ -82,7 +87,7 @@ class WebManager {
   }
 
   /// Remove the header and footer from the html.
-  /// - Parameter html: html received.
+  /// - Parameter html: String
   func removeHeaderAndFooter(html: String) {
 
     if html.contains("<PRE>") {
@@ -97,13 +102,14 @@ class WebManager {
       let lines = substring.split(whereSeparator: \.isNewline)
 
       for line in lines where !line.isEmpty {
-          determineMessageType(message: "<html>" + line.trimmingCharacters(in: .whitespaces))
+          determineMessageType(message: "<html>" + line
+                                .trimmingCharacters(in: .whitespaces))
         }
     }
   }
 
   /// Determine if the message is a spot or a status message.
-  /// - Parameter message: The message text.
+  /// - Parameter message: String
   func determineMessageType(message: String) {
 
     switch message.description {
@@ -115,26 +121,25 @@ class WebManager {
       if self.connectionChanged {
         determineClusterType(message: message)
       }
-      self.webManagerDelegate?.webManagerDataReceived(self, messageKey: .clusterInformation, message: message)
+      self.webManagerDelegate?
+        .webManagerDataReceived(self, messageKey:
+                                    .clusterInformation,
+                                message: message)
     }
   }
 
   /// Determine what cluster type we connected to.
-  /// - Parameter message: string to be parsed.
+  /// - Parameter message: String
   func determineClusterType(message: String) {
 
     switch message.description {
-
     case _ where message.contains("<html>"):
       self.clusterType = .html
       self.webManagerDelegate?.webManagerDataReceived(self,
                   messageKey: .htmlSpotReceived, message: message)
-
     default:
       self.clusterType = .unknown
       print("line 135")
     }
   }
-
-
 } // end class

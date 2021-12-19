@@ -9,8 +9,6 @@
 import Cocoa
 import os
 
-let maxStatusMessages = 200
-
 // https://www.hackingwithswift.com/example-code/strings/how-to-remove-a-prefix-from-a-string
 extension String {
   func condenseWhitespace() -> String {
@@ -263,12 +261,35 @@ enum SpotError: Error {
   case spotError(String)
 }
 
+// move to utility ??
+enum BandFilterState: Int {
+  case isOn = 1
+  case isOff = 0
+}
+
+enum ModeFilterState: Int {
+  case isOn = 1
+  case isOff = 0
+}
+
+enum RequestError: Error {
+  case invalidCallSign
+  case invalidLatitude
+  case invalidLongitude
+  case invalidParameter
+  case lookupIsEmpty
+  case duplicateSpot
+}
+
+
+
 // MARK: - QRZ Structs ----------------------------------------------------------------------------
 
 /**
  Structure to return information from QRZ.com.
  - parameters:
  */
+/// Structure to return information from a call lookup.
 struct StationInformation: Identifiable {
   var id = 0 //UUID()
   var call = ""
@@ -282,6 +303,8 @@ struct StationInformation: Identifiable {
   var isInitialized = false
 }
 
+
+/// StationInformation combined for the spotter and dx call.
 struct StationInformationCombined: Codable {
   var spotterCall = ""
   var spotterCountry = ""

@@ -6,137 +6,31 @@
 //  Copyright © 2020 Peter Bourget. All rights reserved.
 //
 
-// Take a raw spot and break it into its component parts
-
 import Foundation
 
+/// Take a raw spot and break it into its component parts
 class SpotProcessor {
 
-  init() {
-
-  }
-
-  //      12 chars
-  // DX de LY3AB:     1887.0  LY2RJ        cq cq cq                       1743Z KO25
-
-  /// Process a telnet packet.
-  /// - Parameter rawSpot: the string received via telnet.
-  /// - Throws: spot error
-  /// - Returns: ClusterSpot
-//  func processSpot(rawSpot: String) throws -> ClusterSpot {
-//
-//    var spot = ClusterSpot(id: 0, dxStation: "", frequency: "", band: 99, spotter: "",
-//                           timeUTC: "", comment: "", grid: "", country: "", isFiltered: false)
-//
-//    if rawSpot.count < 75 {
-//      print("\(rawSpot.count) -- \(rawSpot)")
-//      throw SpotError.spotError("processRawSpot: spot length too short")
-//    }
-//
-//    let component = rawSpot.components(separatedBy: ":")
-//    // replacing -# for AE5E - don't know why he does that "W6OP-#" and "W6OP-2-#"
-//    spot.spotter =  convertStringSliceToString(component[0].components(separatedBy: " ")[2])
-//    spot.spotter = cleanCallSign(callSign: spot.spotter)
-//
-//    if spot.spotter.filter({ $0.isLetter }).isEmpty ||
-//        spot.spotter.filter({ $0.isNumber }).isEmpty {
-//      throw SpotError.spotError("processRawSpot: invalid spotter call sign: \(spot.dxStation)")
-//    }
-//
-//    var startIndex = rawSpot.index(rawSpot.startIndex, offsetBy: 16)
-//    var endIndex = rawSpot.index(startIndex, offsetBy: 9)
-//    let frequency = convertStringSliceToString(String(rawSpot[startIndex..<endIndex])).condenseWhitespace()
-//    guard Float(frequency) != nil else {
-//      throw SpotError.spotError("processRawSpot: unable to parse frequency")
-//    }
-//    spot.frequency = convertFrequencyToDecimalString(frequency: frequency)
-//
-//    startIndex = rawSpot.index(rawSpot.startIndex, offsetBy: 26)
-//    endIndex = rawSpot.index(startIndex, offsetBy: 11)
-//    spot.dxStation = convertStringSliceToString(String(rawSpot[startIndex..<endIndex]))
-//    spot.dxStation = cleanCallSign(callSign: spot.dxStation)
-//
-//    if spot.dxStation.filter({ $0.isLetter }).isEmpty ||
-//        spot.dxStation.filter({ $0.isNumber }).isEmpty {
-//      throw SpotError.spotError("processRawSpot: invalid dx call sign: \(spot.dxStation)")
-//    }
-//
-//    startIndex = rawSpot.index(rawSpot.startIndex, offsetBy: 39)
-//    endIndex = rawSpot.index(startIndex, offsetBy: 30)
-//    spot.comment = convertStringSliceToString(String(rawSpot[startIndex..<endIndex]))
-//
-//    startIndex = rawSpot.index(rawSpot.startIndex, offsetBy: 70)
-//    endIndex = rawSpot.index(startIndex, offsetBy: 4)
-//    // clean of junk on end so it displays correctly when no grid supplied
-//    spot.timeUTC = convertStringSliceToString(String(rawSpot[startIndex..<endIndex])).condenseWhitespace()
-//
-//    endIndex = rawSpot.endIndex
-//    startIndex = rawSpot.index(rawSpot.startIndex, offsetBy: 75)
-//
-//    // clean of junk on end so it displays correctly
-//    spot.grid = convertStringSliceToString(String(rawSpot[startIndex..<endIndex])).condenseWhitespace()
-//    // remove /a/a at end
-//    spot.grid = spot.grid.components(separatedBy: CharacterSet.alphanumerics.inverted)
-//      .joined()
-//
-//    return spot
-//  }
-
-  func cleanCallSign(callSign: String) -> String {
-    var cleanedCall = ""
-
-    // if there are spaces in the call don't process it
-    cleanedCall = callSign.replacingOccurrences(of: " ", with: "")
-
-    if callSign.contains(":") { // EB5KB//P
-      cleanedCall = callSign.replacingOccurrences(of: ":", with: "")
-    }
-
-    // strip leading or trailing "/"  /W6OP/
-    if callSign.prefix(1) == "/" {
-      cleanedCall = String(callSign.suffix(callSign.count - 1))
-    }
-
-    if callSign.suffix(1) == "/" {
-      cleanedCall = String(cleanedCall.prefix(cleanedCall.count - 1))
-    }
-
-    if callSign.contains("//") { // EB5KB//P
-      cleanedCall = callSign.replacingOccurrences(of: "//", with: "/")
-    }
-
-    if callSign.contains("///") { // BU1H8///D
-      cleanedCall = callSign.replacingOccurrences(of: "///", with: "/")
-    }
-
-    if callSign.contains("-") {
-      let index = callSign.firstIndex(of: "-")
-      let startIndex = callSign.startIndex
-      cleanedCall = convertStringSliceToString(String(callSign[startIndex..<index!])).condenseWhitespace()
-    }
-
-    return cleanedCall
-  }
+  init() {}
 
   /// Parse the spots from a html feed.
   /// Telnet: -- DX de LY3AB:     1887.0  LY2RJ   cq cq cq                   1743Z KO25
   /// "          DX de OH6BG-#:    3573.0  UI4P           FT8  -10 dB  LO45" too short
   /// HTML: ---- LZ3YG            7165.0  YU1JW   TNX FOR qso 5/9 73 Lazare  1558 19 Mar
-  /// - Parameter rawSpot: rawSpot
-  /// - Throws: spot error
+  /// - Parameter rawSpot: String
+  /// - Throws: SpotError
   /// - Returns: ClusterSpot
   func processRawSpot(rawSpot: String, isTelnet: Bool) throws -> ClusterSpot {
 
     var spot = ClusterSpot(id: 0, dxStation: "", frequency: "", band: 99, spotter: "",
                            timeUTC: "", comment: "", grid: "", country: "", isFiltered: false)
 
-
     if rawSpot.count < 75 {
       print("\(rawSpot.count) -- \(rawSpot)")
       throw SpotError.spotError("processRawSpot: spot length too short")
     }
     
-    // first strip first 6 chars (<html>)
+    // first strip first 6 chars ("<html>" or "DX de  ")
     var balance = rawSpot.dropFirst(6)
     var endIndex = balance.endIndex
 
@@ -185,9 +79,49 @@ class SpotProcessor {
 
     // create the id number for the spot - this will later
     // change to the polyline hash value but need a temp id now
-    spot.id = Int(random(digits: 10000)) ?? 0
+    // to link ClusterSpot to StationInformation
+    spot.id = Int(random(digits: 100000)) ?? 0
     
     return spot
+  }
+
+  /// Clean any junk out of the call sign.
+  /// - Parameter callSign: String
+  /// - Returns: String
+  func cleanCallSign(callSign: String) -> String {
+    var cleanedCall = ""
+
+    // if there are spaces in the call don't process it
+    cleanedCall = callSign.replacingOccurrences(of: " ", with: "")
+
+    if callSign.contains(":") { // EB5KB//P
+      cleanedCall = callSign.replacingOccurrences(of: ":", with: "")
+    }
+
+    // strip leading or trailing "/"  /W6OP/
+    if callSign.prefix(1) == "/" {
+      cleanedCall = String(callSign.suffix(callSign.count - 1))
+    }
+
+    if callSign.suffix(1) == "/" {
+      cleanedCall = String(cleanedCall.prefix(cleanedCall.count - 1))
+    }
+
+    if callSign.contains("//") { // EB5KB//P
+      cleanedCall = callSign.replacingOccurrences(of: "//", with: "/")
+    }
+
+    if callSign.contains("///") { // BU1H8///D
+      cleanedCall = callSign.replacingOccurrences(of: "///", with: "/")
+    }
+
+    if callSign.contains("-") {
+      let index = callSign.firstIndex(of: "-")
+      let startIndex = callSign.startIndex
+      cleanedCall = convertStringSliceToString(String(callSign[startIndex..<index!])).condenseWhitespace()
+    }
+
+    return cleanedCall
   }
 
   /// Generate a random int to use as the spot id.
@@ -202,21 +136,19 @@ class SpotProcessor {
     return number
   }
 
-  /**
-   Read handler.
-   - parameters:
-   - s: Initialize a new string instance from a slice of a string.
-   Otherwise the reference to the string will never go away.
-   */
+  /// Initialize a new string instance from a slice of a string.
+  /// Otherwise the reference to the string will never go away.
+  /// - Parameter slice: String
+  /// - Returns: String
   func convertStringSliceToString(_ slice: String) -> String {
     return slice.trimmingCharacters(in: .whitespaces)
   }
 
-  /**
-   Convert the frequency (10136000) to a string with a decimal place (10136.000)
-   Use an extension to String to format frequency correctly. This is used to
-   display the frequency formatted in the tableview.
-   */
+  /// Convert the frequency (10136000) to a string with a decimal place (10136.000)
+  /// Use an extension to String to format frequency correctly. This is used to
+  /// display the frequency formatted in the tableview.
+  /// - Parameter frequency: String
+  /// - Returns: String
   func convertFrequencyToDecimalString (frequency: String) -> String {
 
     var converted: String
@@ -296,7 +228,7 @@ class SpotProcessor {
   }
 
   /// Convert a frequency to a band.
-  /// - Parameter frequency: string describing a frequency
+  /// - Parameter frequency: String
   /// - Returns: band
   func convertFrequencyToBand(frequency: String) -> Int {
     var band: Int

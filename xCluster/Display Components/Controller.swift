@@ -15,36 +15,6 @@ import CallParser
 
 // MARK: - ClusterSpots
 
-// move to utility ??
-enum BandFilterState: Int {
-  case isOn = 0
-  case isOff = 1
-}
-
-enum ModeFilterState: Int {
-  case isOn = 0
-  case isOff = 1
-}
-
-enum RequestError: Error {
-  case invalidCallSign
-  case invalidLatitude
-  case invalidLongitude
-  case invalidParameter
-  case lookupIsEmpty
-}
-
-//enum ClusterCommand: String {
-//  case showNone = ""
-//  case show20 = "show/fdx 20"
-//  case show50 = "show/fdx 50"
-//}
-
-//enum ApplicationCommand {
-//  case none
-//  case clear
-//}
-
 /// Definition of a ClusterSpot
 struct ClusterSpot: Identifiable, Hashable {
 
@@ -59,7 +29,6 @@ struct ClusterSpot: Identifiable, Hashable {
   }
 
   var id: Int //UUID
-  //var secondaryId: Int
   var dxStation: String
   var frequency: String
   var band: Int
@@ -283,6 +252,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
   // mapping
   var maxNumberOfSpots = 100
+  let maxStatusMessages = 200
   let regionRadius: CLLocationDistance = 10000000
   let centerLatitude = 28.282778
   let centerLongitude = -40.829444
@@ -447,7 +417,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     }
 
     DispatchQueue.main.async {
-      if self.statusMessage.count > maxStatusMessages {
+      if self.statusMessage.count > self.maxStatusMessages {
        self.statusMessage.removeFirst()
       }
     }
@@ -618,9 +588,16 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         return
       }
 
+      // if spot already exists, don't add again
+      if displayedSpots.firstIndex(where: { $0.spotter == spot.spotter &&
+        $0.dxStation == spot.dxStation && $0.frequency == spot.frequency
+      }) != nil {
+        return //throw (RequestError.duplicateSpot)
+      }
+
       let asyncSpot = spot
       Task {
-        try await processCompletedSpotEx(spot: asyncSpot)
+        try await processCompletedSpot(spot: asyncSpot)
       }
 
     } catch {
@@ -632,22 +609,19 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
   /// Process the completed cluster spot.
   /// - Parameter spot: ClusterSpot
-  func processCompletedSpotEx(spot: ClusterSpot) async throws {
+  func processCompletedSpot(spot: ClusterSpot) async throws {
     var spot = spot
 
     applyFilters(&spot)
 
     let spots = [spot.spotter, spot.dxStation]
-    try await withThrowingTaskGroup(of: Hit.self) { [unowned self] group in
+
+    return try await withThrowingTaskGroup(of: Hit.self) { [unowned self] group in
       let hitPairs = HitPair()
-      for index in 0..<2 {
+
+      for index in 0..<spots.count {
         group.addTask {
-          do {
           return try await lookupCallSign(call: spots[index])
-          } catch {
-            print("Controller Error: \(error as NSObject)")
-            throw (RequestError.invalidCallSign)
-          }
         }
       }
 
@@ -664,7 +638,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     }
   }
 
-
   /// Build the station information for both calls in the spot.
   /// - Parameters:
   ///   - hitPairs2: HitPair
@@ -674,13 +647,14 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     await withTaskGroup(of: StationInformation.self) { [unowned self] group in
       for index in 0..<2 {
         group.addTask {
-          return await populateStationInformationEx(hit: hitPairs.hits[index],
+          return await populateStationInformation(hit: hitPairs.hits[index],
                                                     spotId: spot.id)
         }
       }
 
       let stationInformationPairs = StationInformationPairs()
       var callSignPairs = [StationInformation]()
+
       for await stationInformation in group {
         callSignPairs = await stationInformationPairs.checkCallSignPair(
           spotId: spot.id, stationInformation: stationInformation)
@@ -711,7 +685,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
   // MARK: - Call Parser Operations
 
-
   /// Use the CallParser to get the information about the call sign.
   /// - Parameter call: String
   /// - Returns: Hit
@@ -735,7 +708,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   ///   - hit: Hit
   ///   - spotId: Int
   /// - Returns: StationInformation
-  func populateStationInformationEx(hit: Hit, spotId: Int) -> StationInformation {
+  func populateStationInformation(hit: Hit, spotId: Int) -> StationInformation {
 
     var stationInformation = StationInformation()
 
@@ -830,6 +803,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
             if spot!.isFiltered == false && spot!.overlayExists == false {
               overlays.append(spot!.overlay)
               print("Overlay added: \(spot!.spotter):\(spot!.dxStation) - 6")
+            } else {
+              print("____________________ DUPLICATE _____________________")
             }
           }
 
