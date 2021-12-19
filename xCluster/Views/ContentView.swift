@@ -14,6 +14,7 @@ import Combine
 struct MapView: NSViewRepresentable {
   typealias MapViewType = NSViewType
   var overlays: [MKPolyline]
+  var annotations: [MKPointAnnotation]
 
   func makeNSView(context: Context) -> MKMapView {
     let mapView = MKMapView()
@@ -24,6 +25,7 @@ struct MapView: NSViewRepresentable {
 
   func updateNSView(_ uiView: MKMapView, context: Context) {
     updateOverlays(from: uiView)
+    updateAnnotations(from: uiView)
   }
 
   // https://medium.com/@mauvazquez/decoding-a-polyline-and-drawing-it-with-swiftui-mapkit-611952bd0ecb
@@ -37,13 +39,21 @@ struct MapView: NSViewRepresentable {
         mapView.addOverlay(overlay)
       } else {
         mapView.removeOverlay(overlay)
-        //print("overlay removed")
       }
-
     }
+  }
 
-    //print("mapview: \(mapView.overlays.count)")
-    //print("overlays: \(overlays.count)")
+  public func updateAnnotations(from mapView: MKMapView) {
+
+    mapView.removeAnnotations(mapView.annotations)
+
+    for annotation in annotations {
+      if annotation.subtitle != "expired" {
+        mapView.addAnnotation(annotation)
+      } else {
+        mapView.removeAnnotation(annotation)
+      }
+    }
   }
 
   func makeCoordinator() -> Coordinator {
@@ -61,7 +71,23 @@ class Coordinator: NSObject, MKMapViewDelegate {
 
   func mapViewDidChangeVisibleRegion(_ mapView: MKMapView) {
     //print(mapView.centerCoordinate)
+  }
 
+  // displays custom pin and callout
+  func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+
+     let Identifier = "2m"
+     let annotationView = mapView.dequeueReusableAnnotationView(withIdentifier: Identifier) ?? MKAnnotationView(annotation: annotation, reuseIdentifier: Identifier)
+
+     annotationView.canShowCallout = true
+     if annotation is MKUserLocation {
+        return nil
+     } else if annotation is MKPointAnnotation {
+        annotationView.image =  NSImage(imageLiteralResourceName: "2m")
+        return annotationView
+     } else {
+        return nil
+     }
   }
 
   func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
@@ -161,7 +187,7 @@ struct ContentView: View {
           //          showsUserLocation: true
           //        ).edgesIgnoringSafeArea(.all)
           // Old version -------------------------
-          MapView(overlays: controller.overlays)
+          MapView(overlays: controller.overlays, annotations: controller.annotations)
             .edgesIgnoringSafeArea(.all)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
           // -------------------------------------

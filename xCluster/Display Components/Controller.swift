@@ -29,6 +29,7 @@ struct ClusterSpot: Identifiable, Hashable {
   }
 
   var id: Int //UUID
+  var id2: Int
   var dxStation: String
   var frequency: String
   var band: Int
@@ -38,10 +39,13 @@ struct ClusterSpot: Identifiable, Hashable {
   var grid: String
   var country: String
   var overlay: MKPolyline!
+  var spotterPin = MKPointAnnotation()
+  var dxPin = MKPointAnnotation()
   var qrzInfoCombinedJSON = ""
   var filterReasons = [FilterReason]()
   var isInvalidSpot = false
   var overlayExists = false
+  var annotationExists = false
 
   private(set) var isFiltered: Bool
 
@@ -62,10 +66,31 @@ struct ClusterSpot: Identifiable, Hashable {
     polyline.subtitle = stationInfoCombined.mode
     //polyline.subtitle = String(id)
 
-    // THIS IS WHY IT DOESN'T WORK - I NEED ID BEFORE THIS HAPPENS
     id = polyline.hashValue
 
     self.overlay = polyline
+  }
+
+  // https://medium.com/macoclock/mapkit-map-pin-and-annotation-5c7d56439c66
+  mutating func createAnnotation(stationInfoCombined: StationInformationCombined) {
+
+    if annotationExists { return }
+
+    let spotterPin = MKPointAnnotation()
+    spotterPin.coordinate = CLLocationCoordinate2D(latitude: stationInfoCombined.spotterLatitude, longitude: stationInfoCombined.spotterLongitude)
+    spotterPin.title = stationInfoCombined.spotterCall
+
+   let dxPin = MKPointAnnotation()
+    dxPin.coordinate = CLLocationCoordinate2D(latitude: stationInfoCombined.dxLatitude, longitude: stationInfoCombined.dxLongitude)
+    dxPin.title = stationInfoCombined.dxCall
+
+    spotterPin.subtitle = stationInfoCombined.spotterCountry
+    dxPin.subtitle = stationInfoCombined.dxCountry
+
+    id2 = spotterPin.hashValue
+
+    self.spotterPin = spotterPin
+    self.dxPin = dxPin
   }
 
   /// Set a specific filter.
@@ -180,6 +205,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   @Published var displayedSpots = [ClusterSpot]()
   @Published var statusMessage = [String]()
   @Published var overlays = [MKPolyline]()
+  @Published var annotations = [MKPointAnnotation]()
 
   @Published var bandFilter = (id: 0, state: false) {
     didSet {
@@ -302,6 +328,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       disconnect()
 
       overlays.removeAll()
+      annotations.removeAll()
       displayedSpots.removeAll()
       bandFilters.keys.forEach { bandFilters[$0] = .isOff }
 
@@ -577,7 +604,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     lastSpotReceivedTime = Date()
 
     do {
-      var spot = ClusterSpot(id: 0, dxStation: "", frequency: "", band: 99, spotter: "",
+      var spot = ClusterSpot(id: 0, id2: 0, dxStation: "", frequency: "", band: 99, spotter: "",
                              timeUTC: "", comment: "", grid: "", country: "", isFiltered: false)
       switch messageType {
       case .spotReceived:
@@ -701,7 +728,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     throw (RequestError.invalidCallSign)
   }
 
-  // MARK: - Populate Station Info and Create Overlays
+  // MARK: - Populate Station Info
 
   /// Populate a StationInformation object with the data from the hit.
   /// - Parameters:
@@ -773,6 +800,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     processCallSignData(stationInformationCombined: stationInformationCombined, spot: spot)
   }
 
+  // MARK: - Create Overlays and Annotations
+
   /// Have the spot create the overlay associated with it.
   /// - Parameters:
   ///   - stationInfoCombined: StationInformationCombined
@@ -784,6 +813,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     logger.info("Create Overlay: \(stationInformationCombined.spotterCall): \(stationInformationCombined.dxCall) - 5")
 
     spot.createOverlay(stationInfoCombined: stationInformationCombined)
+    spot.createAnnotation(stationInfoCombined: stationInformationCombined)
 
     let spot2 = spot
     Task {
@@ -802,6 +832,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
             displayedSpots.insert(spot!, at: 0)
             if spot!.isFiltered == false && spot!.overlayExists == false {
               overlays.append(spot!.overlay)
+              annotations.append(spot!.spotterPin)
+              annotations.append(spot!.dxPin)
               print("Overlay added: \(spot!.spotter):\(spot!.dxStation) - 6")
             } else {
               print("____________________ DUPLICATE _____________________")
@@ -813,6 +845,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
             while displayedSpots.count > maxNumberOfSpots {
               let spot = displayedSpots[displayedSpots.count - 1]
               overlays = overlays.filter({ $0.hashValue != spot.id })
+              annotations = annotations.filter({ $0.hashValue != spot.id2 })
               displayedSpots.removeLast()
             }
 
