@@ -301,8 +301,8 @@ struct StationInformation: Identifiable {
   var lotw = false
   var error = false
   var isInitialized = false
+  var position = "0"
 }
-
 
 /// StationInformation combined for the spotter and dx call.
 struct StationInformationCombined: Codable {
@@ -359,11 +359,13 @@ struct StationInformationCombined: Codable {
 
     // TRY THIS
     // frequency.trimmingCharacters(in: .whitespaces).components(separatedBy: ".")[1]
+    // truncate if more than 3 components ie. 14.074.1
     let prefix = components[0]
+    suffix += components[1]
 
-    for index in 1..<components.count {
-      suffix += components[index]
-    }
+//    for index in 1..<components.count {
+//      suffix += components[index]
+//    }
 
     let result = Float(("\(prefix).\(suffix)"))?.roundTo(places: 4)
 

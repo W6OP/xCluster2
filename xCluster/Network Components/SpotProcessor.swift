@@ -22,7 +22,7 @@ class SpotProcessor {
   /// - Returns: ClusterSpot
   func processRawSpot(rawSpot: String, isTelnet: Bool) throws -> ClusterSpot {
 
-    var spot = ClusterSpot(id: 0, id2: 0, dxStation: "", frequency: "", band: 99, spotter: "",
+    var spot = ClusterSpot(id: 0, id2: 0, id3: 0, dxStation: "", frequency: "", band: 99, spotter: "",
                            timeUTC: "", comment: "", grid: "", country: "", isFiltered: false)
 
     if rawSpot.count < 75 {

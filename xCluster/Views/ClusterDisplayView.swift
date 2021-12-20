@@ -93,7 +93,7 @@ struct SpotRow: View {
           .frame(minWidth: 75, maxWidth: 75, alignment: .leading)
           .padding(.leading, 5)
           .border(width: 1, edges: [.trailing], color: .gray)
-        Text(spot.frequency)
+        Text(spot.formattedFrequency)
           .frame(minWidth: 90, maxWidth: 90, alignment: .leading)
           .border(width: 1, edges: [.trailing], color: .gray)
         Text(spot.spotter)

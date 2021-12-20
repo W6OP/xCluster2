@@ -30,8 +30,10 @@ struct ClusterSpot: Identifiable, Hashable {
 
   var id: Int //UUID
   var id2: Int
+  var id3: Int
   var dxStation: String
   var frequency: String
+  var formattedFrequency = ""
   var band: Int
   var spotter: String
   var timeUTC: String
@@ -78,16 +80,17 @@ struct ClusterSpot: Identifiable, Hashable {
 
     let spotterPin = MKPointAnnotation()
     spotterPin.coordinate = CLLocationCoordinate2D(latitude: stationInfoCombined.spotterLatitude, longitude: stationInfoCombined.spotterLongitude)
-    spotterPin.title = stationInfoCombined.spotterCall
+    spotterPin.title = ("\(stationInfoCombined.spotterCall):\(String(stationInfoCombined.formattedFrequency))")
 
    let dxPin = MKPointAnnotation()
     dxPin.coordinate = CLLocationCoordinate2D(latitude: stationInfoCombined.dxLatitude, longitude: stationInfoCombined.dxLongitude)
-    dxPin.title = stationInfoCombined.dxCall
+    dxPin.title = ("\(stationInfoCombined.dxCall):\(String(stationInfoCombined.formattedFrequency))")
 
     spotterPin.subtitle = stationInfoCombined.spotterCountry
     dxPin.subtitle = stationInfoCombined.dxCountry
 
     id2 = spotterPin.hashValue
+    id3 = dxPin.hashValue
 
     self.spotterPin = spotterPin
     self.dxPin = dxPin
@@ -267,8 +270,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   let callParser = PrefixFileParser()
   var callLookup = CallLookup()
 
-  var callSignLookup: [String: String] = ["call": "", "country": "", "lat": "", "lon": "", "grid": "", "lotw": "0", "aliases": "", "Error": ""]
-
   let callSign = UserDefaults.standard.string(forKey: "callsign") ?? ""
   let fullName = UserDefaults.standard.string(forKey: "fullname") ?? ""
   let location = UserDefaults.standard.string(forKey: "location") ?? ""
@@ -303,7 +304,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   // MARK: - Initialization
 
   init () {
-
     telnetManager.telnetManagerDelegate = self
     webManager.webManagerDelegate = self
 
@@ -604,8 +604,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     lastSpotReceivedTime = Date()
 
     do {
-      var spot = ClusterSpot(id: 0, id2: 0, dxStation: "", frequency: "", band: 99, spotter: "",
-                             timeUTC: "", comment: "", grid: "", country: "", isFiltered: false)
+      var spot: ClusterSpot
+
       switch messageType {
       case .spotReceived:
         spot = try self.spotProcessor.processRawSpot(rawSpot: message, isTelnet: true)
@@ -647,8 +647,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       let hitPairs = HitPair()
 
       for index in 0..<spots.count {
-        group.addTask {
-          return try await lookupCallSign(call: spots[index])
+        group.addTask(priority: .high) {
+          return try await lookupCallSign(call: spots[index], position: index)
         }
       }
 
@@ -715,13 +715,16 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   /// Use the CallParser to get the information about the call sign.
   /// - Parameter call: String
   /// - Returns: Hit
-  func lookupCallSign(call: String) async throws -> Hit {
+  func lookupCallSign(call: String, position: Int) async throws -> Hit {
 
     let hitList: [Hit] = await callLookup.lookupCall(call: call)
     if !hitList.isEmpty {
       // why just the last one?
       // should have CallParser go to QRZ if multiples
-      let hit = hitList[hitList.count - 1]
+      var hit = hitList[hitList.count - 1]
+      // this is temporary, add index field to Hit later to track which
+      //is spotter and which is dx
+      hit.comment = String(position)
       return hit
     }
 
@@ -744,6 +747,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     stationInformation.id = spotId
     stationInformation.call = hit.call
     stationInformation.country = hit.country
+    stationInformation.position = hit.comment
 
     if let latitude = Double(hit.latitude) {
       stationInformation.latitude = latitude
@@ -763,6 +767,17 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     return stationInformation
   }
 
+
+  /// Sort routine so spotter and dx is in correct order
+  /// - Parameter callSignPair: [StationInformation]
+  /// - Returns: [StationInformation]
+  func sortCallSignPair(callSignPair: [StationInformation]) -> [StationInformation] {
+    let callSignPair = callSignPair.sorted {
+      Int($0.position)! < Int($1.position)!
+    }
+    return callSignPair
+  }
+
   /// Combine the CallParser information.
   /// - Parameters:
   ///   - spot: ClusterSpot
@@ -770,6 +785,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   func combineHitInformation(spot: ClusterSpot, callSignPair: [StationInformation]) {
 
     logger.info("combineHitInformation: \(callSignPair[0].call): \(callSignPair[1].call) - 4")
+
+    // need to sort here so spotter and dx is in correct order
+    let callSignPair = sortCallSignPair(callSignPair: callSignPair)
 
     var stationInformationCombined = StationInformationCombined()
 
@@ -782,6 +800,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     stationInformationCombined.spotterGrid = callSignPair[0].grid
     stationInformationCombined.spotterLotw = callSignPair[0].lotw
     stationInformationCombined.error = callSignPair[0].error
+    //print("Index: \(callSignPair[0].position)")
 
     stationInformationCombined.dxCall = callSignPair[1].call
     stationInformationCombined.dxCountry = callSignPair[1].country
@@ -792,10 +811,12 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     if !stationInformationCombined.error {
       stationInformationCombined.error = callSignPair[1].error
     }
+    //print("Index: \(callSignPair[1].position)")
 
     // used in the ListView for display
     var spot = spot
     spot.country = stationInformationCombined.dxCountry
+    spot.formattedFrequency = String(stationInformationCombined.formattedFrequency)
 
     processCallSignData(stationInformationCombined: stationInformationCombined, spot: spot)
   }
@@ -846,6 +867,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
               let spot = displayedSpots[displayedSpots.count - 1]
               overlays = overlays.filter({ $0.hashValue != spot.id })
               annotations = annotations.filter({ $0.hashValue != spot.id2 })
+              annotations = annotations.filter({ $0.hashValue != spot.id3 })
               displayedSpots.removeLast()
             }
 
@@ -1063,7 +1085,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     DispatchQueue.main.async { [self] in
       for spot in displayedSpots {
         if spot.isFiltered == false {
-          // if overlays.first(where: {$0.subtitle == spot.id.uuidString}) == nil {
           if overlays.first(where: {$0.hashValue == spot.id}) == nil {
             overlays.append(spot.overlay!)
           }
