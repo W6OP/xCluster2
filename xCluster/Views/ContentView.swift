@@ -147,7 +147,6 @@ struct ContentView: View {
   // --------------------------------
 
   var body: some View {
-
     HStack {
       // MARK: - Main Mapping Container
       VStack {
@@ -161,7 +160,9 @@ struct ContentView: View {
           }
           .padding(.top, 5)
           .padding(.leading, 5)
+
             Divider()
+
             Button(action: {self.showPreferences.toggle()}) {
               Text("Settings")
             }
@@ -171,6 +172,15 @@ struct ContentView: View {
             return PreferencesView()
             }
           }
+
+          Divider()
+
+          Button("QRZ Logon") {
+            controller.qrzLogon(userId: userSettings.username, password: userSettings.password)
+        }
+          .padding(.top, 4)
+          .padding(.leading, 4)
+
           ButtonBarView(controller: controller, clusters: clusters, modes: modes, bands: bands)
         }
         .padding(.top, -2).padding(.bottom, 2)

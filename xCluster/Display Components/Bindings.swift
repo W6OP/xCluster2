@@ -50,18 +50,18 @@ struct BandIdentifier: Identifiable, Hashable {
 }
 
 let bandData = [
-    BandIdentifier(band: "All", id: 0, isSelected: true),
-    BandIdentifier(band: "160m", id: 160, isSelected: true),
-    BandIdentifier(band: "80m", id: 80, isSelected: true),
-    BandIdentifier(band: "60m", id: 60, isSelected: true),
-    BandIdentifier(band: "40m", id: 40, isSelected: true),
-    BandIdentifier(band: "30m", id: 30, isSelected: true),
-    BandIdentifier(band: "20m", id: 20, isSelected: true),
-    BandIdentifier(band: "17m", id: 17, isSelected: true),
-    BandIdentifier(band: "15m", id: 15, isSelected: true),
-    BandIdentifier(band: "12m", id: 12, isSelected: true),
-    BandIdentifier(band: "10m", id: 10, isSelected: true),
-    BandIdentifier(band: "6m", id: 6, isSelected: true)
+    BandIdentifier(band: "All", id: 0, isSelected: false),
+    BandIdentifier(band: "160m", id: 160, isSelected: false),
+    BandIdentifier(band: "80m", id: 80, isSelected: false),
+    BandIdentifier(band: "60m", id: 60, isSelected: false),
+    BandIdentifier(band: "40m", id: 40, isSelected: false),
+    BandIdentifier(band: "30m", id: 30, isSelected: false),
+    BandIdentifier(band: "20m", id: 20, isSelected: false),
+    BandIdentifier(band: "17m", id: 17, isSelected: false),
+    BandIdentifier(band: "15m", id: 15, isSelected: false),
+    BandIdentifier(band: "12m", id: 12, isSelected: false),
+    BandIdentifier(band: "10m", id: 10, isSelected: false),
+    BandIdentifier(band: "6m", id: 6, isSelected: false)
 ]
 
 // MARK: - Mode Definition
@@ -97,6 +97,10 @@ let spotsData = [
 
 // MARK: - Cluster Definition
 
+enum ClusterRestraint {
+  case rbn
+  case none
+}
 
 /// Struct that identifies the cluster and protocol.
 /// Includes the cluster address and port.
@@ -106,52 +110,61 @@ struct ClusterIdentifier: Identifiable, Hashable {
   var address: String
   var port: String
   var clusterProtocol: ClusterProtocol
+  var retraint: ClusterRestraint
 }
 
+//let htmlData = [
+//  ClusterIdentifier(id: 200, name: "DXSummit", address: "http://www.dxsummit.fi/text/dx25.html",
+//                    port: "80", clusterProtocol: ClusterProtocol.html, retraint: .none),
+//  ClusterIdentifier(id: 201, name: "QRZ.com", address: "https://www.qrz.com/dxcluster",
+//                                   port: "80", clusterProtocol: ClusterProtocol.html, retraint: .none)
+//]
+// https://www.qrz.com/dxcluster
+
 let clusterData = [
-  ClusterIdentifier(id: 9999, name: "Select DX Spider Node", address: "",
-                    port: "", clusterProtocol: ClusterProtocol.none),
+  ClusterIdentifier(id: 9999, name: "Select Cluster", address: "",
+                    port: "", clusterProtocol: ClusterProtocol.none, retraint: .none),
   ClusterIdentifier(id: 0, name: "WW1R_9", address: "dxc.ww1r.com",
-                    port: "7300", clusterProtocol: ClusterProtocol.telnet),
+                    port: "7300", clusterProtocol: ClusterProtocol.telnet, retraint: .none),
   ClusterIdentifier(id: 1, name: "VE7CC", address: "dxc.ve7cc.net",
-                    port: "23", clusterProtocol: ClusterProtocol.telnet),
-  ClusterIdentifier(id: 2, name: "dxc_middlebrook_ca", address: "dxc.middlebrook.ca",
-                    port: "8000", clusterProtocol: ClusterProtocol.telnet),
+                    port: "23", clusterProtocol: ClusterProtocol.telnet, retraint: .none),
+  ClusterIdentifier(id: 2, name: "VE6DXC", address: "dxc.middlebrook.ca",
+                    port: "8000", clusterProtocol: ClusterProtocol.telnet, retraint: .none),
   ClusterIdentifier(id: 3, name: "WA9PIE", address: "dxc.wa9pie.net",
-                    port: "8000", clusterProtocol: ClusterProtocol.telnet),
+                    port: "8000", clusterProtocol: ClusterProtocol.telnet, retraint: .none),
   ClusterIdentifier(id: 4, name: "WA9PIE-2", address: "hrd.wa9pie.net",
-                    port: "8000", clusterProtocol: ClusterProtocol.telnet),
+                    port: "8000", clusterProtocol: ClusterProtocol.telnet, retraint: .none),
   ClusterIdentifier(id: 5, name: "AE5E", address: "dxspots.com",
-                    port: "23", clusterProtocol: ClusterProtocol.telnet),
+                    port: "23", clusterProtocol: ClusterProtocol.telnet, retraint: .none),
   ClusterIdentifier(id: 6, name: "W6CUA", address: "w6cua.no-ip.org",
-                    port: "7300", clusterProtocol: ClusterProtocol.telnet),
+                    port: "7300", clusterProtocol: ClusterProtocol.telnet, retraint: .none),
   ClusterIdentifier(id: 7, name: "W6KK", address: "w6kk.zapto.org",
-                    port: "7300", clusterProtocol: ClusterProtocol.telnet),
+                    port: "7300", clusterProtocol: ClusterProtocol.telnet, retraint: .none),
   ClusterIdentifier(id: 8, name: "N5UXT", address: "dxc.n5uxt.org",
-                    port: "23", clusterProtocol: ClusterProtocol.telnet),
+                    port: "23", clusterProtocol: ClusterProtocol.telnet, retraint: .none),
   ClusterIdentifier(id: 9, name: "GB7DXS", address: "81.149.0.149",
-                    port: "7300", clusterProtocol: ClusterProtocol.telnet),
+                    port: "7300", clusterProtocol: ClusterProtocol.telnet, retraint: .none),
   ClusterIdentifier(id: 10, name: "K1TTT", address: "k1ttt.net",
-                    port: "7373", clusterProtocol: ClusterProtocol.telnet),
+                    port: "7373", clusterProtocol: ClusterProtocol.telnet, retraint: .none),
   ClusterIdentifier(id: 11, name: "K0XM-5", address: "dxc.k0xm.net",
-                    port: "7300", clusterProtocol: ClusterProtocol.telnet),
+                    port: "7300", clusterProtocol: ClusterProtocol.telnet, retraint: .none),
   ClusterIdentifier(id: 12, name: "K1RFI", address: "k1rfi.com",
-                    port: "7300", clusterProtocol: ClusterProtocol.telnet),
+                    port: "7300", clusterProtocol: ClusterProtocol.telnet, retraint: .none),
   ClusterIdentifier(id: 13, name: "K1SA", address: "sebago.ddns.net",
-                    port: "7373", clusterProtocol: ClusterProtocol.telnet),
+                    port: "7373", clusterProtocol: ClusterProtocol.telnet, retraint: .none),
   ClusterIdentifier(id: 14, name: "K4UJ-1", address: "cluster-eu.dx-is.com",
-                    port: "7300", clusterProtocol: ClusterProtocol.telnet),
+                    port: "7300", clusterProtocol: ClusterProtocol.telnet, retraint: .none),
 //VA3MW  va3mw.dxcluster.net  41112
 
     // telnet.reversebeacon.net port 7001, for FT8 spots
   ClusterIdentifier(id: 99, name: "FT8 RBN", address: "telnet.reversebeacon.net",
-                    port: "7001", clusterProtocol: ClusterProtocol.telnet),
+                    port: "7001", clusterProtocol: ClusterProtocol.telnet, retraint: .rbn),
     // telnet.reversebeacon.net port 7000, for CW and RTTY spots
   ClusterIdentifier(id: 100, name: "CW/RTTY", address: "telnet.reversebeacon.net",
-                    port: "7000", clusterProtocol: ClusterProtocol.telnet),
+                    port: "7000", clusterProtocol: ClusterProtocol.telnet, retraint: .rbn),
 
   ClusterIdentifier(id: 200, name: "DXSummit", address: "http://www.dxsummit.fi/text/dx25.html",
-                    port: "80", clusterProtocol: ClusterProtocol.html)
+                    port: "80", clusterProtocol: ClusterProtocol.html, retraint: .none)
 ]
 
 /**

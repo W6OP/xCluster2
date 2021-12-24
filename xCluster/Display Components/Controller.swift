@@ -218,16 +218,16 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
   @Published var modeFilter = (id: 0, state: false) {
     didSet {
-      setModeButtons(mode: modeFilter.id, state: modeFilter.state)
+      //setModeButtons(mode: modeFilter.id, state: modeFilter.state)
     }
   }
 
   @Published var connectedCluster = ClusterIdentifier(id: 9999,
-                                                      name: "Select DX Spider Node",
+                                                      name: "Select Cluster",
                                                       address: "",
                                                       port: "",
                                                       clusterProtocol:
-                                                        ClusterProtocol.none) {
+                                                        ClusterProtocol.none, retraint: .none) {
     didSet {
       print("controller id: \(connectedCluster.id), name: \(connectedCluster.name)")
       if !connectedCluster.address.isEmpty {
@@ -308,7 +308,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     webManager.webManagerDelegate = self
 
     // initialize the Call Parser
-    callLookup = CallLookup(prefixFileParser: callParser)
+    callLookup = CallLookup(prefixFileParser: callParser) // , qrzUserName, qrzPassword
 
     keepAliveTimer = Timer.scheduledTimer(timeInterval: TimeInterval(keepAliveInterval),
                                           target: self, selector: #selector(tickleServer), userInfo: nil, repeats: true)
@@ -339,6 +339,12 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
           await webManager.connectAsync(cluster: connectedCluster)
         }
       } else {
+        // don't use QRZ.com for RBNs
+        if cluster.retraint == .rbn {
+          callLookup.useCallParserOnly = true
+        } else {
+          callLookup.useCallParserOnly = false
+        }
         telnetManager.connect(cluster: cluster)
       }
     }
@@ -712,12 +718,23 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
   // MARK: - Call Parser Operations
 
+  // TODO: feedback to user logon was successful
+
+  /// Logon to QRZ.com
+  /// - Parameters:
+  ///   - userId: String
+  ///   - password: String
+  func qrzLogon(userId: String, password: String) {
+    callLookup.logonToQrz(userId: userId, password: password)
+  }
+
   /// Use the CallParser to get the information about the call sign.
   /// - Parameter call: String
   /// - Returns: Hit
   func lookupCallSign(call: String, position: Int) async throws -> Hit {
 
-    let hitList: [Hit] = await callLookup.lookupCall(call: call)
+    // TODO: - handle error
+    let hitList: [Hit] = try! await callLookup.lookupCall(call: call)
     if !hitList.isEmpty {
       // why just the last one?
       // should have CallParser go to QRZ if multiples
@@ -855,7 +872,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
               overlays.append(spot!.overlay)
               annotations.append(spot!.spotterPin)
               annotations.append(spot!.dxPin)
-              print("Overlay added: \(spot!.spotter):\(spot!.dxStation) - 6")
+              //print("Overlay added: \(spot!.spotter):\(spot!.dxStation) - 6")
             } else {
               print("____________________ DUPLICATE _____________________")
             }
@@ -1028,6 +1045,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     }
 
     updateSpotBandFilterState(band: band, filterState: state)
+    filterAnnotations()
     filterOverlays()
   }
 
@@ -1063,20 +1081,20 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
   // MARK: - Filter Modes
 
-  func setModeButtons(mode: Int, state: Bool) {
-
-    switch state {
-    case true:
-      modeFilters[Int(mode)] = .isOn
-    default:
-      modeFilters[Int(mode)] = .isOff
-      break;
-    }
-
-    //updateSpotModeFilterState(mode: mode, filterState: state)
-    filterOverlays()
-
-  }
+//  func setModeButtons(mode: Int, state: Bool) {
+//
+//    switch state {
+//    case true:
+//      modeFilters[Int(mode)] = .isOn
+//    default:
+//      modeFilters[Int(mode)] = .isOff
+//      break;
+//    }
+//
+//    //updateSpotModeFilterState(mode: mode, filterState: state)
+//    filterOverlays()
+//    filterAnnotations()
+//  }
 
   // MARK: - Filter Overlays
 
@@ -1090,6 +1108,24 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
           }
         } else {
           overlays = overlays.filter({ $0.hashValue != spot.id })
+        }
+      }
+    }
+  }
+
+  func filterAnnotations() {
+    DispatchQueue.main.async { [self] in
+      for spot in displayedSpots {
+        if spot.isFiltered == false {
+          if annotations.first(where: {$0.hashValue == spot.id2}) == nil {
+            annotations.append(spot.spotterPin)
+            annotations.append(spot.dxPin)
+          }
+        } else {
+          print("Before: \(annotations.count)")
+          annotations = annotations.filter({ $0.hashValue != spot.id2 })
+          annotations = annotations.filter({ $0.hashValue != spot.id3 })
+          print("After: \(annotations.count)")
         }
       }
     }
