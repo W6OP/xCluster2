@@ -29,8 +29,8 @@ struct ClusterSpot: Identifiable, Hashable {
   }
 
   var id: Int //UUID
-  var id2: Int
-  var id3: Int
+  var spotterPinId: Int // spotterPin.hashValue
+  var dxPinId: Int // dxPin.hashValue
   var dxStation: String
   var frequency: String
   var formattedFrequency = ""
@@ -89,8 +89,8 @@ struct ClusterSpot: Identifiable, Hashable {
     spotterPin.subtitle = stationInfoCombined.spotterCountry
     dxPin.subtitle = stationInfoCombined.dxCountry
 
-    id2 = spotterPin.hashValue
-    id3 = dxPin.hashValue
+    spotterPinId = spotterPin.hashValue
+    dxPinId = dxPin.hashValue
 
     self.spotterPin = spotterPin
     self.dxPin = dxPin
@@ -191,6 +191,76 @@ actor HitPair {
   func addHit(hit: Hit) {
     hits.append(hit)
   }
+
+  func addHits(hits: [Hit]) {
+    self.hits.append(contentsOf: hits)
+  }
+
+//  func checkHitId(hitId: Int) -> Bool {
+//
+//  }
+}
+
+
+/// Temporary storage of Hits to match up with temporarily
+/// stored ClusterSpots.
+actor HitCache {
+  var hits: [Hit] = []
+
+  func addHit(hit: Hit) {
+    hits.append(hit)
+  }
+
+  func removeHit(hit: Hit) {
+    hits = hits.filter({$0.spotId != hit.spotId})
+  }
+
+  // should remove 2 hits
+  func removeHits(spotId: Int) {
+    hits = hits.filter({$0.spotId != spotId})
+  }
+
+  func retrieveHits() -> [Hit] {
+    return hits
+  }
+
+  func retrieveHit(spotId: Int) -> [Hit] {
+    return hits.filter({$0.spotId == spotId})
+  }
+
+  func clear() {
+    hits.removeAll()
+  }
+}
+
+
+/// Temporary storage of ClusterSpots to match with returned
+/// hits form the Call Parser
+actor SpotCache {
+  var spots: [ClusterSpot] = []
+
+  func addSpot(spot: ClusterSpot) {
+    //print("add spot to cache: \(spot.id)")
+    spots.append(spot)
+  }
+
+  func removeSpot(spotId: Int) {
+    //print("remove spot from cache: \(spotId)")
+    spots = spots.filter({$0.id != spotId})
+  }
+
+  // why can't I return a single spot
+  func retrieveSpot(spotId: Int) -> ClusterSpot {
+    return spots.filter({$0.id == spotId}).first!
+  }
+
+  func retrieveSpotCount() -> Int {
+    return spots.count
+  }
+
+  func clear() {
+    spots.removeAll()
+  }
 }
 
 // MARK: - Controller Class
@@ -266,10 +336,14 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   var spotProcessor = SpotProcessor()
   var webManager = WebManager()
 
+  var hitsCache = HitCache()
+  var spotCache = SpotCache()
+
   // Call Parser
   let callParser = PrefixFileParser()
   var callLookup = CallLookup()
 
+  // QRZ.com
   let callSign = UserDefaults.standard.string(forKey: "callsign") ?? ""
   let fullName = UserDefaults.standard.string(forKey: "fullname") ?? ""
   let location = UserDefaults.standard.string(forKey: "location") ?? ""
@@ -298,6 +372,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   var modeFilters = [ 1: ModeFilterState.isOff, 2: ModeFilterState.isOff, 3: ModeFilterState.isOff]
 
   var callFilter = ""
+  var activeCluster: ClusterIdentifier!
 
   var lastSpotReceivedTime = Date()
 
@@ -315,6 +390,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
     webRefreshTimer = Timer.scheduledTimer(timeInterval: TimeInterval(dxSummitRefreshInterval),
                                            target: self, selector: #selector(refreshWeb), userInfo: nil, repeats: true)
+
+    setupCallback()
   }
 
   // MARK: - Connect and Disconnect
@@ -322,10 +399,13 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   /// Connect to a specified cluster. If already connected then
   /// disconnect from the connected cluster first.
   /// - Parameter clusterName: String
-  func  connect(cluster: ClusterIdentifier) {
+  func connect(cluster: ClusterIdentifier) {
 
     if connectedCluster.id != 9999 {
-      disconnect()
+
+      if activeCluster != nil {
+        disconnect(activeCluster: activeCluster)
+      }
 
       overlays.removeAll()
       annotations.removeAll()
@@ -336,7 +416,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
       if cluster.clusterProtocol == ClusterProtocol.html {
         Task {
-          await webManager.connectAsync(cluster: connectedCluster)
+          await webManager.connectAsync(cluster: cluster)
         }
       } else {
         // don't use QRZ.com for RBNs
@@ -347,13 +427,16 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         }
         telnetManager.connect(cluster: cluster)
       }
+      activeCluster = cluster
     }
   }
 
   /// Disconnect on cluster change or application termination.
   /// Send a signal to clear the existing status message.
-  func disconnect() {
-    if connectedCluster.clusterProtocol == ClusterProtocol.telnet {
+  func disconnect(activeCluster: ClusterIdentifier) {
+    guard activeCluster.id != 9999 else { return }
+
+    if activeCluster.clusterProtocol == ClusterProtocol.telnet {
       telnetManager.disconnect()
     }
 
@@ -368,7 +451,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
     logger.info("Reconnection attempt.")
 
-    disconnect()
+    disconnect(activeCluster: activeCluster)
 
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [self] in
       reconnect()
@@ -382,7 +465,11 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
     switch messageKey {
     case.htmlSpotReceived:
-      parseClusterSpot(message: message, messageType: messageKey)
+      do {
+      try parseClusterSpot(message: message, messageType: messageKey)
+      } catch {
+        logger.info("Duplicate spot received \(messageKey.rawValue) : \(message)")
+      }
     default:
       logger.info("Invalid message type \(messageKey.rawValue) : \(message)")
     }
@@ -491,11 +578,20 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       }
 
     case .spotReceived:
-      parseClusterSpot(message: message, messageType: messageKey)
+      do {
+      try parseClusterSpot(message: message, messageType: messageKey)
+      } catch {
+        logger.info("Duplicate spot received \(messageKey.rawValue) : \(message)")
+      }
+      //parseClusterSpot(message: message, messageType: messageKey)
 
     case .showDxSpots:
-      parseClusterSpot(message: message, messageType: messageKey)
-
+      //parseClusterSpot(message: message, messageType: messageKey)
+      do {
+      try parseClusterSpot(message: message, messageType: messageKey)
+      } catch {
+        logger.info("Duplicate spot received \(messageKey.rawValue) : \(message)")
+      }
     default:
       break
     }
@@ -514,6 +610,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     case .clear:
       Task {
         await MainActor.run {
+        annotations.removeAll()
         overlays.removeAll()
         displayedSpots.removeAll()
         }
@@ -605,7 +702,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   /// - Parameters:
   ///   - message: String
   ///   - messageType: NetworkMessage
-  func parseClusterSpot(message: String, messageType: NetworkMessage) {
+  func parseClusterSpot(message: String, messageType: NetworkMessage) throws {
 
     lastSpotReceivedTime = Date()
 
@@ -625,12 +722,12 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       if displayedSpots.firstIndex(where: { $0.spotter == spot.spotter &&
         $0.dxStation == spot.dxStation && $0.frequency == spot.frequency
       }) != nil {
-        return //throw (RequestError.duplicateSpot)
+        throw (RequestError.duplicateSpot)
       }
 
       let asyncSpot = spot
       Task {
-        try await processCompletedSpot(spot: asyncSpot)
+        try await lookupCompletedSpotEx(spot: asyncSpot)
       }
 
     } catch {
@@ -640,36 +737,177 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     }
   }
 
-  /// Process the completed cluster spot.
-  /// - Parameter spot: ClusterSpot
-  func processCompletedSpot(spot: ClusterSpot) async throws {
+//  func lookupCompletedSpot(spot: ClusterSpot) async throws {
+//    var spot = spot
+//
+//    applyFilters(&spot)
+//
+//    let spots = [spot.spotter, spot.dxStation]
+//
+//    return try await withThrowingTaskGroup(of: Hit.self) { [unowned self] hits in
+//      let hitPairs = HitPair()
+//
+//      for index in 0..<spots.count {
+//        hits.addTask(priority: .high) {
+//          // the "return" puts the response in "group"
+//          //return try await lookupCallSign(call: spots[index], position: index)
+//          return try await lookupCallSign(call: spots[index], position: index)
+//        }
+//      }
+//
+//      for try await hit in hits {
+//        await hitPairs.addHit(hit: hit)
+//      }
+//
+//      if await hitPairs.hits.count == 2 {
+//        await processStationInformation(hitPairs: hitPairs, spot: spot)
+//      } else {
+//        print("Failed: \(spot.spotter):\(spot.dxStation)")
+//        throw (RequestError.invalidCallSign)
+//      }
+//    }
+//  }
+
+  func lookupCompletedSpotEx(spot: ClusterSpot) async throws {
     var spot = spot
 
     applyFilters(&spot)
 
-    let spots = [spot.spotter, spot.dxStation]
+    await spotCache.addSpot(spot: spot)
 
-    return try await withThrowingTaskGroup(of: Hit.self) { [unowned self] group in
-      let hitPairs = HitPair()
+    let asyncSpot = spot
+    let callSigns = [asyncSpot.spotter, asyncSpot.dxStation]
+    //print("Input: \(asyncSpot.spotter):\(asyncSpot.dxStation)")
 
-      for index in 0..<spots.count {
-        group.addTask(priority: .high) {
-          return try await lookupCallSign(call: spots[index], position: index)
+    await withTaskGroup(of: Void.self) { [unowned self] group in
+      for index in 0..<callSigns.count {
+        group.addTask() {
+          callLookup.lookupCall(call: callSigns[index], spotInformation: (spotId: asyncSpot.id, sequence: index))
         }
-      }
-
-      for try await hit in group {
-        await hitPairs.addHit(hit: hit)
-      }
-
-      if await hitPairs.hits.count == 2 {
-        await processStationInformation(hitPairs: hitPairs, spot: spot)
-      } else {
-        print("Failed: \(spot.spotter):\(spot.dxStation)")
-        throw (RequestError.invalidCallSign)
       }
     }
   }
+
+  // have a collection of hits but keep adding and removing
+//  func setupCallback() {
+//
+//    callLookup.didUpdate = { [self] hitList in
+//      if !hitList!.isEmpty {
+//        Task {
+//          let hit = hitList![hitList!.count - 1]
+//          await processHits(hit: hit, spotId: hit.spotId)
+//          await processSpots(spotId: hit.spotId)
+//
+//
+//            //await self.processStationInformation(hitPairs: hitPair, spot: spot)
+//            print("10")
+//            await spotCache.removeSpot(spotId: hit.spotId)
+//            print("11")
+//
+//
+//        }
+//
+//        // this falls through before the Task
+//
+//      }
+//    }
+//  }
+
+//  func processSpots(spotId: Int) async {
+//  await withTaskGroup(of: Void.self) { [unowned self] hits in
+//    for _ in 0..<1 {
+//      let spot = await spotCache.retrieveSpot(spotId: spotId)
+//    }
+//  }
+//}
+
+//  func processHits(hit: Hit, spotId: Int) async {
+//    await withTaskGroup(of: Void.self) { [unowned self] hits in
+//      for _ in 0..<1 {
+//        hits.addTask() {
+//          await hitsCache.addHit(hit: hit)
+//          let hits = await hitsCache.retrieveHit(spotId: hit.spotId)
+//          if hits.count > 1 {
+//            await hitsCache.removeHits(spotId: hit.spotId)
+//            let hitPair = HitPair()
+//            await hitPair.addHits(hits: hits)
+//            await self.processStationInformation(hitPairs: hitPair, spot: spot)
+//          }
+//        }
+//      }
+//    }
+//
+//  }
+
+
+   func setupCallback() {
+
+     callLookup.didUpdate = { [self] hitList in
+
+       if !hitList!.isEmpty {
+         Task {
+
+           async let hit = hitList![hitList!.count - 1]
+           await hitsCache.addHit(hit: hit)
+
+           let hits = await hitsCache.retrieveHit(spotId: hit.spotId)
+           if hits.count > 1 {
+             print("Output: \(hits[0].call):\(hits[1].call):\(hits.count)")
+           }
+
+           if hits.count > 1 {
+             await hitsCache.removeHits(spotId: hits[0].spotId)
+
+             async let hitPair = HitPair()
+             await hitPair.addHits(hits: hits)
+             //print("Output: \(hits[0].call):\(hits[1].call)")
+             // TODO: - need to clear hit and spot cache on cluster switch
+             print("Retrieving Spot: \(hits[0].spotId)")
+             let spot = await spotCache.retrieveSpot(spotId: hit.spotId)
+             print("Retrieved Spot: \(spot.id)")
+             await processSpot(hitPair: hitPair, spot: spot)
+           }
+         }
+         // this falls through before the Task completes
+         //print("fall through")
+       }
+     }
+   }
+
+
+  func processSpot(hitPair: HitPair, spot: ClusterSpot) async {
+
+    await self.processStationInformation(hitPairs: hitPair, spot: spot)
+    print("Removing Spot: \(spot.id)")
+    await spotCache.removeSpot(spotId: spot.id)
+    print("Removed Spot: \(spot.id)")
+  }
+
+  /// Use the CallParser to get the information about the call sign.
+  /// - Parameter call: String
+  /// - Returns: Hit
+//  func lookupCallSign(call: String, position: Int) async throws -> Hit{
+//
+//    var hit: Hit!
+//
+//    callLookup.lookupCall(call: call)
+//
+//    callLookup.didUpdate = { hitList in
+//      print("callback fired")
+//      //print("hitList: \(String(describing: hitList?.count))")
+//      if !hitList!.isEmpty {
+//        if hitList!.count > 1 {
+//        for item in hitList! {
+//          print("\(item.call)")
+//          hit = item
+//          hit.sequence = position
+//        }
+//        }
+//      }
+//    }
+//    return hit
+//
+//  }
 
   /// Build the station information for both calls in the spot.
   /// - Parameters:
@@ -719,7 +957,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   // MARK: - Call Parser Operations
 
   // TODO: feedback to user logon was successful
-
   /// Logon to QRZ.com
   /// - Parameters:
   ///   - userId: String
@@ -731,22 +968,27 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   /// Use the CallParser to get the information about the call sign.
   /// - Parameter call: String
   /// - Returns: Hit
-  func lookupCallSign(call: String, position: Int) async throws -> Hit {
-
-    // TODO: - handle error
-    let hitList: [Hit] = try! await callLookup.lookupCall(call: call)
-    if !hitList.isEmpty {
-      // why just the last one?
-      // should have CallParser go to QRZ if multiples
-      var hit = hitList[hitList.count - 1]
-      // this is temporary, add index field to Hit later to track which
-      //is spotter and which is dx
-      hit.comment = String(position)
-      return hit
-    }
-
-    throw (RequestError.invalidCallSign)
-  }
+//  func lookupCallSign(call: String, position: Int) async throws -> Hit {
+//
+//    // TODO: - handle error
+//    do {
+//    let hitList: [Hit] = try callLookup.lookupCall(call: call)
+//      //print("hits - 2: \(callLookup.publishedHitList)")
+//      if !hitList.isEmpty {
+//        // why just the last one?
+//        // should have CallParser go to QRZ if multiples
+//        var hit = hitList[hitList.count - 1]
+//        hit.position = position
+//        return hit
+//      } else {
+//        print("Call not found: \(call)")
+//        throw (RequestError.invalidCallSign)
+//      }
+//    } catch {
+//      print("Error: \(error.localizedDescription)")
+//      throw (RequestError.lookupIsEmpty)
+//    }
+//  }
 
   // MARK: - Populate Station Info
 
@@ -764,10 +1006,12 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     stationInformation.id = spotId
     stationInformation.call = hit.call
     stationInformation.country = hit.country
-    stationInformation.position = hit.comment
+    stationInformation.position = hit.sequence
 
     if let latitude = Double(hit.latitude) {
       stationInformation.latitude = latitude
+    } else {
+      print("Lat: \(hit.latitude)")
     }
 
     if let longitude = Double(hit.longitude) {
@@ -790,7 +1034,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   /// - Returns: [StationInformation]
   func sortCallSignPair(callSignPair: [StationInformation]) -> [StationInformation] {
     let callSignPair = callSignPair.sorted {
-      Int($0.position)! < Int($1.position)!
+      $0.position < $1.position
     }
     return callSignPair
   }
@@ -835,7 +1079,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     spot.country = stationInformationCombined.dxCountry
     spot.formattedFrequency = String(stationInformationCombined.formattedFrequency)
 
-    processCallSignData(stationInformationCombined: stationInformationCombined, spot: spot)
+    processCallSignData(stationInformationCombined:
+                          stationInformationCombined, spot: spot)
   }
 
   // MARK: - Create Overlays and Annotations
@@ -844,7 +1089,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   /// - Parameters:
   ///   - stationInfoCombined: StationInformationCombined
   ///   - spot: ClusterSpot
-  func processCallSignData(stationInformationCombined: StationInformationCombined, spot: ClusterSpot) {
+  func processCallSignData(stationInformationCombined:
+                           StationInformationCombined,
+                           spot: ClusterSpot) {
     // need to make spot mutable
     var spot = spot
 
@@ -879,16 +1126,16 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
           }
 
           if displayedSpots.count > maxNumberOfSpots {
-            print("Overlays before: \(overlays.count):\(displayedSpots.count)")
+            //print("Overlays before: \(overlays.count):\(displayedSpots.count)")
             while displayedSpots.count > maxNumberOfSpots {
               let spot = displayedSpots[displayedSpots.count - 1]
               overlays = overlays.filter({ $0.hashValue != spot.id })
-              annotations = annotations.filter({ $0.hashValue != spot.id2 })
-              annotations = annotations.filter({ $0.hashValue != spot.id3 })
+              annotations = annotations.filter({ $0.hashValue != spot.spotterPinId })
+              annotations = annotations.filter({ $0.hashValue != spot.dxPinId })
               displayedSpots.removeLast()
             }
 
-            print("Overlays after: \(overlays.count):\(displayedSpots.count)")
+            //print("Overlays after: \(overlays.count):\(displayedSpots.count)")
           }
         }
     }
@@ -1117,14 +1364,14 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     DispatchQueue.main.async { [self] in
       for spot in displayedSpots {
         if spot.isFiltered == false {
-          if annotations.first(where: {$0.hashValue == spot.id2}) == nil {
+          if annotations.first(where: {$0.hashValue == spot.spotterPinId}) == nil {
             annotations.append(spot.spotterPin)
             annotations.append(spot.dxPin)
           }
         } else {
           print("Before: \(annotations.count)")
-          annotations = annotations.filter({ $0.hashValue != spot.id2 })
-          annotations = annotations.filter({ $0.hashValue != spot.id3 })
+          annotations = annotations.filter({ $0.hashValue != spot.spotterPinId })
+          annotations = annotations.filter({ $0.hashValue != spot.dxPinId })
           print("After: \(annotations.count)")
         }
       }
@@ -1157,7 +1404,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     if minutesBetweenDates(lastSpotReceivedTime, Date()) > 15 {
       _ = printDateTime(message: "Reconnecting - Last spot received: \(lastSpotReceivedTime) - Time now: ")
 
-      disconnect()
+      disconnect(activeCluster: activeCluster)
       DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [self] in
         reconnect()
       }

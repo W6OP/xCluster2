@@ -191,6 +191,9 @@ class TelnetManager {
 
   /// Disconnect from the telnet session and break the connection.
   func disconnect() {
+
+    logger.info("Disconnect from: \(self.connectedHost.name)")
+
     if connected && clusterType != .html {
       send("bye", commandType: .ignore)
       connection.cancel()

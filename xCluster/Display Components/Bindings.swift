@@ -160,7 +160,7 @@ let clusterData = [
   ClusterIdentifier(id: 99, name: "FT8 RBN", address: "telnet.reversebeacon.net",
                     port: "7001", clusterProtocol: ClusterProtocol.telnet, retraint: .rbn),
     // telnet.reversebeacon.net port 7000, for CW and RTTY spots
-  ClusterIdentifier(id: 100, name: "CW/RTTY", address: "telnet.reversebeacon.net",
+  ClusterIdentifier(id: 100, name: "CW/RTTY RBN", address: "telnet.reversebeacon.net",
                     port: "7000", clusterProtocol: ClusterProtocol.telnet, retraint: .rbn),
 
   ClusterIdentifier(id: 200, name: "DXSummit", address: "http://www.dxsummit.fi/text/dx25.html",

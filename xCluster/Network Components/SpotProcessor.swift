@@ -22,7 +22,7 @@ class SpotProcessor {
   /// - Returns: ClusterSpot
   func processRawSpot(rawSpot: String, isTelnet: Bool) throws -> ClusterSpot {
 
-    var spot = ClusterSpot(id: 0, id2: 0, id3: 0, dxStation: "", frequency: "", band: 99, spotter: "",
+    var spot = ClusterSpot(id: 0, spotterPinId: 0, dxPinId: 0, dxStation: "", frequency: "", band: 99, spotter: "",
                            timeUTC: "", comment: "", grid: "", country: "", isFiltered: false)
 
     if rawSpot.count < 75 {
@@ -80,7 +80,7 @@ class SpotProcessor {
     // create the id number for the spot - this will later
     // change to the polyline hash value but need a temp id now
     // to link ClusterSpot to StationInformation
-    spot.id = Int(random(digits: 100000)) ?? 0
+    spot.id = Int(random(digits: 10)) ?? 0
     
     return spot
   }

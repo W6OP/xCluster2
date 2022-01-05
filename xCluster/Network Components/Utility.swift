@@ -301,7 +301,7 @@ struct StationInformation: Identifiable {
   var lotw = false
   var error = false
   var isInitialized = false
-  var position = "0"
+  var position = 0
 }
 
 /// StationInformation combined for the spotter and dx call.
