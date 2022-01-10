@@ -31,6 +31,7 @@ struct ClusterSpot: Identifiable, Hashable {
   var id: Int //UUID
   var spotterPinId: Int // spotterPin.hashValue
   var dxPinId: Int // dxPin.hashValue
+  let uId = UUID()
   var dxStation: String
   var frequency: String
   var formattedFrequency = ""
@@ -205,27 +206,31 @@ actor HitPair {
 /// Temporary storage of Hits to match up with temporarily
 /// stored ClusterSpots.
 actor HitCache {
-  var hits: [Hit] = []
+  var hits: [Int: [Hit]] = [:]
 
-  func addHit(hit: Hit) {
-    hits.append(hit)
-  }
-
-  func removeHit(hit: Hit) {
-    hits = hits.filter({$0.spotId != hit.spotId})
+  func addHit(hitId: Int, hit: Hit) {
+    if hits[hitId] != nil {
+      hits[hitId]?.append(hit)
+    } else {
+      var newHits: [Hit] = []
+      newHits.append(hit)
+      hits.updateValue(newHits, forKey: hitId)
+    }
   }
 
   // should remove 2 hits
   func removeHits(spotId: Int) {
-    hits = hits.filter({$0.spotId != spotId})
+    hits.removeValue(forKey: spotId)
+    //hits = hits.filter({$0.spotId != spotId})
   }
 
-  func retrieveHits() -> [Hit] {
-    return hits
-  }
-
-  func retrieveHit(spotId: Int) -> [Hit] {
-    return hits.filter({$0.spotId == spotId})
+  func retrieveHits(spotId: Int) -> [Hit] {
+    //print("Hit requested: \(spotId)")
+    if hits[spotId] != nil {
+      //print("Hit returned: \(spotId)")
+      return hits[spotId]!
+    }
+    return  []
   }
 
   func clear() {
@@ -240,18 +245,22 @@ actor SpotCache {
   var spots: [ClusterSpot] = []
 
   func addSpot(spot: ClusterSpot) {
-    //print("add spot to cache: \(spot.id)")
+    print("add spot to cache: \(spot.id): \(spot.uId)")
     spots.append(spot)
   }
 
   func removeSpot(spotId: Int) {
     //print("remove spot from cache: \(spotId)")
+    let spot = spots.filter({$0.id != spotId}).first
+    print("remove spot from cache: \(spotId): \(spot!.uId)")
     spots = spots.filter({$0.id != spotId})
   }
 
   // why can't I return a single spot
   func retrieveSpot(spotId: Int) -> ClusterSpot {
-    return spots.filter({$0.id == spotId}).first!
+    let spot = spots.filter({$0.id == spotId}).first!
+    print("retrieve spot from cache: \(spotId): \(spot.uId)")
+    return spot
   }
 
   func retrieveSpotCount() -> Int {
@@ -720,14 +729,16 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
       // if spot already exists, don't add again
       if displayedSpots.firstIndex(where: { $0.spotter == spot.spotter &&
-        $0.dxStation == spot.dxStation && $0.frequency == spot.frequency
+        $0.dxStation == spot.dxStation && $0.band == spot.band
       }) != nil {
+        logger.info("Duplicate Spot: \(spot.spotter):\(spot.dxStation): \(spot.uId)")
+        //print("Duplicate Spot: \(spot.spotter):\(spot.dxStation): \(spot.uId)")
         throw (RequestError.duplicateSpot)
       }
 
       let asyncSpot = spot
       Task {
-        try await lookupCompletedSpotEx(spot: asyncSpot)
+        try await lookupCompletedSpot(spot: asyncSpot)
       }
 
     } catch {
@@ -737,151 +748,84 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     }
   }
 
-//  func lookupCompletedSpot(spot: ClusterSpot) async throws {
-//    var spot = spot
-//
-//    applyFilters(&spot)
-//
-//    let spots = [spot.spotter, spot.dxStation]
-//
-//    return try await withThrowingTaskGroup(of: Hit.self) { [unowned self] hits in
-//      let hitPairs = HitPair()
-//
-//      for index in 0..<spots.count {
-//        hits.addTask(priority: .high) {
-//          // the "return" puts the response in "group"
-//          //return try await lookupCallSign(call: spots[index], position: index)
-//          return try await lookupCallSign(call: spots[index], position: index)
-//        }
-//      }
-//
-//      for try await hit in hits {
-//        await hitPairs.addHit(hit: hit)
-//      }
-//
-//      if await hitPairs.hits.count == 2 {
-//        await processStationInformation(hitPairs: hitPairs, spot: spot)
-//      } else {
-//        print("Failed: \(spot.spotter):\(spot.dxStation)")
-//        throw (RequestError.invalidCallSign)
-//      }
-//    }
-//  }
 
-  func lookupCompletedSpotEx(spot: ClusterSpot) async throws {
+  /// <#Description#>
+  /// - Parameter spot: ClusterSpot
+  func lookupCompletedSpot(spot: ClusterSpot) async throws {
     var spot = spot
 
     applyFilters(&spot)
 
     await spotCache.addSpot(spot: spot)
 
+    //print("Input: \(spot.spotter):\(spot.dxStation)")
+    let callSigns = [spot.spotter, spot.dxStation]
     let asyncSpot = spot
-    let callSigns = [asyncSpot.spotter, asyncSpot.dxStation]
-    //print("Input: \(asyncSpot.spotter):\(asyncSpot.dxStation)")
-
     await withTaskGroup(of: Void.self) { [unowned self] group in
       for index in 0..<callSigns.count {
         group.addTask() {
-          callLookup.lookupCall(call: callSigns[index], spotInformation: (spotId: asyncSpot.id, sequence: index))
+          callLookup.lookupCall(call: callSigns[index],
+                                spotInformation:
+                                  (spotId: asyncSpot.id, sequence: index))
         }
       }
     }
   }
 
-  // have a collection of hits but keep adding and removing
-//  func setupCallback() {
-//
-//    callLookup.didUpdate = { [self] hitList in
-//      if !hitList!.isEmpty {
-//        Task {
-//          let hit = hitList![hitList!.count - 1]
-//          await processHits(hit: hit, spotId: hit.spotId)
-//          await processSpots(spotId: hit.spotId)
-//
-//
-//            //await self.processStationInformation(hitPairs: hitPair, spot: spot)
-//            print("10")
-//            await spotCache.removeSpot(spotId: hit.spotId)
-//            print("11")
-//
-//
-//        }
-//
-//        // this falls through before the Task
-//
-//      }
-//    }
-//  }
-
-//  func processSpots(spotId: Int) async {
-//  await withTaskGroup(of: Void.self) { [unowned self] hits in
-//    for _ in 0..<1 {
-//      let spot = await spotCache.retrieveSpot(spotId: spotId)
-//    }
-//  }
-//}
-
-//  func processHits(hit: Hit, spotId: Int) async {
-//    await withTaskGroup(of: Void.self) { [unowned self] hits in
-//      for _ in 0..<1 {
-//        hits.addTask() {
-//          await hitsCache.addHit(hit: hit)
-//          let hits = await hitsCache.retrieveHit(spotId: hit.spotId)
-//          if hits.count > 1 {
-//            await hitsCache.removeHits(spotId: hit.spotId)
-//            let hitPair = HitPair()
-//            await hitPair.addHits(hits: hits)
-//            await self.processStationInformation(hitPairs: hitPair, spot: spot)
-//          }
-//        }
-//      }
-//    }
-//
-//  }
-
-
+  /// Callback when CallLookup finds a Hit.
    func setupCallback() {
 
      callLookup.didUpdate = { [self] hitList in
 
        if !hitList!.isEmpty {
          Task {
-
-           async let hit = hitList![hitList!.count - 1]
-           await hitsCache.addHit(hit: hit)
-
-           let hits = await hitsCache.retrieveHit(spotId: hit.spotId)
-           if hits.count > 1 {
-             print("Output: \(hits[0].call):\(hits[1].call):\(hits.count)")
-           }
-
-           if hits.count > 1 {
-             await hitsCache.removeHits(spotId: hits[0].spotId)
-
-             async let hitPair = HitPair()
-             await hitPair.addHits(hits: hits)
-             //print("Output: \(hits[0].call):\(hits[1].call)")
-             // TODO: - need to clear hit and spot cache on cluster switch
-             print("Retrieving Spot: \(hits[0].spotId)")
-             let spot = await spotCache.retrieveSpot(spotId: hit.spotId)
-             print("Retrieved Spot: \(spot.id)")
-             await processSpot(hitPair: hitPair, spot: spot)
-           }
+           let hit = hitList![hitList!.count - 1]
+           await hitsCache.addHit(hitId: hit.spotId, hit: hit)
+           await processHits(spotId: hit.spotId)
          }
-         // this falls through before the Task completes
-         //print("fall through")
        }
      }
    }
 
 
+  /// Process hits
+  /// - Parameter spotId: Int
+  func processHits(spotId: Int ) async {
+
+    let hits = await hitsCache.retrieveHits(spotId: spotId)
+    if hits.count > 1 {
+
+      async let hitPair = HitPair()
+      await hitPair.addHits(hits: hits)
+      // TODO: - need to clear hit and spot cache on cluster switch
+      let spot = await spotCache.retrieveSpot(spotId: hits[0].spotId)
+      print("Get Spot: \(spot.id): \(spot.uId)")
+      await processSpot(hitPair: hitPair, spot: spot)
+      await hitsCache.removeHits(spotId: hits[0].spotId)
+    }
+  }
+
+
+  /// Process spots.
+  /// - Parameters:
+  ///   - hitPair: HitPair
+  ///   - spot: ClusterSpot
   func processSpot(hitPair: HitPair, spot: ClusterSpot) async {
 
     await self.processStationInformation(hitPairs: hitPair, spot: spot)
-    print("Removing Spot: \(spot.id)")
+    print("Delete Spot: \(spot.id): \(spot.uId)")
     await spotCache.removeSpot(spotId: spot.id)
-    print("Removed Spot: \(spot.id)")
+
   }
+
+
+  // TODO: - find out why this happens - should never be this many hits
+//           if hits.count > 10 {
+//             for item in hits {
+//               print("call: \(item.call)")
+//             }
+//           }
+
 
   /// Use the CallParser to get the information about the call sign.
   /// - Parameter call: String
