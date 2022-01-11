@@ -28,10 +28,9 @@ struct ClusterSpot: Identifiable, Hashable {
     case none
   }
 
-  var id: Int //UUID
+  var id: Int // the spots own hash value initially
   var spotterPinId: Int // spotterPin.hashValue
   var dxPinId: Int // dxPin.hashValue
-  let uId = UUID()
   var dxStation: String
   var frequency: String
   var formattedFrequency = ""
@@ -221,13 +220,10 @@ actor HitCache {
   // should remove 2 hits
   func removeHits(spotId: Int) {
     hits.removeValue(forKey: spotId)
-    //hits = hits.filter({$0.spotId != spotId})
   }
 
   func retrieveHits(spotId: Int) -> [Hit] {
-    //print("Hit requested: \(spotId)")
     if hits[spotId] != nil {
-      //print("Hit returned: \(spotId)")
       return hits[spotId]!
     }
     return  []
@@ -245,21 +241,20 @@ actor SpotCache {
   var spots: [ClusterSpot] = []
 
   func addSpot(spot: ClusterSpot) {
-    print("add spot to cache: \(spot.id): \(spot.uId)")
+    //print("add spot to cache: \(spot.id): \(spot.spotUUID)")
     spots.append(spot)
   }
 
   func removeSpot(spotId: Int) {
-    //print("remove spot from cache: \(spotId)")
-    let spot = spots.filter({$0.id != spotId}).first
-    print("remove spot from cache: \(spotId): \(spot!.uId)")
+    //let spot = spots.filter({$0.id != spotId}).first
+    //print("remove spot from cache: \(spotId): \(spot!.spotUUID)")
     spots = spots.filter({$0.id != spotId})
   }
 
   // why can't I return a single spot
   func retrieveSpot(spotId: Int) -> ClusterSpot {
     let spot = spots.filter({$0.id == spotId}).first!
-    print("retrieve spot from cache: \(spotId): \(spot.uId)")
+    //print("retrieve spot from cache: \(spotId): \(spot.spotUUID)")
     return spot
   }
 
@@ -715,6 +710,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
     lastSpotReceivedTime = Date()
 
+    // TODO: - Remove after testing
+    //callLookup.useCallParserOnly = true
+
     do {
       var spot: ClusterSpot
 
@@ -731,8 +729,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       if displayedSpots.firstIndex(where: { $0.spotter == spot.spotter &&
         $0.dxStation == spot.dxStation && $0.band == spot.band
       }) != nil {
-        logger.info("Duplicate Spot: \(spot.spotter):\(spot.dxStation): \(spot.uId)")
-        //print("Duplicate Spot: \(spot.spotter):\(spot.dxStation): \(spot.uId)")
+        logger.info("Duplicate Spot: \(spot.spotter):\(spot.dxStation)")
         throw (RequestError.duplicateSpot)
       }
 
@@ -742,14 +739,14 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       }
 
     } catch {
-      print("parseClusterSpot error: \(error)")
+      //print("parseClusterSpot error: \(error)")
       logger.info("Controller Error: \(error as NSObject)")
       return
     }
   }
 
 
-  /// <#Description#>
+  /// Lookup a spot using the CallParser component.
   /// - Parameter spot: ClusterSpot
   func lookupCompletedSpot(spot: ClusterSpot) async throws {
     var spot = spot
@@ -778,6 +775,14 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
      callLookup.didUpdate = { [self] hitList in
 
        if !hitList!.isEmpty {
+         // TODO: - find out why this happens - should never be this many hits
+         if hitList!.count > 10 {
+           print("Call: \(hitList![0].call)")
+           for index in 0..<hitList!.count {
+             print("country: \(hitList![index].country)")
+            }
+          }
+
          Task {
            let hit = hitList![hitList!.count - 1]
            await hitsCache.addHit(hitId: hit.spotId, hit: hit)
@@ -792,16 +797,16 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   /// - Parameter spotId: Int
   func processHits(spotId: Int ) async {
 
+    // see if we have two matching hits
     let hits = await hitsCache.retrieveHits(spotId: spotId)
     if hits.count > 1 {
-
       async let hitPair = HitPair()
       await hitPair.addHits(hits: hits)
       // TODO: - need to clear hit and spot cache on cluster switch
-      let spot = await spotCache.retrieveSpot(spotId: hits[0].spotId)
-      print("Get Spot: \(spot.id): \(spot.uId)")
+      let spot = await spotCache.retrieveSpot(spotId: spotId) // hits[0].spotId
+      //print("Get Spot: \(spot.id): \(spot.spotUUID)")
       await processSpot(hitPair: hitPair, spot: spot)
-      await hitsCache.removeHits(spotId: hits[0].spotId)
+      await hitsCache.removeHits(spotId: spotId) // hits[0].spotId
     }
   }
 
@@ -811,11 +816,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   ///   - hitPair: HitPair
   ///   - spot: ClusterSpot
   func processSpot(hitPair: HitPair, spot: ClusterSpot) async {
-
     await self.processStationInformation(hitPairs: hitPair, spot: spot)
-    print("Delete Spot: \(spot.id): \(spot.uId)")
+    //print("Delete Spot: \(spot.id): \(spot.spotUUID)")
     await spotCache.removeSpot(spotId: spot.id)
-
   }
 
 

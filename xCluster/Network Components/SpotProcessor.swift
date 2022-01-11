@@ -80,12 +80,7 @@ class SpotProcessor {
     // create the id number for the spot - this will later
     // change to the polyline hash value but need a temp id now
     // to link ClusterSpot to StationInformation
-    let hashed = Int(random(digits: 10)) ?? 0
-    var hasher = Hasher()
-    hasher.combine(hashed)
-    hasher.combine(spot.uId)
-    let hash = hasher.finalize()
-    spot.id = hash
+    spot.id = spot.hashValue
 
     return spot
   }
