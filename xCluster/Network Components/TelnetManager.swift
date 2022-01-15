@@ -14,7 +14,7 @@ import os
 /// Telnet Manager Protocol
 protocol TelnetManagerDelegate: AnyObject {
 
-  func connect(cluster: ClusterIdentifier)
+  func connect(cluster: ClusterIdentifier, isReconnection: Bool)
 
   func telnetManagerStatusMessageReceived(_ telnetManager: TelnetManager, messageKey: NetworkMessage, message: String)
 

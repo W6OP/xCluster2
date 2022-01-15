@@ -51,6 +51,7 @@ class SpotProcessor {
     }
 
     spot.frequency = convertFrequencyToDecimalString(frequency: frequency)
+    print("Spot: \(spot.frequency)")
     spot.band = convertFrequencyToBand(frequency: spot.frequency)
 
     balance = balance.dropFirst(9)
@@ -128,13 +129,13 @@ class SpotProcessor {
   /// The number of digits is the length of the returned integer.
   /// - Parameter digits: Int
   /// - Returns: Int
-  func random(digits:Int) -> String {
-    var number = String()
-    for _ in 1...digits {
-      number += "\(Int.random(in: 1...9))"
-    }
-    return number
-  }
+//  func random(digits:Int) -> String {
+//    var number = String()
+//    for _ in 1...digits {
+//      number += "\(Int.random(in: 1...9))"
+//    }
+//    return number
+//  }
 
   /// Initialize a new string instance from a slice of a string.
   /// Otherwise the reference to the string will never go away.
@@ -161,7 +162,7 @@ class SpotProcessor {
     }
 
     if components[1] == "" {
-      components[1] = "0"
+      components[1] = "000"
     }
 
     var startIndex = frequencyString.startIndex
@@ -222,7 +223,10 @@ class SpotProcessor {
 
     if components[1] != "0" {
       converted += (".\(components[1])")
+      print("Component: \(components[1])")
     }
+
+    print("Converted: \(converted)")
 
     return converted
   }

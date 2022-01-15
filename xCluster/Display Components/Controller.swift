@@ -32,8 +32,26 @@ struct ClusterSpot: Identifiable, Hashable {
   var spotterPinId: Int // spotterPin.hashValue
   var dxPinId: Int // dxPin.hashValue
   var dxStation: String
-  var frequency: String
-  var formattedFrequency = ""
+  var frequency: String{
+    didSet {
+      formattedFrequency = String(format: "%.3f", frequency)
+    }
+  }
+//  var frequency: String {
+//    get {
+//      return self.frequency
+//    }
+//    set (frequency) {
+//      formattedFrequency = String(format: "%.3f", frequency)
+//    }
+//  }
+   var formattedFrequency = ""
+  
+//  var formattedFrequency: String {
+//    get {
+//      return String(format: "%.3f", frequency)
+//    }
+//  }
   var band: Int
   var spotter: String
   var timeUTC: String
@@ -50,6 +68,15 @@ struct ClusterSpot: Identifiable, Hashable {
   var annotationExists = false
 
   private(set) var isFiltered: Bool
+
+//  mutating func setFrequency(frequency: String) {
+//    self.frequency = frequency
+//    formattedFrequency = String(format: "%.3f", frequency)
+//  }
+
+//  mutating func getFrequency() -> String {
+//    return frequency
+//  }
 
   /// Build the line (overlay) to display on the map.
   /// - Parameter qrzInfoCombined: combined data of a pair of call signs - QRZ information.
@@ -117,7 +144,7 @@ struct ClusterSpot: Identifiable, Hashable {
     }
   }
 
-  /// Reset the filter state of all of a certain type
+  /// Reset the filter state of all of a certain type.
   /// - Parameter filterReason: FilterReason
   mutating func resetAllFiltersOfType(reason: FilterReason) {
     self.filterReasons.removeAll { value in
@@ -130,7 +157,7 @@ struct ClusterSpot: Identifiable, Hashable {
   }
 }
 
-/// Metadata of the currently connected host
+/// Metadata of the currently connected host.
 struct ConnectedCluster: Identifiable, Hashable {
   var id: Int
   var clusterAddress: String
@@ -143,6 +170,12 @@ struct ConnectedCluster: Identifiable, Hashable {
 actor StationInformationPairs {
   var callSignPairs = [Int: [StationInformation]]()
 
+
+  /// Add a spot to a StationInformationPair.
+  /// - Parameters:
+  ///   - spotId: Int
+  ///   - stationInformation: StationInformation
+  /// - Returns:  [StationInformation]
   private func add(spotId: Int, stationInformation: StationInformation) -> [StationInformation] {
 
     var callSignPair: [StationInformation] = []
@@ -152,7 +185,14 @@ actor StationInformationPairs {
     return callSignPair
   }
 
-  func checkCallSignPair(spotId: Int, stationInformation: StationInformation) -> [StationInformation] {
+
+  /// Check if a pair exists and either add or update as necessary.
+  /// - Parameters:
+  ///   - spotId: Int
+  ///   - stationInformation: StationInformation
+  /// - Returns: [StationInformation]
+  func checkCallSignPair(spotId: Int, stationInformation: StationInformation) ->
+    [StationInformation] {
     var callSignPair: [StationInformation] = []
 
     if callSignPairs[spotId] != nil {
@@ -163,6 +203,12 @@ actor StationInformationPairs {
     return callSignPair
   }
 
+
+  /// Update a pair.
+  /// - Parameters:
+  ///   - spotId: Int
+  ///   - stationInformation: StationInformation
+  /// - Returns: [StationInformation]
   private func updateCallSignPair(spotId: Int, stationInformation: StationInformation) -> [StationInformation] {
 
     var callSignPair: [StationInformation] = []
@@ -176,37 +222,54 @@ actor StationInformationPairs {
     return callSignPair
   }
 
+  /// Remove all pairs.
   func clear() {
     callSignPairs.removeAll()
   }
+
+  func getCount() -> Int {
+    return callSignPairs.count
+  }
 } // end actor
 
+
+/// Structure to hold a matching pair of Hits
 actor HitPair {
   var hits: [Hit] = []
 
-  func clear() {
-    hits.removeAll()
-  }
-
+  /// Add a hit.
+  /// - Parameter hit: Hit
   func addHit(hit: Hit) {
     hits.append(hit)
   }
 
+  /// Add an array of HIT.
+  /// - Parameter hits: [Hit]
   func addHits(hits: [Hit]) {
     self.hits.append(contentsOf: hits)
   }
 
-//  func checkHitId(hitId: Int) -> Bool {
-//
-//  }
-}
 
+  /// Remove all hits form the pair
+  func clear() {
+    hits.removeAll()
+  }
+
+  // return the number of Hits.
+  func getCount() -> Int {
+    return hits.count
+  }
+}
 
 /// Temporary storage of Hits to match up with temporarily
 /// stored ClusterSpots.
 actor HitCache {
   var hits: [Int: [Hit]] = [:]
 
+  /// Add a Hit to the cache.
+  /// - Parameters:
+  ///   - hitId: Int
+  ///   - hit: Hit
   func addHit(hitId: Int, hit: Hit) {
     if hits[hitId] != nil {
       hits[hitId]?.append(hit)
@@ -217,11 +280,15 @@ actor HitCache {
     }
   }
 
-  // should remove 2 hits
+  /// Remove 2 Hits.
+  /// - Parameter spotId: Int
   func removeHits(spotId: Int) {
     hits.removeValue(forKey: spotId)
   }
 
+  /// Retrieve an array of Hits.
+  /// - Parameter spotId: Int
+  /// - Returns: [Hit]
   func retrieveHits(spotId: Int) -> [Hit] {
     if hits[spotId] != nil {
       return hits[spotId]!
@@ -229,41 +296,51 @@ actor HitCache {
     return  []
   }
 
+  /// Remove all Hits.
   func clear() {
     hits.removeAll()
   }
+
+  /// Return the number of Hits.
+  /// - Returns: Int
+  func getCount() -> Int {
+    return hits.count
+  }
 }
 
-
-/// Temporary storage of ClusterSpots to match with returned
+/// Temporary storage of ClusterSpots to match with returned.
 /// hits form the Call Parser
 actor SpotCache {
   var spots: [ClusterSpot] = []
 
+  /// Add a ClusterSpot to the cache.
+  /// - Parameter spot: ClusterSpot
   func addSpot(spot: ClusterSpot) {
-    //print("add spot to cache: \(spot.id): \(spot.spotUUID)")
     spots.append(spot)
   }
 
+  /// Remove a ClusterSpot by id.
+  /// - Parameter spotId: Int
   func removeSpot(spotId: Int) {
-    //let spot = spots.filter({$0.id != spotId}).first
-    //print("remove spot from cache: \(spotId): \(spot!.spotUUID)")
     spots = spots.filter({$0.id != spotId})
   }
 
-  // why can't I return a single spot
+  /// Retrieve a single spot from the cache
+  /// - Parameter spotId: Int
+  /// - Returns: ClusterSpot
   func retrieveSpot(spotId: Int) -> ClusterSpot {
-    let spot = spots.filter({$0.id == spotId}).first!
-    //print("retrieve spot from cache: \(spotId): \(spot.spotUUID)")
-    return spot
+    return spots.filter({$0.id == spotId}).first!
   }
 
-  func retrieveSpotCount() -> Int {
-    return spots.count
-  }
-
+  /// Remove all ClusterSpots from the cache.
   func clear() {
     spots.removeAll()
+  }
+
+  /// Get a count of ClusterSpots in the cache.
+  /// - Returns: Int
+  func getSpotCount() -> Int {
+    return spots.count
   }
 }
 
@@ -305,7 +382,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     didSet {
       print("controller id: \(connectedCluster.id), name: \(connectedCluster.name)")
       if !connectedCluster.address.isEmpty {
-        connect(cluster: connectedCluster)
+        connect(cluster: connectedCluster, isReconnection: false)
       }
     }
   }
@@ -403,7 +480,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   /// Connect to a specified cluster. If already connected then
   /// disconnect from the connected cluster first.
   /// - Parameter clusterName: String
-  func connect(cluster: ClusterIdentifier) {
+  func connect(cluster: ClusterIdentifier, isReconnection: Bool) {
 
     if connectedCluster.id != 9999 {
 
@@ -411,12 +488,14 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         disconnect(activeCluster: activeCluster)
       }
 
-      overlays.removeAll()
-      annotations.removeAll()
-      displayedSpots.removeAll()
-      bandFilters.keys.forEach { bandFilters[$0] = .isOff }
+      Task {
+        await spotCache.clear()
+        await hitsCache.clear()
+      }
 
-      logger.info("Connecting to: \(cluster.name)")
+      if !isReconnection {
+        cleanupConnection(isReconnection, cluster)
+      }
 
       if cluster.clusterProtocol == ClusterProtocol.html {
         Task {
@@ -435,9 +514,24 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     }
   }
 
+
+  /// Cleanup before connectiong to a new cluster.
+  /// - Parameters:
+  ///   - isReconnection: Bool
+  ///   - cluster: ClusterIdentifier
+  fileprivate func cleanupConnection(_ isReconnection: Bool, _ cluster: ClusterIdentifier) {
+      overlays.removeAll()
+      annotations.removeAll()
+      displayedSpots.removeAll()
+      bandFilters.keys.forEach { bandFilters[$0] = .isOff }
+      logger.info("Connecting to: \(cluster.name)")
+  }
+
+
   /// Disconnect on cluster change or application termination.
   /// Send a signal to clear the existing status message.
   func disconnect(activeCluster: ClusterIdentifier) {
+
     guard activeCluster.id != 9999 else { return }
 
     if activeCluster.clusterProtocol == ClusterProtocol.telnet {
@@ -587,10 +681,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       } catch {
         logger.info("Duplicate spot received \(messageKey.rawValue) : \(message)")
       }
-      //parseClusterSpot(message: message, messageType: messageKey)
 
     case .showDxSpots:
-      //parseClusterSpot(message: message, messageType: messageKey)
       do {
       try parseClusterSpot(message: message, messageType: messageKey)
       } catch {
@@ -745,6 +837,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     }
   }
 
+  // MARK: - Lookup call with CallParser - Callback
 
   /// Lookup a spot using the CallParser component.
   /// - Parameter spot: ClusterSpot
@@ -792,8 +885,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
      }
    }
 
+// MARK: - Process the returned Hits and Spots
 
-  /// Process hits
+  /// Process hits returned by the CallParser.
   /// - Parameter spotId: Int
   func processHits(spotId: Int ) async {
 
@@ -802,59 +896,23 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     if hits.count > 1 {
       async let hitPair = HitPair()
       await hitPair.addHits(hits: hits)
+
       // TODO: - need to clear hit and spot cache on cluster switch
-      let spot = await spotCache.retrieveSpot(spotId: spotId) // hits[0].spotId
-      //print("Get Spot: \(spot.id): \(spot.spotUUID)")
+      let spot = await spotCache.retrieveSpot(spotId: spotId)
+
       await processSpot(hitPair: hitPair, spot: spot)
-      await hitsCache.removeHits(spotId: spotId) // hits[0].spotId
+      await hitsCache.removeHits(spotId: spotId)
     }
   }
 
-
-  /// Process spots.
+  /// Process a spot and the associated HitPair.
   /// - Parameters:
   ///   - hitPair: HitPair
   ///   - spot: ClusterSpot
   func processSpot(hitPair: HitPair, spot: ClusterSpot) async {
     await self.processStationInformation(hitPairs: hitPair, spot: spot)
-    //print("Delete Spot: \(spot.id): \(spot.spotUUID)")
     await spotCache.removeSpot(spotId: spot.id)
   }
-
-
-  // TODO: - find out why this happens - should never be this many hits
-//           if hits.count > 10 {
-//             for item in hits {
-//               print("call: \(item.call)")
-//             }
-//           }
-
-
-  /// Use the CallParser to get the information about the call sign.
-  /// - Parameter call: String
-  /// - Returns: Hit
-//  func lookupCallSign(call: String, position: Int) async throws -> Hit{
-//
-//    var hit: Hit!
-//
-//    callLookup.lookupCall(call: call)
-//
-//    callLookup.didUpdate = { hitList in
-//      print("callback fired")
-//      //print("hitList: \(String(describing: hitList?.count))")
-//      if !hitList!.isEmpty {
-//        if hitList!.count > 1 {
-//        for item in hitList! {
-//          print("\(item.call)")
-//          hit = item
-//          hit.sequence = position
-//        }
-//        }
-//      }
-//    }
-//    return hit
-//
-//  }
 
   /// Build the station information for both calls in the spot.
   /// - Parameters:
@@ -912,31 +970,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     callLookup.logonToQrz(userId: userId, password: password)
   }
 
-  /// Use the CallParser to get the information about the call sign.
-  /// - Parameter call: String
-  /// - Returns: Hit
-//  func lookupCallSign(call: String, position: Int) async throws -> Hit {
-//
-//    // TODO: - handle error
-//    do {
-//    let hitList: [Hit] = try callLookup.lookupCall(call: call)
-//      //print("hits - 2: \(callLookup.publishedHitList)")
-//      if !hitList.isEmpty {
-//        // why just the last one?
-//        // should have CallParser go to QRZ if multiples
-//        var hit = hitList[hitList.count - 1]
-//        hit.position = position
-//        return hit
-//      } else {
-//        print("Call not found: \(call)")
-//        throw (RequestError.invalidCallSign)
-//      }
-//    } catch {
-//      print("Error: \(error.localizedDescription)")
-//      throw (RequestError.lookupIsEmpty)
-//    }
-//  }
-
   // MARK: - Populate Station Info
 
   /// Populate a StationInformation object with the data from the hit.
@@ -975,7 +1008,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     return stationInformation
   }
 
-
   /// Sort routine so spotter and dx is in correct order
   /// - Parameter callSignPair: [StationInformation]
   /// - Returns: [StationInformation]
@@ -1008,7 +1040,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     stationInformationCombined.spotterGrid = callSignPair[0].grid
     stationInformationCombined.spotterLotw = callSignPair[0].lotw
     stationInformationCombined.error = callSignPair[0].error
-    //print("Index: \(callSignPair[0].position)")
 
     stationInformationCombined.dxCall = callSignPair[1].call
     stationInformationCombined.dxCountry = callSignPair[1].country
@@ -1019,12 +1050,12 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     if !stationInformationCombined.error {
       stationInformationCombined.error = callSignPair[1].error
     }
-    //print("Index: \(callSignPair[1].position)")
 
     // used in the ListView for display
     var spot = spot
     spot.country = stationInformationCombined.dxCountry
     spot.formattedFrequency = String(stationInformationCombined.formattedFrequency)
+    //spot.frequency = String(stationInformationCombined.frequency)
 
     processCallSignData(stationInformationCombined:
                           stationInformationCombined, spot: spot)
@@ -1066,14 +1097,12 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
               overlays.append(spot!.overlay)
               annotations.append(spot!.spotterPin)
               annotations.append(spot!.dxPin)
-              //print("Overlay added: \(spot!.spotter):\(spot!.dxStation) - 6")
             } else {
               print("____________________ DUPLICATE _____________________")
             }
           }
 
           if displayedSpots.count > maxNumberOfSpots {
-            //print("Overlays before: \(overlays.count):\(displayedSpots.count)")
             while displayedSpots.count > maxNumberOfSpots {
               let spot = displayedSpots[displayedSpots.count - 1]
               overlays = overlays.filter({ $0.hashValue != spot.id })
@@ -1081,8 +1110,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
               annotations = annotations.filter({ $0.hashValue != spot.dxPinId })
               displayedSpots.removeLast()
             }
-
-            //print("Overlays after: \(overlays.count):\(displayedSpots.count)")
           }
         }
     }
@@ -1361,7 +1388,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   /// Connect to the previously connected cluster after
   /// an unplanned disconnect.
   func reconnect() {
-    connect(cluster: connectedCluster)
+    logger.info("Reconnecting to: \(self.connectedCluster.name)")
+    connect(cluster: connectedCluster, isReconnection: true)
   }
 
   /**

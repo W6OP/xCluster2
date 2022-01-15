@@ -10,7 +10,7 @@ import os
 
 /// Web Manager Protocol
 protocol WebManagerDelegate: AnyObject {
-  func connect(cluster: ClusterIdentifier)
+  func connect(cluster: ClusterIdentifier, isReconnection: Bool)
   func webManagerDataReceived(_ webManager: WebManager,
                               messageKey: NetworkMessage,
                               message: String)
