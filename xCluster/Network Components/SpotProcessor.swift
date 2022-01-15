@@ -50,9 +50,10 @@ class SpotProcessor {
       throw SpotError.spotError("processRawShowDxSpot: unable to parse frequency")
     }
 
-    spot.frequency = convertFrequencyToDecimalString(frequency: frequency)
-    print("Spot: \(spot.frequency)")
-    spot.band = convertFrequencyToBand(frequency: spot.frequency)
+    spot.setFrequency(frequency: convertFrequencyToDecimalString(frequency: frequency))
+    //spot.frequency = convertFrequencyToDecimalString(frequency: frequency)
+    //print("Spot: \(spot.frequency)")
+    //spot.band = convertFrequencyToBand(frequency: spot.frequency)
 
     balance = balance.dropFirst(9)
     endIndex = balance.index(balance.startIndex, offsetBy: 10)
@@ -223,10 +224,7 @@ class SpotProcessor {
 
     if components[1] != "0" {
       converted += (".\(components[1])")
-      print("Component: \(components[1])")
     }
-
-    print("Converted: \(converted)")
 
     return converted
   }

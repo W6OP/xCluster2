@@ -281,8 +281,6 @@ enum RequestError: Error {
   case duplicateSpot
 }
 
-
-
 // MARK: - QRZ Structs ----------------------------------------------------------------------------
 
 /**
@@ -324,9 +322,6 @@ struct StationInformationCombined: Codable {
   var identifier = "0"
   var expired = false
 
-  var frequency = "0.0"
-  var formattedFrequency: Float = 0.0
-  var band = 0
   var mode = ""
 
   var spotId = UUID()
@@ -346,62 +341,4 @@ struct StationInformationCombined: Codable {
     dateTime = utcISODateFormatter.string(from: date)
   }
 
-  // need to convert 3.593.4 to 3.5934
-  mutating func setFrequency(frequency: String) {
-    self.frequency = frequency
-    self.formattedFrequency = StationInformationCombined.formatFrequency(frequency: frequency)
-    self.band = StationInformationCombined.setBand(frequency: self.formattedFrequency)
-  }
-
-  static func formatFrequency(frequency: String) -> Float {
-    let components = frequency.trimmingCharacters(in: .whitespaces).components(separatedBy: ".")
-    var suffix = ""
-
-    // TRY THIS
-    // frequency.trimmingCharacters(in: .whitespaces).components(separatedBy: ".")[1]
-    // truncate if more than 3 components ie. 14.074.1
-    let prefix = components[0]
-    suffix += components[1]
-
-//    for index in 1..<components.count {
-//      suffix += components[index]
-//    }
-
-    let result = Float(("\(prefix).\(suffix)"))?.roundTo(places: 4)
-
-    return result ?? 0.0
-  }
-
-  static func setBand(frequency: Float) -> Int {
-    switch frequency {
-    case 1.8...2.0:
-      return 160
-    case 3.5...4.0:
-      return 80
-    case 5.0...6.0:
-      return 60
-    case 7.0...7.3:
-      return 40
-    case 10.1...10.5:
-      return 30
-    case 14.0...14.350:
-      return 20
-    case 18.068...18.168:
-      return 17
-    case 21.0...21.450:
-      return 15
-    case 24.890...24.990:
-      return 12
-    case 28.0...29.7:
-      return 10
-    case 70.0...75.0:
-      return 4
-    case 50.0...54.0:
-      return 6
-    case 144.0...148.0:
-      return 2
-    default:
-      return 0
-    }
-  }
 } // end

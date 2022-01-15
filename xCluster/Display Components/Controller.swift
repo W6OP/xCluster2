@@ -32,26 +32,8 @@ struct ClusterSpot: Identifiable, Hashable {
   var spotterPinId: Int // spotterPin.hashValue
   var dxPinId: Int // dxPin.hashValue
   var dxStation: String
-  var frequency: String{
-    didSet {
-      formattedFrequency = String(format: "%.3f", frequency)
-    }
-  }
-//  var frequency: String {
-//    get {
-//      return self.frequency
-//    }
-//    set (frequency) {
-//      formattedFrequency = String(format: "%.3f", frequency)
-//    }
-//  }
-   var formattedFrequency = ""
-  
-//  var formattedFrequency: String {
-//    get {
-//      return String(format: "%.3f", frequency)
-//    }
-//  }
+  var frequency: String
+  var formattedFrequency = ""
   var band: Int
   var spotter: String
   var timeUTC: String
@@ -69,14 +51,99 @@ struct ClusterSpot: Identifiable, Hashable {
 
   private(set) var isFiltered: Bool
 
-//  mutating func setFrequency(frequency: String) {
-//    self.frequency = frequency
-//    formattedFrequency = String(format: "%.3f", frequency)
-//  }
+  // need to convert 3.593.4 to 3.5934
+  mutating func setFrequency(frequency: String) {
+    self.frequency = frequency
+    let formatted = formatFrequency(frequency: frequency)
+    formattedFrequency = String(format: "%.3f", formatted)
+    band = convertFrequencyToBand(frequency: frequency)
+  }
 
-//  mutating func getFrequency() -> String {
-//    return frequency
-//  }
+  func formatFrequency(frequency: String) -> Float {
+    let components = frequency.trimmingCharacters(in: .whitespaces).components(separatedBy: ".")
+    var suffix = ""
+
+    // truncate if more than 3 components ie. 14.074.1
+    let prefix = components[0]
+    suffix += components[1]
+
+    let result = Float(("\(prefix).\(suffix)"))?.roundTo(places: 4)
+
+    return result ?? 0.0
+  }
+
+  /// Convert a frequency to a band.
+  /// - Parameter frequency: String
+  /// - Returns: Int
+  func convertFrequencyToBand(frequency: String) -> Int {
+    var band: Int
+    let frequencyMajor = frequency.prefix(while: {$0 != "."})
+
+    switch frequencyMajor {
+    case "1":
+      band = 160
+    case "3", "4":
+      band = 80
+    case "5":
+      band = 60
+    case "7":
+      band = 40
+    case "10":
+      band = 30
+    case "14":
+      band = 20
+    case "18":
+      band = 17
+    case "21":
+      band = 15
+    case "24":
+      band = 12
+    case "28":
+      band = 10
+    case "50", "51", "52", "53", "54":
+      band = 6
+    default:
+      band = 99
+    }
+
+    return band
+  }
+
+  /// Not currently used
+  /// - Parameter frequency: Float
+  /// - Returns: Int
+  func setBand(frequency: Float) -> Int {
+    switch frequency {
+    case 1.8...2.0:
+      return 160
+    case 3.5...4.0:
+      return 80
+    case 5.0...6.0:
+      return 60
+    case 7.0...7.3:
+      return 40
+    case 10.1...10.5:
+      return 30
+    case 14.0...14.350:
+      return 20
+    case 18.068...18.168:
+      return 17
+    case 21.0...21.450:
+      return 15
+    case 24.890...24.990:
+      return 12
+    case 28.0...29.7:
+      return 10
+    case 70.0...75.0:
+      return 4
+    case 50.0...54.0:
+      return 6
+    case 144.0...148.0:
+      return 2
+    default:
+      return 0
+    }
+  }
 
   /// Build the line (overlay) to display on the map.
   /// - Parameter qrzInfoCombined: combined data of a pair of call signs - QRZ information.
@@ -91,7 +158,7 @@ struct ClusterSpot: Identifiable, Hashable {
                              longitude: stationInfoCombined.dxLongitude)]
 
     let polyline = MKGeodesicPolyline(coordinates: locations, count: locations.count)
-    polyline.title = String(stationInfoCombined.band)
+    polyline.title = String(band)
     polyline.subtitle = stationInfoCombined.mode
     //polyline.subtitle = String(id)
 
@@ -107,11 +174,11 @@ struct ClusterSpot: Identifiable, Hashable {
 
     let spotterPin = MKPointAnnotation()
     spotterPin.coordinate = CLLocationCoordinate2D(latitude: stationInfoCombined.spotterLatitude, longitude: stationInfoCombined.spotterLongitude)
-    spotterPin.title = ("\(stationInfoCombined.spotterCall):\(String(stationInfoCombined.formattedFrequency))")
+    spotterPin.title = ("\(stationInfoCombined.spotterCall):\(formattedFrequency)")
 
    let dxPin = MKPointAnnotation()
     dxPin.coordinate = CLLocationCoordinate2D(latitude: stationInfoCombined.dxLatitude, longitude: stationInfoCombined.dxLongitude)
-    dxPin.title = ("\(stationInfoCombined.dxCall):\(String(stationInfoCombined.formattedFrequency))")
+    dxPin.title = ("\(stationInfoCombined.dxCall):\(formattedFrequency)")
 
     spotterPin.subtitle = stationInfoCombined.spotterCountry
     dxPin.subtitle = stationInfoCombined.dxCountry
@@ -802,9 +869,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
     lastSpotReceivedTime = Date()
 
-    // TODO: - Remove after testing
-    //callLookup.useCallParserOnly = true
-
     do {
       var spot: ClusterSpot
 
@@ -831,7 +895,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       }
 
     } catch {
-      //print("parseClusterSpot error: \(error)")
       logger.info("Controller Error: \(error as NSObject)")
       return
     }
@@ -848,7 +911,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
     await spotCache.addSpot(spot: spot)
 
-    //print("Input: \(spot.spotter):\(spot.dxStation)")
     let callSigns = [spot.spotter, spot.dxStation]
     let asyncSpot = spot
     await withTaskGroup(of: Void.self) { [unowned self] group in
@@ -1031,8 +1093,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
     var stationInformationCombined = StationInformationCombined()
 
-    stationInformationCombined.setFrequency(frequency: spot.frequency)
-
     stationInformationCombined.spotterCall = callSignPair[0].call
     stationInformationCombined.spotterCountry = callSignPair[0].country
     stationInformationCombined.spotterLatitude = callSignPair[0].latitude
@@ -1054,8 +1114,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     // used in the ListView for display
     var spot = spot
     spot.country = stationInformationCombined.dxCountry
-    spot.formattedFrequency = String(stationInformationCombined.formattedFrequency)
-    //spot.frequency = String(stationInformationCombined.frequency)
 
     processCallSignData(stationInformationCombined:
                           stationInformationCombined, spot: spot)
@@ -1070,11 +1128,11 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   func processCallSignData(stationInformationCombined:
                            StationInformationCombined,
                            spot: ClusterSpot) {
-    // need to make spot mutable
-    var spot = spot
 
     logger.info("Create Overlay: \(stationInformationCombined.spotterCall): \(stationInformationCombined.dxCall) - 5")
 
+    // need to make spot mutable
+    var spot = spot
     spot.createOverlay(stationInfoCombined: stationInformationCombined)
     spot.createAnnotation(stationInfoCombined: stationInformationCombined)
 
