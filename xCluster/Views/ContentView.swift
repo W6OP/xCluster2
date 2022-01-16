@@ -129,6 +129,7 @@ struct ContentView: View {
   @EnvironmentObject var controller: Controller
   @ObservedObject var userSettings = UserSettings()
   @State private var showPreferences = false
+  @State private var didTap:Bool = false
 
   var bands: [BandIdentifier] = bandData
   var modes: [ModeIdentifier] = modeData
@@ -176,16 +177,18 @@ struct ContentView: View {
           Divider()
 
           Button("QRZ Logon") {
-            controller.qrzLogon(userId: userSettings.username, password: userSettings.password)
+            self.didTap = true; controller.qrzLogon(userId: userSettings.username, password: userSettings.password)
         }
+          .background(didTap ? Color.green : Color.blue)
           .padding(.top, 4)
           .padding(.leading, 4)
+
 
           ButtonBarView(controller: controller, clusters: clusters, modes: modes, bands: bands)
         }
         .padding(.top, -2).padding(.bottom, 2)
         .frame(maxWidth: .infinity, minHeight: 30, maxHeight: 30)
-        .background(Color.blue)
+        .background(.cyan)
         .opacity(0.70)
 
         // MARK: - Mapping container.
@@ -212,7 +215,7 @@ struct ContentView: View {
         HStack {
           ControlBarView(controller: controller)
         }
-        .background(Color.blue)
+        .background(Color.cyan)
         .opacity(0.70)
         .frame(maxWidth: .infinity, minHeight: 30, maxHeight: 30)
         .padding(0)
@@ -286,7 +289,7 @@ struct BandViewToggle: View {
 
   var body: some View {
     HStack {
-      Spacer()
+      //Spacer()
       ForEach(bands.indices) { item in
         Toggle(self.bands[item].band, isOn: self.$bands[item].isSelected.didSet { (state) in
           if self.bands[item].id != 0 {
@@ -378,6 +381,7 @@ struct ControlBarView: View {
   @State private var callSignFilter = ""
   @State private var showSpots = true
   @State private var filterByTime = false
+  //@State private var exactMatch = false
 
   var body: some View {
     HStack {
@@ -386,12 +390,12 @@ struct ControlBarView: View {
 
         NumberOfSpotsPickerView(controller: controller)
 
-        Divider()
-
-        Toggle("Last 30 minutes", isOn: $filterByTime.didSet { (filterByTime) in
-          controller.setTimeFilter(filterState: filterByTime)
-        })
-        .toggleStyle(SwitchToggleStyle(tint: Color.green))
+//        Divider()
+//
+//        Toggle("Last 30 minutes", isOn: $filterByTime.didSet { (filterByTime) in
+//          controller.setTimeFilter(filterState: filterByTime)
+//        })
+//        .toggleStyle(SwitchToggleStyle(tint: Color.green))
 
         Divider()
 
@@ -410,15 +414,32 @@ struct ControlBarView: View {
         .modifier(ClearButton(boundText: $callSignFilter))
         .frame(maxWidth: 150)
 
+        CheckBoxView(controller: controller)
+
         CommandButtonsView(controller: controller)
       }
-      .frame(minWidth: 500)
+      .frame(minWidth: 600)
       .padding(.leading)
       .padding(.vertical, 2)
 
       Spacer()
     }
   }
+}
+
+struct CheckBoxView: View {
+    var controller: Controller
+    @State private var exactMatch = false
+
+    var body: some View {
+        Image(systemName: exactMatch ? "checkmark.square.fill" : "square")
+        .foregroundColor(exactMatch ? Color(.red) : Color.black)
+            .onTapGesture {
+                self.exactMatch.toggle()
+                controller.exactMatch = exactMatch
+            }
+      Text ("Exact")
+    }
 }
 
 struct CommandButtonsView: View {
@@ -429,13 +450,13 @@ struct CommandButtonsView: View {
       Divider()
 
       Button(action: {self.controller.clusterMessage = CommandType.show20}) {
-        Text("show dx/20")
+        Text("Last 20")
       }
 
       Divider()
 
       Button(action: {self.controller.clusterMessage = CommandType.show50}) {
-        Text("show dx/50")
+        Text("Last 50")
       }
 
       Divider()
@@ -443,7 +464,6 @@ struct CommandButtonsView: View {
       Button(action: {self.controller.applicationMessage = CommandType.clear}) {
         Text("Clear")
       }
-
     }
   }
 }

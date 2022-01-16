@@ -60,6 +60,7 @@ struct SpotHeader: View {
         .frame(minWidth: 75, maxWidth: 75)
         .border(width: 1, edges: [.trailing], color: .gray)
       Text("Frequency")
+        .padding(.leading, 20)
         .frame(minWidth: 90, maxWidth: 90)
         .border(width: 1, edges: [.trailing], color: .gray)
       Text("Spotter")

@@ -478,6 +478,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     }
   }
 
+
   // MARK: - Private Properties
 
   var telnetManager = TelnetManager()
@@ -520,6 +521,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   var modeFilters = [ 1: ModeFilterState.isOff, 2: ModeFilterState.isOff, 3: ModeFilterState.isOff]
 
   var callFilter = ""
+  // this is set by the Checkbox view in the ContentView
+  var exactMatch = false
   var activeCluster: ClusterIdentifier!
 
   var lastSpotReceivedTime = Date()
@@ -1252,9 +1255,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
     callFilter = callSign
 
-    if callSign.isEmpty {
-      setAllCallSpotFilters(filterState: false)
-    } else {
+    setAllCallSpotFilters(filterState: false)
+
+    if !callSign.isEmpty {
       updateSpotCallFilterState(call: callSign, filterState: false)
     }
 
@@ -1267,11 +1270,20 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   ///   - setFilter: Bool
   func updateSpotCallFilterState(call: String, filterState: Bool) {
     DispatchQueue.main.async { [self] in
-      for (index, spot) in displayedSpots.enumerated() where spot.dxStation.prefix(call.count) != call {
-        var mutatingSpot = spot
-        mutatingSpot.setFilter(reason: .call)
-        displayedSpots[index] = mutatingSpot
-        //print("Filtered: \(spot.dxStation):\(index)")
+      if exactMatch {
+        print("exact")
+        for (index, spot) in displayedSpots.enumerated() where spot.dxStation.prefix(call.count) != call {
+          var mutatingSpot = spot
+          mutatingSpot.setFilter(reason: .call)
+          displayedSpots[index] = mutatingSpot
+        }
+      } else {
+        print("almost")
+        for (index, spot) in displayedSpots.enumerated() where !spot.dxStation.contains(call) {
+          var mutatingSpot = spot
+          mutatingSpot.setFilter(reason: .call)
+          displayedSpots[index] = mutatingSpot
+        }
       }
     }
   }
@@ -1308,6 +1320,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         setAllBandSpotFilters(filterState: state)
         DispatchQueue.main.async { [self] in
           overlays.removeAll()
+          annotations.removeAll()
         }
         return
       }
@@ -1324,7 +1337,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     }
 
     updateSpotBandFilterState(band: band, filterState: state)
-    filterAnnotations()
     filterOverlays()
   }
 
@@ -1372,7 +1384,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 //
 //    //updateSpotModeFilterState(mode: mode, filterState: state)
 //    filterOverlays()
-//    filterAnnotations()
 //  }
 
   // MARK: - Filter Overlays
@@ -1390,8 +1401,11 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         }
       }
     }
+    filterAnnotations()
   }
 
+
+  /// Filter the annotations or flags at each end of an overlay.
   func filterAnnotations() {
     DispatchQueue.main.async { [self] in
       for spot in displayedSpots {
@@ -1401,10 +1415,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
             annotations.append(spot.dxPin)
           }
         } else {
-          print("Before: \(annotations.count)")
           annotations = annotations.filter({ $0.hashValue != spot.spotterPinId })
           annotations = annotations.filter({ $0.hashValue != spot.dxPinId })
-          print("After: \(annotations.count)")
         }
       }
     }
