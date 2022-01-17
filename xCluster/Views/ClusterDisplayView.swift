@@ -28,6 +28,7 @@ struct ClusterDisplayView: View {
 // MARK: - Cluster list display.
 struct ListDisplayView: View {
   @ObservedObject var controller: Controller
+  @Environment(\.colorScheme) var currentMode
 
   var body: some View {
     HStack {
@@ -42,7 +43,7 @@ struct ListDisplayView: View {
           }
         }
         .frame(alignment: .topLeading)
-        .background(Color(red: 209 / 255, green: 215 / 255, blue: 226 / 255))
+        .background(currentMode == .dark ?  Color.black : Color(red: 209 / 255, green: 215 / 255, blue: 226 / 255))
       }
     }
     //.frame(minHeight: 700, maxHeight: .infinity)

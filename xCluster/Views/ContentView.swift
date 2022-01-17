@@ -126,6 +126,7 @@ class Coordinator: NSObject, MKMapViewDelegate {
 /// Main entry point
 struct ContentView: View {
   @Environment(\.openURL) var openURL
+  @Environment(\.colorScheme) var currentMode
   @EnvironmentObject var controller: Controller
   @ObservedObject var userSettings = UserSettings()
   @State private var showPreferences = false
@@ -183,12 +184,11 @@ struct ContentView: View {
           .padding(.top, 4)
           .padding(.leading, 4)
 
-
           ButtonBarView(controller: controller, clusters: clusters, modes: modes, bands: bands)
         }
         .padding(.top, -2).padding(.bottom, 2)
         .frame(maxWidth: .infinity, minHeight: 30, maxHeight: 30)
-        .background(.cyan)
+        .background (currentMode == .dark ?  Color.blue : Color.cyan)
         .opacity(0.70)
 
         // MARK: - Mapping container.
@@ -215,7 +215,7 @@ struct ContentView: View {
         HStack {
           ControlBarView(controller: controller)
         }
-        .background(Color.cyan)
+        .background (currentMode == .dark ?  Color.blue : Color.cyan)
         .opacity(0.70)
         .frame(maxWidth: .infinity, minHeight: 30, maxHeight: 30)
         .padding(0)
