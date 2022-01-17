@@ -543,6 +543,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
                                            target: self, selector: #selector(refreshWeb), userInfo: nil, repeats: true)
 
     setupCallback()
+    setupSessionCallback()
   }
 
   // MARK: - Connect and Disconnect
@@ -1024,7 +1025,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     }
   }
 
-  // MARK: - Call Parser Operations
+  // MARK: - QRZ Logon
 
   // TODO: feedback to user logon was successful
   /// Logon to QRZ.com
@@ -1033,6 +1034,21 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   ///   - password: String
   func qrzLogon(userId: String, password: String) {
     callLookup.logonToQrz(userId: userId, password: password)
+  }
+
+
+  /// Callback from the Call Parser for QRZ logon success/failure.
+  func setupSessionCallback() {
+
+    callLookup.didGetSessionKey = { arg0 in
+      let session: (state: Bool, message: String) = arg0!
+      if !session.state {
+        self.statusMessage.append("QRZ logon failed: \(session.message)")
+      } else {
+        self.statusMessage.append("QRZ logon successful")
+      }
+    }
+
   }
 
   // MARK: - Populate Station Info

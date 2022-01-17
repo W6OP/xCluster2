@@ -9,15 +9,16 @@ import SwiftUI
 
 struct PreferencesView: View {
   @Environment(\.presentationMode) var presentationMode
+  @Environment(\.colorScheme) var currentMode
   @ObservedObject var userSettings = UserSettings()
 
   var body: some View {
     VStack {
       HStack {
         Form {
-          Section(header: Text("General Information")) {
+          Section(header: Text("Your Information")) {
             HStack {
-              Text("Call Sign")
+              Text("Call")
               Spacer()
               TextField("", text: $userSettings.callsign)
               .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -76,6 +77,7 @@ struct PreferencesView: View {
     }
       .frame(minWidth: 300, maxWidth: 300)
     .padding(5)
+    .background(currentMode == .dark ?  Color.black : Color(red: 209 / 255, green: 215 / 255, blue: 226 / 255))
   }
 }
 

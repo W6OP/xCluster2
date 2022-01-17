@@ -16,7 +16,6 @@
 		9907B65825FD49FD00A0859C /* Controller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9907B65725FD49FD00A0859C /* Controller.swift */; };
 		9907B65F25FD4AB100A0859C /* Utility.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9907B65B25FD4AB100A0859C /* Utility.swift */; };
 		9907B66025FD4AB100A0859C /* SpotProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9907B65C25FD4AB100A0859C /* SpotProcessor.swift */; };
-		9907B66125FD4AB100A0859C /* QRZManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9907B65D25FD4AB100A0859C /* QRZManager.swift */; };
 		9907B66225FD4AB100A0859C /* TelnetManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9907B65E25FD4AB100A0859C /* TelnetManager.swift */; };
 		9907B66625FD4BA400A0859C /* CallParser in Frameworks */ = {isa = PBXBuildFile; productRef = 9907B66525FD4BA400A0859C /* CallParser */; };
 		9907B66925FD503C00A0859C /* ClusterDisplayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9907B66825FD503C00A0859C /* ClusterDisplayView.swift */; };
@@ -37,7 +36,6 @@
 		9907B65725FD49FD00A0859C /* Controller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Controller.swift; sourceTree = "<group>"; };
 		9907B65B25FD4AB100A0859C /* Utility.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Utility.swift; sourceTree = "<group>"; };
 		9907B65C25FD4AB100A0859C /* SpotProcessor.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SpotProcessor.swift; sourceTree = "<group>"; };
-		9907B65D25FD4AB100A0859C /* QRZManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = QRZManager.swift; sourceTree = "<group>"; };
 		9907B65E25FD4AB100A0859C /* TelnetManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TelnetManager.swift; sourceTree = "<group>"; };
 		9907B66825FD503C00A0859C /* ClusterDisplayView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ClusterDisplayView.swift; sourceTree = "<group>"; };
 		99625D8226122CAF00CC4677 /* Preferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preferences.swift; sourceTree = "<group>"; };
@@ -118,7 +116,6 @@
 		9907B65A25FD4A3F00A0859C /* Network Components */ = {
 			isa = PBXGroup;
 			children = (
-				9907B65D25FD4AB100A0859C /* QRZManager.swift */,
 				9907B65C25FD4AB100A0859C /* SpotProcessor.swift */,
 				9907B65E25FD4AB100A0859C /* TelnetManager.swift */,
 				9907B65B25FD4AB100A0859C /* Utility.swift */,
@@ -226,7 +223,6 @@
 				9907B65825FD49FD00A0859C /* Controller.swift in Sources */,
 				9907B63925FD455700A0859C /* ContentView.swift in Sources */,
 				9907B66025FD4AB100A0859C /* SpotProcessor.swift in Sources */,
-				9907B66125FD4AB100A0859C /* QRZManager.swift in Sources */,
 				9907B66925FD503C00A0859C /* ClusterDisplayView.swift in Sources */,
 				9907B65F25FD4AB100A0859C /* Utility.swift in Sources */,
 				9907B65125FD491700A0859C /* PreferencesView.swift in Sources */,
