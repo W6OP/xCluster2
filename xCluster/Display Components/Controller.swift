@@ -1036,7 +1036,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     callLookup.logonToQrz(userId: userId, password: password)
   }
 
-
   /// Callback from the Call Parser for QRZ logon success/failure.
   func setupSessionCallback() {
 
@@ -1048,7 +1047,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         self.statusMessage.append("QRZ logon successful")
       }
     }
-
   }
 
   // MARK: - Populate Station Info
