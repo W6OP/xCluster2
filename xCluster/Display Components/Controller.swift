@@ -267,6 +267,7 @@ actor StationInformationPairs {
     } else {
       callSignPair = add(spotId: spotId, stationInformation: stationInformation)
     }
+
     return callSignPair
   }
 
@@ -610,8 +611,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     }
 
     // clear the status message
-    DispatchQueue.main.async { [self] in
-      statusMessage = [String]()
+    DispatchQueue.main.async { [weak self] in
+      self?.statusMessage = [String]()
     }
   }
 
@@ -622,8 +623,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
     disconnect(activeCluster: activeCluster)
 
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [self] in
-      reconnect()
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+      self?.reconnect()
     }
   }
 
@@ -723,13 +724,13 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
     switch messageKey {
     case .clusterType:
-      DispatchQueue.main.async { [self] in
-        statusMessage.append(message.condenseWhitespace())
+      DispatchQueue.main.async { [weak self] in
+        self?.statusMessage.append(message.condenseWhitespace())
       }
 
     case .announcement:
-      DispatchQueue.main.async { [self] in
-        statusMessage.append(message.condenseWhitespace() )
+      DispatchQueue.main.async { [weak self] in
+        self?.statusMessage.append(message.condenseWhitespace() )
       }
 
     case .clusterInformation:
@@ -763,9 +764,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       break
     }
 
-    DispatchQueue.main.async { [self] in
-      if statusMessage.count > 200 {
-        statusMessage.removeFirst()
+    DispatchQueue.main.async { [weak self] in
+      if (self?.statusMessage.count)! > 200 {
+        self?.statusMessage.removeFirst()
       }
     }
   }
