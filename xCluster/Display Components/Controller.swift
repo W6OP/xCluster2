@@ -13,410 +13,14 @@ import Combine
 import os
 import CallParser
 
-// MARK: - ClusterSpots
-
-/// Definition of a ClusterSpot
-struct ClusterSpot: Identifiable, Hashable {
-
-  enum FilterReason: Int {
-    case band
-    case call
-    case country
-    case grid
-    case mode
-    case time
-    case none
-  }
-
-  var id: Int // the spots own hash value initially
-  var spotterPinId: Int // spotterPin.hashValue
-  var dxPinId: Int // dxPin.hashValue
-  var dxStation: String
-  var frequency: String
-  var formattedFrequency = ""
-  var band: Int
-  var spotter: String
-  var timeUTC: String
-  var comment: String
-  var grid: String
-  var country: String
-  var overlay: MKPolyline!
-  var spotterPin = MKPointAnnotation()
-  var dxPin = MKPointAnnotation()
-  var qrzInfoCombinedJSON = ""
-  var filterReasons = [FilterReason]()
-  var isInvalidSpot = false
-  var overlayExists = false
-  var annotationExists = false
-
-  private(set) var isFiltered: Bool
-
-  // need to convert 3.593.4 to 3.5934
-  mutating func setFrequency(frequency: String) {
-    self.frequency = frequency
-    let formatted = formatFrequency(frequency: frequency)
-    formattedFrequency = String(format: "%.3f", formatted)
-    band = convertFrequencyToBand(frequency: frequency)
-  }
-
-  func formatFrequency(frequency: String) -> Float {
-    let components = frequency.trimmingCharacters(in: .whitespaces).components(separatedBy: ".")
-    var suffix = ""
-
-    // truncate if more than 3 components ie. 14.074.1
-    let prefix = components[0]
-    suffix += components[1]
-
-    let result = Float(("\(prefix).\(suffix)"))?.roundTo(places: 4)
-
-    return result ?? 0.0
-  }
-
-  /// Convert a frequency to a band.
-  /// - Parameter frequency: String
-  /// - Returns: Int
-  func convertFrequencyToBand(frequency: String) -> Int {
-    var band: Int
-    let frequencyMajor = frequency.prefix(while: {$0 != "."})
-
-    switch frequencyMajor {
-    case "1":
-      band = 160
-    case "3", "4":
-      band = 80
-    case "5":
-      band = 60
-    case "7":
-      band = 40
-    case "10":
-      band = 30
-    case "14":
-      band = 20
-    case "18":
-      band = 17
-    case "21":
-      band = 15
-    case "24":
-      band = 12
-    case "28":
-      band = 10
-    case "50", "51", "52", "53", "54":
-      band = 6
-    default:
-      band = 99
-    }
-
-    return band
-  }
-
-  /// Not currently used
-  /// - Parameter frequency: Float
-  /// - Returns: Int
-  func setBand(frequency: Float) -> Int {
-    switch frequency {
-    case 1.8...2.0:
-      return 160
-    case 3.5...4.0:
-      return 80
-    case 5.0...6.0:
-      return 60
-    case 7.0...7.3:
-      return 40
-    case 10.1...10.5:
-      return 30
-    case 14.0...14.350:
-      return 20
-    case 18.068...18.168:
-      return 17
-    case 21.0...21.450:
-      return 15
-    case 24.890...24.990:
-      return 12
-    case 28.0...29.7:
-      return 10
-    case 70.0...75.0:
-      return 4
-    case 50.0...54.0:
-      return 6
-    case 144.0...148.0:
-      return 2
-    default:
-      return 0
-    }
-  }
-
-  /// Build the line (overlay) to display on the map.
-  /// - Parameter qrzInfoCombined: combined data of a pair of call signs - QRZ information.
-  mutating func createOverlay(stationInfoCombined: StationInformationCombined) {
-
-    if overlayExists { return }
-
-    let locations = [
-      CLLocationCoordinate2D(latitude: stationInfoCombined.spotterLatitude,
-                             longitude: stationInfoCombined.spotterLongitude),
-      CLLocationCoordinate2D(latitude: stationInfoCombined.dxLatitude,
-                             longitude: stationInfoCombined.dxLongitude)]
-
-    let polyline = MKGeodesicPolyline(coordinates: locations, count: locations.count)
-    polyline.title = String(band)
-    polyline.subtitle = stationInfoCombined.mode
-    //polyline.subtitle = String(id)
-
-    id = polyline.hashValue
-
-    self.overlay = polyline
-  }
-
-  // https://medium.com/macoclock/mapkit-map-pin-and-annotation-5c7d56439c66
-  mutating func createAnnotation(stationInfoCombined: StationInformationCombined) {
-
-    if annotationExists { return }
-
-    let spotterPin = MKPointAnnotation()
-    spotterPin.coordinate = CLLocationCoordinate2D(latitude: stationInfoCombined.spotterLatitude, longitude: stationInfoCombined.spotterLongitude)
-    spotterPin.title = ("\(stationInfoCombined.spotterCall):\(formattedFrequency)")
-
-   let dxPin = MKPointAnnotation()
-    dxPin.coordinate = CLLocationCoordinate2D(latitude: stationInfoCombined.dxLatitude, longitude: stationInfoCombined.dxLongitude)
-    dxPin.title = ("\(stationInfoCombined.dxCall):\(formattedFrequency)")
-
-    spotterPin.subtitle = stationInfoCombined.spotterCountry
-    dxPin.subtitle = stationInfoCombined.dxCountry
-
-    spotterPinId = spotterPin.hashValue
-    dxPinId = dxPin.hashValue
-
-    self.spotterPin = spotterPin
-    self.dxPin = dxPin
-  }
-
-  /// Set a specific filter.
-  /// - Parameter filterReason: FilterReason
-  mutating func setFilter(reason: FilterReason) {
-    self.filterReasons.append(reason)
-    self.isFiltered = true
-  }
-
-  /// Reset a specific filter.
-  /// - Parameter filterReason: FilterReason
-  mutating func resetFilter(reason: FilterReason) {
-
-    if filterReasons.contains(reason) {
-      let index = filterReasons.firstIndex(of: reason)!
-      self.filterReasons.remove(at: index)
-    }
-
-    if self.filterReasons.isEmpty {
-      self.isFiltered = false
-    }
-  }
-
-  /// Reset the filter state of all of a certain type.
-  /// - Parameter filterReason: FilterReason
-  mutating func resetAllFiltersOfType(reason: FilterReason) {
-    self.filterReasons.removeAll { value in
-      return value == reason
-    }
-
-    if self.filterReasons.isEmpty {
-      self.isFiltered = false
-    }
-  }
-}
-
-/// Metadata of the currently connected host.
-struct ConnectedCluster: Identifiable, Hashable {
-  var id: Int
-  var clusterAddress: String
-  var clusterType: ClusterType
-}
-
-// MARK: - Actors
-
-/// Array of Station Information
-actor StationInformationPairs {
-  var callSignPairs = [Int: [StationInformation]]()
-
-
-  /// Add a spot to a StationInformationPair.
-  /// - Parameters:
-  ///   - spotId: Int
-  ///   - stationInformation: StationInformation
-  /// - Returns:  [StationInformation]
-  private func add(spotId: Int, stationInformation: StationInformation) -> [StationInformation] {
-
-    var callSignPair: [StationInformation] = []
-    callSignPair.append(stationInformation)
-    callSignPairs[spotId] = callSignPair
-
-    return callSignPair
-  }
-
-
-  /// Check if a pair exists and either add or update as necessary.
-  /// - Parameters:
-  ///   - spotId: Int
-  ///   - stationInformation: StationInformation
-  /// - Returns: [StationInformation]
-  func checkCallSignPair(spotId: Int, stationInformation: StationInformation) ->
-    [StationInformation] {
-    var callSignPair: [StationInformation] = []
-
-    if callSignPairs[spotId] != nil {
-      callSignPair = updateCallSignPair(spotId: spotId, stationInformation: stationInformation)
-    } else {
-      callSignPair = add(spotId: spotId, stationInformation: stationInformation)
-    }
-
-    return callSignPair
-  }
-
-
-  /// Update a pair.
-  /// - Parameters:
-  ///   - spotId: Int
-  ///   - stationInformation: StationInformation
-  /// - Returns: [StationInformation]
-  private func updateCallSignPair(spotId: Int, stationInformation: StationInformation) -> [StationInformation] {
-
-    var callSignPair: [StationInformation] = []
-
-    if callSignPairs[spotId] != nil {
-      callSignPair = callSignPairs[spotId]!
-      callSignPair.append(stationInformation)
-      return callSignPair
-    }
-
-    return callSignPair
-  }
-
-  /// Remove all pairs.
-  func clear() {
-    callSignPairs.removeAll()
-  }
-
-  func getCount() -> Int {
-    return callSignPairs.count
-  }
-} // end actor
-
-
-/// Structure to hold a matching pair of Hits
-actor HitPair {
-  var hits: [Hit] = []
-
-  /// Add a hit.
-  /// - Parameter hit: Hit
-  func addHit(hit: Hit) {
-    hits.append(hit)
-  }
-
-  /// Add an array of HIT.
-  /// - Parameter hits: [Hit]
-  func addHits(hits: [Hit]) {
-    self.hits.append(contentsOf: hits)
-  }
-
-
-  /// Remove all hits form the pair
-  func clear() {
-    hits.removeAll()
-  }
-
-  // return the number of Hits.
-  func getCount() -> Int {
-    return hits.count
-  }
-}
-
-/// Temporary storage of Hits to match up with temporarily
-/// stored ClusterSpots.
-actor HitCache {
-  var hits: [Int: [Hit]] = [:]
-
-  /// Add a Hit to the cache.
-  /// - Parameters:
-  ///   - hitId: Int
-  ///   - hit: Hit
-  func addHit(hitId: Int, hit: Hit) {
-    if hits[hitId] != nil {
-      hits[hitId]?.append(hit)
-    } else {
-      var newHits: [Hit] = []
-      newHits.append(hit)
-      hits.updateValue(newHits, forKey: hitId)
-    }
-  }
-
-  /// Remove 2 Hits.
-  /// - Parameter spotId: Int
-  func removeHits(spotId: Int) {
-    hits.removeValue(forKey: spotId)
-  }
-
-  /// Retrieve an array of Hits.
-  /// - Parameter spotId: Int
-  /// - Returns: [Hit]
-  func retrieveHits(spotId: Int) -> [Hit] {
-    if hits[spotId] != nil {
-      return hits[spotId]!
-    }
-    return  []
-  }
-
-  /// Remove all Hits.
-  func clear() {
-    hits.removeAll()
-  }
-
-  /// Return the number of Hits.
-  /// - Returns: Int
-  func getCount() -> Int {
-    return hits.count
-  }
-}
-
-/// Temporary storage of ClusterSpots to match with returned.
-/// hits form the Call Parser
-actor SpotCache {
-  var spots: [ClusterSpot] = []
-
-  /// Add a ClusterSpot to the cache.
-  /// - Parameter spot: ClusterSpot
-  func addSpot(spot: ClusterSpot) {
-    spots.append(spot)
-  }
-
-  /// Remove a ClusterSpot by id.
-  /// - Parameter spotId: Int
-  func removeSpot(spotId: Int) {
-    spots = spots.filter({$0.id != spotId})
-  }
-
-  /// Retrieve a single spot from the cache
-  /// - Parameter spotId: Int
-  /// - Returns: ClusterSpot
-  func retrieveSpot(spotId: Int) -> ClusterSpot {
-    return spots.filter({$0.id == spotId}).first!
-  }
-
-  /// Remove all ClusterSpots from the cache.
-  func clear() {
-    spots.removeAll()
-  }
-
-  /// Get a count of ClusterSpots in the cache.
-  /// - Returns: Int
-  func getSpotCount() -> Int {
-    return spots.count
-  }
-}
-
 // MARK: - Controller Class
 
 // Good read on clusters
 // https://www.hamradiodeluxe.com/blog/Ham-Radio-Deluxe-Newsletter-April-19-2018--Understanding-DX-Clusters.html
 
+// swiftlint:disable file_length
+// swiftlint:disable type_body_length
+// swiftlint:disable cyclomatic_complexity
 /// Stub between view and all other classes
 public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDelegate {
 
@@ -478,7 +82,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       sendApplicationCommand(command: applicationMessage)
     }
   }
-
 
   // MARK: - Private Properties
 
@@ -543,7 +146,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     webRefreshTimer = Timer.scheduledTimer(timeInterval: TimeInterval(dxSummitRefreshInterval),
                                            target: self, selector: #selector(refreshWeb), userInfo: nil, repeats: true)
 
-    setupCallback()
+    callParserCallback()
     setupSessionCallback()
   }
 
@@ -586,7 +189,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     }
   }
 
-
   /// Cleanup before connectiong to a new cluster.
   /// - Parameters:
   ///   - isReconnection: Bool
@@ -598,7 +200,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       bandFilters.keys.forEach { bandFilters[$0] = .isOff }
       logger.info("Connecting to: \(cluster.name)")
   }
-
 
   /// Disconnect on cluster change or application termination.
   /// Send a signal to clear the existing status message.
@@ -915,12 +516,13 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     applyFilters(&spot)
 
     await spotCache.addSpot(spot: spot)
+    print("spot: \(spot.id) added")
 
     let callSigns = [spot.spotter, spot.dxStation]
     let asyncSpot = spot
-    await withTaskGroup(of: Void.self) { [unowned self] group in
+    await withTaskGroup(of: Void.self) { group in
       for index in 0..<callSigns.count {
-        group.addTask() {
+        group.addTask { [self] in
           callLookup.lookupCall(call: callSigns[index],
                                 spotInformation:
                                   (spotId: asyncSpot.id, sequence: index))
@@ -930,10 +532,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   }
 
   /// Callback when CallLookup finds a Hit.
-   func setupCallback() {
+   func callParserCallback() {
 
      callLookup.didUpdate = { [self] hitList in
-
        if !hitList!.isEmpty {
          // TODO: - find out why this happens - should never be this many hits
          if hitList!.count > 10 {
@@ -942,11 +543,16 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
              print("country: \(hitList![index].country)")
             }
           }
+         
+         //let hit = hitList![hitList!.count - 1]
+         let hit = hitList![0]
 
          Task {
-           let hit = hitList![hitList!.count - 1]
+//           let hit = hitList![hitList!.count - 1]
            await hitsCache.addHit(hitId: hit.spotId, hit: hit)
-           await processHits(spotId: hit.spotId)
+           if await hitsCache.getCount(spotId: hit.spotId) > 1 {
+             await processHits(spotId: hit.spotId)
+           }
          }
        }
      }
@@ -958,15 +564,20 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   /// - Parameter spotId: Int
   func processHits(spotId: Int ) async {
 
+    print("spot: \(spotId) process hits-1")
     // see if we have two matching hits
     let hits = await hitsCache.retrieveHits(spotId: spotId)
-    if hits.count > 1 {
+    print("spot: \(spotId) process hits-2")
+    //if hits.count > 1 {
+      print("spot: \(spotId) process hits-3")
       async let hitPair = HitPair()
       await hitPair.addHits(hits: hits)
 
       // TODO: - need to clear hit and spot cache on cluster switch
+      print("spot: \(spotId) attempt retrieve")
       let spot = await spotCache.retrieveSpot(spotId: spotId)
 
+    if !spot.isInvalidSpot {
       await processSpot(hitPair: hitPair, spot: spot)
       await hitsCache.removeHits(spotId: spotId)
     }
@@ -978,6 +589,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   ///   - spot: ClusterSpot
   func processSpot(hitPair: HitPair, spot: ClusterSpot) async {
     await self.processStationInformation(hitPairs: hitPair, spot: spot)
+    print("spot: \(spot.id) removed")
     await spotCache.removeSpot(spotId: spot.id)
   }
 
@@ -987,9 +599,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   ///   - spot: ClusterSpot
   func processStationInformation(hitPairs: HitPair, spot: ClusterSpot) async {
 
-    await withTaskGroup(of: StationInformation.self) { [unowned self] group in
+    await withTaskGroup(of: StationInformation.self) { group in
       for index in 0..<2 {
-        group.addTask {
+        group.addTask { [self] in
           return await populateStationInformation(hit: hitPairs.hits[index],
                                                     spotId: spot.id)
         }
@@ -1419,7 +1031,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     filterAnnotations()
   }
 
-
   /// Filter the annotations or flags at each end of an overlay.
   func filterAnnotations() {
     DispatchQueue.main.async { [self] in
@@ -1555,13 +1166,3 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     return  String(data: data, encoding: .utf8) ?? ""
   }
 } // end class
-
-extension String {
-  func components(withMaxLength length: Int) -> [String] {
-    return stride(from: 0, to: self.count, by: length).map {
-      let start = self.index(self.startIndex, offsetBy: $0)
-      let end = self.index(start, offsetBy: length, limitedBy: self.endIndex) ?? self.endIndex
-      return String(self[start..<end])
-    }
-  }
-}

@@ -9,6 +9,7 @@
 import Foundation
 
 /// Take a raw spot and break it into its component parts
+// swiftlint:disable cyclomatic_complexity
 class SpotProcessor {
 
   init() {}
@@ -22,14 +23,16 @@ class SpotProcessor {
   /// - Returns: ClusterSpot
   func processRawSpot(rawSpot: String, isTelnet: Bool) throws -> ClusterSpot {
 
-    var spot = ClusterSpot(id: 0, spotterPinId: 0, dxPinId: 0, dxStation: "", frequency: "", band: 99, spotter: "",
-                           timeUTC: "", comment: "", grid: "", country: "", isFiltered: false)
+//    var spot = ClusterSpot(id: 0, spotterPinId: 0, dxPinId: 0, dxStation: "", frequency: "", band: 99, spotter: "",
+//                           timeUTC: "", comment: "", grid: "", country: "", isFiltered: false)
+    var spot = ClusterSpot()
+    spot.isInvalidSpot = false
 
     if rawSpot.count < 75 {
       print("\(rawSpot.count) -- \(rawSpot)")
       throw SpotError.spotError("processRawSpot: spot length too short")
     }
-    
+
     // first strip first 6 chars ("<html>" or "DX de  ")
     var balance = rawSpot.dropFirst(6)
     var endIndex = balance.endIndex

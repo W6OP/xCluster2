@@ -67,7 +67,10 @@ struct PreferencesView: View {
               SecureField("", text: $userSettings.password)
               .textFieldStyle(RoundedBorderTextFieldStyle())
             }
-            Button(action: {self.presentationMode.wrappedValue.dismiss()}) {
+            Button(action: {self
+              .presentationMode
+              .wrappedValue
+              .dismiss()}) {
               Text("Close")
             }
           }

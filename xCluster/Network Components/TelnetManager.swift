@@ -10,7 +10,6 @@ import Cocoa
 import Network
 import os
 
-
 /// Telnet Manager Protocol
 protocol TelnetManagerDelegate: AnyObject {
 
@@ -23,7 +22,7 @@ protocol TelnetManagerDelegate: AnyObject {
 
 // Someday look at rewriting this from
 // https://rderik.com/blog/building-a-server-client-aplication-using-apple-s-network-framework/
-
+// swiftlint:disable cyclomatic_complexity
 class TelnetManager {
 
   // MARK: - Field Definitions ----------------------------------------------------------------------------
@@ -42,7 +41,9 @@ class TelnetManager {
   var connected: Bool
   var connectionChanged: Bool
   var isLoggedOn: Bool
-  var connectedHost = ClusterIdentifier(id: 0, name: "", address: "", port: "", clusterProtocol: ClusterProtocol.none, retraint: .none)
+  var connectedHost = ClusterIdentifier(id: 0, name: "", address: "", port: "",
+                                        clusterProtocol: ClusterProtocol.none,
+                                        retraint: .none)
 
   var clusterType: ClusterType
   var currentCommandType: CommandType

@@ -76,8 +76,8 @@ class Coordinator: NSObject, MKMapViewDelegate {
   // displays custom pin and callout
   func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
 
-     let Identifier = "2m"
-     let annotationView = mapView.dequeueReusableAnnotationView(withIdentifier: Identifier) ?? MKAnnotationView(annotation: annotation, reuseIdentifier: Identifier)
+     let identifier = "2m"
+     let annotationView = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) ?? MKAnnotationView(annotation: annotation, reuseIdentifier: identifier)
 
      annotationView.canShowCallout = true
      if annotation is MKUserLocation {
@@ -130,7 +130,7 @@ struct ContentView: View {
   @EnvironmentObject var controller: Controller
   @ObservedObject var userSettings = UserSettings()
   @State private var showPreferences = false
-  @State private var didTap:Bool = false
+  @State private var didTap: Bool = false
 
   var bands: [BandIdentifier] = bandData
   var modes: [ModeIdentifier] = modeData
@@ -188,7 +188,7 @@ struct ContentView: View {
         }
         .padding(.top, -2).padding(.bottom, 2)
         .frame(maxWidth: .infinity, minHeight: 30, maxHeight: 30)
-        .background (currentMode == .dark ?  Color.blue : Color.cyan)
+        .background(currentMode == .dark ? Color.blue : Color.cyan)
         .opacity(0.70)
 
         // MARK: - Mapping container.
@@ -215,7 +215,7 @@ struct ContentView: View {
         HStack {
           ControlBarView(controller: controller)
         }
-        .background (currentMode == .dark ?  Color.blue : Color.cyan)
+        .background(currentMode == .dark ? Color.blue : Color.cyan)
         .opacity(0.70)
         .frame(maxWidth: .infinity, minHeight: 30, maxHeight: 30)
         .padding(0)
@@ -383,6 +383,8 @@ struct ControlBarView: View {
   @State private var filterByTime = false
   //@State private var exactMatch = false
 
+  @State private var callSign = ""
+
   var body: some View {
     HStack {
       Spacer()
@@ -399,6 +401,8 @@ struct ControlBarView: View {
 
         Divider()
 
+        HStack {
+        Image(systemName: "magnifyingglass")
         TextField("Call Filter", text: $callSignFilter, onEditingChanged: { _ in
           // onEditingChanged
           callSignFilter = callSignFilter.uppercased()
@@ -413,8 +417,14 @@ struct ControlBarView: View {
         .textFieldStyle(RoundedBorderTextFieldStyle())
         .modifier(ClearButton(boundText: $callSignFilter))
         .frame(maxWidth: 150)
-
+        }
+        
         CheckBoxView(controller: controller)
+
+//        HStack {
+//          Image(systemName: "magnifyingglass")
+//          TextField("Search", text:$callSign)
+//        }
 
         CommandButtonsView(controller: controller)
       }
@@ -438,7 +448,7 @@ struct CheckBoxView: View {
                 self.exactMatch.toggle()
                 controller.exactMatch = exactMatch
             }
-      Text ("Exact")
+      Text("Exact")
     }
 }
 
