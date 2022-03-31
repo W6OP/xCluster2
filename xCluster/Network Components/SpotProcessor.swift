@@ -22,9 +22,6 @@ class SpotProcessor {
   /// - Throws: SpotError
   /// - Returns: ClusterSpot
   func processRawSpot(rawSpot: String, isTelnet: Bool) throws -> ClusterSpot {
-
-//    var spot = ClusterSpot(id: 0, spotterPinId: 0, dxPinId: 0, dxStation: "", frequency: "", band: 99, spotter: "",
-//                           timeUTC: "", comment: "", grid: "", country: "", isFiltered: false)
     var spot = ClusterSpot()
     spot.isInvalidSpot = false
 
@@ -50,13 +47,10 @@ class SpotProcessor {
     let frequency = convertStringSliceToString(String(balance[balance.startIndex..<endIndex]))
     guard Float(frequency) != nil else {
       print(frequency)
-      throw SpotError.spotError("processRawShowDxSpot: unable to parse frequency")
+      throw SpotError.spotError("processRawSpot: unable to parse \(frequency)")
     }
 
     spot.setFrequency(frequency: convertFrequencyToDecimalString(frequency: frequency))
-    //spot.frequency = convertFrequencyToDecimalString(frequency: frequency)
-    //print("Spot: \(spot.frequency)")
-    //spot.band = convertFrequencyToBand(frequency: spot.frequency)
 
     balance = balance.dropFirst(9)
     endIndex = balance.index(balance.startIndex, offsetBy: 10)
@@ -70,7 +64,7 @@ class SpotProcessor {
       throw SpotError.spotError("processRawSpot: invalid dx call sign: \(spot.dxStation)")
     }
 
-    balance = balance.dropFirst(11) // 14
+    balance = balance.dropFirst(11)
     endIndex = balance.index(balance.startIndex, offsetBy: 30)
 
     spot.comment = convertStringSliceToString(String(balance[balance.startIndex..<endIndex]))
@@ -129,18 +123,6 @@ class SpotProcessor {
     return cleanedCall
   }
 
-  /// Generate a random int to use as the spot id.
-  /// The number of digits is the length of the returned integer.
-  /// - Parameter digits: Int
-  /// - Returns: Int
-//  func random(digits:Int) -> String {
-//    var number = String()
-//    for _ in 1...digits {
-//      number += "\(Int.random(in: 1...9))"
-//    }
-//    return number
-//  }
-
   /// Initialize a new string instance from a slice of a string.
   /// Otherwise the reference to the string will never go away.
   /// - Parameter slice: String
@@ -154,12 +136,11 @@ class SpotProcessor {
   /// display the frequency formatted in the tableview.
   /// - Parameter frequency: String
   /// - Returns: String
+  // swiftlint:disable function_body_length
   func convertFrequencyToDecimalString (frequency: String) -> String {
-
     var converted: String
-
     var components = frequency.trimmingCharacters(in: .whitespaces).components(separatedBy: ".")
-    let frequencyString = components[0]
+    let firstComponent = components[0]
 
     if components.count == 1 {
       components.append("0")
@@ -169,57 +150,51 @@ class SpotProcessor {
       components[1] = "000"
     }
 
-    var startIndex = frequencyString.startIndex
-    var endIndex = frequencyString.endIndex
+    var startIndex = firstComponent.startIndex
+    var endIndex: String.Index  // = firstComponent.endIndex
 
-    switch frequencyString.count {
+    switch firstComponent.count {
     case 8: // 24048940.0 - 2404.894.00
-      startIndex = frequencyString.startIndex
-      endIndex = frequencyString.index(startIndex, offsetBy: 4)
-      let start = frequencyString[startIndex..<endIndex]
-      startIndex = frequencyString.index(frequencyString.startIndex, offsetBy: 4)
-      endIndex = frequencyString.index(startIndex, offsetBy: 3)
-      let end = frequencyString[startIndex..<endIndex]
+      endIndex = firstComponent.index(startIndex, offsetBy: 4)
+      let start = firstComponent[startIndex..<endIndex]
+      startIndex = firstComponent.index(startIndex, offsetBy: 4)
+      endIndex = firstComponent.index(startIndex, offsetBy: 3)
+      let end = firstComponent[startIndex..<endIndex]
       converted = ("\(start).\(end)")
     case 7: // 1296.789.000 - "2320905."
-      startIndex = frequencyString.startIndex
-      endIndex = frequencyString.index(startIndex, offsetBy: 4)
-      let start = frequencyString[startIndex..<endIndex]
-      startIndex = frequencyString.index(frequencyString.startIndex, offsetBy: 4)
-      endIndex = frequencyString.endIndex
-      let end = frequencyString[startIndex..<endIndex]
+      endIndex = firstComponent.index(startIndex, offsetBy: 4)
+      let start = firstComponent[startIndex..<endIndex]
+      startIndex = endIndex
+      endIndex = firstComponent.endIndex
+      let end = firstComponent[startIndex..<endIndex]
       converted = ("\(start).\(end)")
     case 6: //144.234.0 432174.0
-      startIndex = frequencyString.startIndex
-      endIndex = frequencyString.index(startIndex, offsetBy: 3)
-      let start = frequencyString[startIndex..<endIndex]
-      startIndex = frequencyString.index(frequencyString.startIndex, offsetBy: 3)
-      endIndex = frequencyString.endIndex
-      let end = frequencyString[startIndex..<endIndex]
+      endIndex = firstComponent.index(startIndex, offsetBy: 3)
+      let start = firstComponent[startIndex..<endIndex]
+      startIndex = endIndex
+      endIndex = firstComponent.endIndex
+      let end = firstComponent[startIndex..<endIndex]
       converted = ("\(start).\(end)")
     case 5: // 10.113
-      startIndex = frequencyString.startIndex
-      endIndex = frequencyString.index(startIndex, offsetBy: 2)
-      let start = frequencyString[startIndex..<endIndex]
-      startIndex = frequencyString.index(frequencyString.startIndex, offsetBy: 2)
-      endIndex = frequencyString.endIndex
-      let end = frequencyString[startIndex..<endIndex]
+      endIndex = firstComponent.index(startIndex, offsetBy: 2)
+      let start = firstComponent[startIndex..<endIndex]
+      startIndex = endIndex
+      endIndex = firstComponent.endIndex
+      let end = firstComponent[startIndex..<endIndex]
       converted = ("\(start).\(end)")
     case 4: // 3.563.0
-      startIndex = frequencyString.startIndex
-      endIndex = frequencyString.index(startIndex, offsetBy: 1)
-      let start = frequencyString[startIndex..<endIndex]
-      startIndex = frequencyString.index(frequencyString.startIndex, offsetBy: 1)
-      endIndex = frequencyString.endIndex
-      let end = frequencyString[startIndex..<endIndex]
+      endIndex = firstComponent.index(startIndex, offsetBy: 1)
+      let start = firstComponent[startIndex..<endIndex]
+      startIndex = endIndex
+      endIndex = firstComponent.endIndex
+      let end = firstComponent[startIndex..<endIndex]
       converted = ("\(start).\(end)")
     case 3: // 707
-      startIndex = frequencyString.startIndex
-      endIndex = frequencyString.index(startIndex, offsetBy: 2)
-      let start = frequencyString[startIndex..<endIndex]
-      startIndex = frequencyString.index(frequencyString.startIndex, offsetBy: 2)
-      endIndex = frequencyString.endIndex
-      let end = frequencyString[startIndex..<endIndex]
+      endIndex = firstComponent.index(startIndex, offsetBy: 2)
+      let start = firstComponent[startIndex..<endIndex]
+      startIndex = endIndex
+      endIndex = firstComponent.endIndex
+      let end = firstComponent[startIndex..<endIndex]
       converted = ("\(start).\(end)")
     default:
       return frequency

@@ -418,7 +418,7 @@ struct ControlBarView: View {
         .modifier(ClearButton(boundText: $callSignFilter))
         .frame(maxWidth: 150)
         }
-        
+
         CheckBoxView(controller: controller)
 
 //        HStack {

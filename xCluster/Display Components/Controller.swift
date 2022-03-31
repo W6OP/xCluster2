@@ -543,12 +543,10 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
              print("country: \(hitList![index].country)")
             }
           }
-         
-         //let hit = hitList![hitList!.count - 1]
+
          let hit = hitList![0]
 
          Task {
-//           let hit = hitList![hitList!.count - 1]
            await hitsCache.addHit(hitId: hit.spotId, hit: hit)
            if await hitsCache.getCount(spotId: hit.spotId) > 1 {
              await processHits(spotId: hit.spotId)
@@ -564,17 +562,12 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   /// - Parameter spotId: Int
   func processHits(spotId: Int ) async {
 
-    print("spot: \(spotId) process hits-1")
     // see if we have two matching hits
     let hits = await hitsCache.retrieveHits(spotId: spotId)
-    print("spot: \(spotId) process hits-2")
-    //if hits.count > 1 {
-      print("spot: \(spotId) process hits-3")
       async let hitPair = HitPair()
       await hitPair.addHits(hits: hits)
 
       // TODO: - need to clear hit and spot cache on cluster switch
-      print("spot: \(spotId) attempt retrieve")
       let spot = await spotCache.retrieveSpot(spotId: spotId)
 
     if !spot.isInvalidSpot {
@@ -589,7 +582,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   ///   - spot: ClusterSpot
   func processSpot(hitPair: HitPair, spot: ClusterSpot) async {
     await self.processStationInformation(hitPairs: hitPair, spot: spot)
-    print("spot: \(spot.id) removed")
     await spotCache.removeSpot(spotId: spot.id)
   }
 
@@ -1090,7 +1082,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
   /**
    Calculate the number of minutes between two dates
-   https://stackoverflow.com/questions/28016578/how-can-i-parse-create-a-date-time-stamp-formatted-with-fractional-seconds-utc/28016692#28016692
+   https://stackoverflow.com/questions/28016578/how-can-i-parse-create-a-
+   date-time-stamp-formatted-
+   with-fractional-seconds-utc/28016692#28016692
    */
   func minutesBetweenDates(_ oldDate: Date, _ newDate: Date) -> CGFloat {
 
@@ -1141,28 +1135,5 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     //          let coordinateRegion = MKCoordinateRegion(center: location.coordinate,
     //          latitudinalMeters: REGION_RADIUS, longitudinalMeters: REGION_RADIUS)
     //clustermapView.setRegion(coordinateRegion, animated: true)
-  }
-
-  // MARK: - JSON Decode/Encode
-
-  /*
-   {"dxLatitude":32.604489999999998,"band":20,"spotterLatitude":-34.526000000000003,
-   "spotterLongitude":-58.472700000000003,"dxGrid":"EM72go","dxLongitude":-85.482693999999995,
-   "dxCountry":"United States","dxLotw":false,"spotterGrid":"GF05sl","spotterCall":"LU4DCW","dateTime":"2021-04-10T22:03:59Z",
-   "spotterLotw":false,"expired":false,"identifier":"0","dxCall":"W4E","error":false,"formattedFrequency":
-   14.079999923706055,"spotterCountry":"Argentina","frequency":"14.080","mode":""}
-   */
-
-  /// Build a string to hold information from the associated spot.
-  /// - Parameter info: QRZInfoCombined that built overlay.
-  /// - Returns: string representation of QRZInfoCombined.
-  func buildJSONString(qrzInfoCombined: StationInformationCombined) -> String {
-
-    let encoder = JSONEncoder()
-    guard let data = try? encoder.encode(qrzInfoCombined) else { return "" }
-
-    //print(String(data: data, encoding: .utf8) ?? "")
-
-    return  String(data: data, encoding: .utf8) ?? ""
   }
 } // end class
