@@ -534,7 +534,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   /// Callback when CallLookup finds a Hit.
    func callParserCallback() {
 
-     callLookup.didUpdate = { [self] hitList in
+     callLookup.didUpdate = { hitList in
        if !hitList!.isEmpty {
          // TODO: - find out why this happens - should never be this many hits
          if hitList!.count > 10 {
@@ -547,9 +547,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
          let hit = hitList![0]
 
          Task {
-           await hitsCache.addHit(hitId: hit.spotId, hit: hit)
-           if await hitsCache.getCount(spotId: hit.spotId) > 1 {
-             await processHits(spotId: hit.spotId)
+           await self.hitsCache.addHit(hitId: hit.spotId, hit: hit)
+           if await self.hitsCache.getCount(spotId: hit.spotId) > 1 {
+             await self.processHits(spotId: hit.spotId)
            }
          }
        }

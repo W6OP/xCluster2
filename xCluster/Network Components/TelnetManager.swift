@@ -307,14 +307,11 @@ class TelnetManager {
 
     switch error {
 
-    case .posix(.ECONNREFUSED):
-      print("Posix .ECONNREFUSED")
+    case .posix(.ECONNREFUSED): print("Posix .ECONNREFUSED")
 
-    case .posix(.EPERM):
-      print("Posix .EPERM")
+    case .posix(.EPERM): print("Posix .EPERM")
 
-    case .posix(.ENOENT):
-      print("Posix .ENOENT")
+    case .posix(.ENOENT): print("Posix .ENOENT")
 
     //    case .posix(.ESRCH):
     //      break
@@ -418,15 +415,13 @@ class TelnetManager {
     //      break
     //    case .posix(.ECONNABORTED):
     //      break
-    case .posix(.ECONNRESET):
-      print("Posix .ECONNRESET")
+    case .posix(.ECONNRESET): print("Posix .ECONNRESET")
       self.telnetManagerDelegate?.telnetManagerStatusMessageReceived(self, messageKey: .disconnected, message: "")
     //    case .posix(.ENOBUFS):
     //      break
     //    case .posix(.EISCONN):
     //      break
-    case .posix(.ENOTCONN):
-      print("Posix .ENOTCONN")
+    case .posix(.ENOTCONN): print("Posix .ENOTCONN")
       self.telnetManagerDelegate?.telnetManagerStatusMessageReceived(self, messageKey: .disconnected, message: "")
     //    case .posix(.ESHUTDOWN):
     //      break
@@ -440,8 +435,7 @@ class TelnetManager {
     //      break
     //    case .posix(.EHOSTDOWN):
     //      break
-    case .posix(.EHOSTUNREACH):
-      print("Posix .EHOSTUNREACH")
+    case .posix(.EHOSTUNREACH): print("Posix .EHOSTUNREACH")
       print("Connection Error: \(error) Localized: \(error.localizedDescription)")
       self.telnetManagerDelegate?.telnetManagerStatusMessageReceived(self, messageKey: .disconnected, message: "")
     //    case .posix(.ENOTEMPTY):
@@ -490,8 +484,7 @@ class TelnetManager {
     //      break
     //    case .posix(.EBADMACHO):
     //      break
-    case .posix(.ECANCELED):
-      print("Posix .ECANCELED")
+    case .posix(.ECANCELED): print("Posix .ECANCELED")
       self.telnetManagerDelegate?.telnetManagerStatusMessageReceived(self, messageKey: .cancelled, message: "")
     //    case .posix(.EIDRM):
     //      break
@@ -525,16 +518,12 @@ class TelnetManager {
     //      break
     //    case .posix(.EQFULL):
     //      break
-    case .posix:
-      print("Posix .posix")
+    case .posix: print("Posix .posix")
       print("Connection Error: \(error) Localized: \(error.localizedDescription)")
       self.telnetManagerDelegate?.telnetManagerStatusMessageReceived(self, messageKey: .disconnected, message: "")
-    case .dns:
-      print("Posix .dns")
-    case .tls:
-      print("Posix .tls")
-    @unknown default:
-      print("Posix @unknown default: \(String(describing: error))")
+    case .dns: print("Posix .dns")
+    case .tls: print("Posix .tls")
+    @unknown default: print("Posix @unknown default: \(String(describing: error))")
     }
   }
 } // end class

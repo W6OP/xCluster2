@@ -9,7 +9,6 @@
 import SwiftUI
 
 struct ClusterDisplayView: View {
-  //@ObservedObject var controller: Controller
   @EnvironmentObject var controller: Controller
 
   var body: some View {

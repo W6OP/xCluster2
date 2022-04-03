@@ -20,7 +20,6 @@ struct XClusterApp: App {
 
         WindowGroup("Spots") {
           ClusterDisplayView().environmentObject(controller)
-          // ClusterDisplayView(controller: controller)
         }
         .handlesExternalEvents(matching: Set(arrayLiteral: "*"))
     }
