@@ -52,7 +52,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
                                                       clusterProtocol:
                                                         ClusterProtocol.none, retraint: .none) {
     didSet {
-      print("controller id: \(connectedCluster.id), name: \(connectedCluster.name)")
       if !connectedCluster.address.isEmpty {
         connect(cluster: connectedCluster, isReconnection: false)
       }
@@ -63,7 +62,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
                                                          maxLines: 25,
                                                          displayedLines: "25") {
     didSet {
-      print("selectedNumberOfLines id: \(selectedNumberOfSpots.id), name: \(selectedNumberOfSpots.displayedLines)")
       maxNumberOfSpots = selectedNumberOfSpots.maxLines
       Task {
         await manageSpots(spot: nil, doInsert: false)
@@ -516,7 +514,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     applyFilters(&spot)
 
     await spotCache.addSpot(spot: spot)
-    print("spot: \(spot.id) added")
 
     let callSigns = [spot.spotter, spot.dxStation]
     let asyncSpot = spot
@@ -620,12 +617,12 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   func applyFilters(_ spot: inout ClusterSpot) {
 
     if bandFilters[Int(spot.band)] == .isOn {
-      spot.setFilter(reason: .band)
+      spot.manageFilters(reason: .band)
     }
 
     if !callFilter.isEmpty {
       if spot.dxStation.prefix(callFilter.count) != callFilter {
-        spot.setFilter(reason: .call)
+        spot.manageFilters(reason: .call)
       }
     }
   }
@@ -874,10 +871,10 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
     callFilter = callSign
 
-    setAllCallSpotFilters(filterState: false)
+    setAllCallFilters(filterState: false)
 
     if !callSign.isEmpty {
-      updateSpotCallFilterState(call: callSign, filterState: false)
+      updateCallFilterState(call: callSign, filterState: false)
     }
 
     filterOverlays()
@@ -887,20 +884,20 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   /// - Parameters:
   ///   - call: String
   ///   - setFilter: Bool
-  func updateSpotCallFilterState(call: String, filterState: Bool) {
+  func updateCallFilterState(call: String, filterState: Bool) {
     DispatchQueue.main.async { [self] in
       if exactMatch {
         print("exact")
         for (index, spot) in displayedSpots.enumerated() where spot.dxStation.prefix(call.count) != call {
           var mutatingSpot = spot
-          mutatingSpot.setFilter(reason: .call)
+          mutatingSpot.manageFilters(reason: .call)
           displayedSpots[index] = mutatingSpot
         }
       } else {
         print("almost")
         for (index, spot) in displayedSpots.enumerated() where !spot.dxStation.contains(call) {
           var mutatingSpot = spot
-          mutatingSpot.setFilter(reason: .call)
+          mutatingSpot.manageFilters(reason: .call)
           displayedSpots[index] = mutatingSpot
         }
       }
@@ -909,11 +906,11 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
   /// Reset all the call filters to the same state.
   /// - Parameter setFilter: FilterState
-  func setAllCallSpotFilters(filterState: Bool) {
+  func setAllCallFilters(filterState: Bool) {
     DispatchQueue.main.async { [self] in
       for (index, spot) in displayedSpots.enumerated() {
         var mutatingSpot = spot
-        mutatingSpot.resetFilter(reason: .call)
+        mutatingSpot.manageFilters(reason: .call)
         displayedSpots[index] = mutatingSpot
       }
     }
@@ -932,11 +929,11 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     switch state {
     case true:
       if band != 0 {
-        bandFilters[Int(band)] = .isOn
+        bandFilters[Int(band)] = .isOff
       } else {
         // turn off all bands
-        bandFilters.keys.forEach { bandFilters[$0] = .isOn }
-        setAllBandSpotFilters(filterState: state)
+        bandFilters.keys.forEach { bandFilters[$0] = .isOff }
+        resetAllBandSpotFilters(filterState: state)
         DispatchQueue.main.async { [self] in
           overlays.removeAll()
           annotations.removeAll()
@@ -945,17 +942,17 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       }
     case false:
       if band != 0 {
-        bandFilters[Int(band)] = .isOff
+        bandFilters[Int(band)] = .isOn
       } else {
         // turn on all bands
-        bandFilters.keys.forEach { bandFilters[$0] = .isOff }
-        setAllBandSpotFilters(filterState: state)
+        bandFilters.keys.forEach { bandFilters[$0] = .isOn }
+        resetAllBandSpotFilters(filterState: state)
         filterOverlays()
         return
       }
     }
 
-    updateSpotBandFilterState(band: band, filterState: state)
+    updateBandFilterState(band: band, filterState: state)
     filterOverlays()
   }
 
@@ -963,27 +960,23 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   /// - Parameters:
   ///   - band: Int
   ///   - setFilter: Bool
-  func updateSpotBandFilterState(band: Int, filterState: Bool) {
+  func updateBandFilterState(band: Int, filterState: Bool) {
     DispatchQueue.main.async { [self] in
       for (index, spot) in displayedSpots.enumerated() where spot.band == band {
         var mutatingSpot = spot
-        if filterState {
-          mutatingSpot.setFilter(reason: .band)
-        } else {
-          mutatingSpot.resetFilter(reason: .band)
-        }
+        mutatingSpot.manageFilters(reason: .band)
         displayedSpots[index] = mutatingSpot
       }
     }
   }
 
-  /// Reset all the band filters to the same state.
+  /// Set all the band filters to the same state.
   /// - Parameter setFilter: FilterState
-  func setAllBandSpotFilters(filterState: Bool) {
+  func resetAllBandSpotFilters(filterState: Bool) {
     DispatchQueue.main.async { [self] in
       for (index, spot) in displayedSpots.enumerated() {
         var mutatingSpot = spot
-        mutatingSpot.resetFilter(reason: .band)
+        mutatingSpot.manageFilters(reason: .band)
         displayedSpots[index] = mutatingSpot
       }
     }
@@ -1012,6 +1005,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     DispatchQueue.main.async { [self] in
       for spot in displayedSpots {
         if spot.isFiltered == false {
+          // spot.id = polyline(overlay) hash value
           if overlays.first(where: {$0.hashValue == spot.id}) == nil {
             overlays.append(spot.overlay!)
           }

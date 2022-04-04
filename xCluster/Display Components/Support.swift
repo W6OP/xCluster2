@@ -48,6 +48,7 @@ struct ClusterSpot: Identifiable, Hashable {
   var isInvalidSpot = true
   var overlayExists = false
   var annotationExists = false
+  var isDigiMode = false
 
   private(set) var isFiltered: Bool
 
@@ -72,6 +73,8 @@ struct ClusterSpot: Identifiable, Hashable {
     let formatted = formatFrequency(frequency: frequency)
     formattedFrequency = String(format: "%.3f", formatted)
     band = convertFrequencyToBand(frequency: frequency)
+
+    setDigiMode(band: band, frequency: formatted)
   }
 
   func formatFrequency(frequency: String) -> Float {
@@ -85,6 +88,21 @@ struct ClusterSpot: Identifiable, Hashable {
     let result = Float(("\(prefix).\(suffix)"))?.roundTo(places: 4)
 
     return result ?? 0.0
+  }
+
+  func setDigiMode(band: Int, frequency: Float) {
+
+    switch band {
+    case 160:
+      break
+    default:
+      break
+    }
+
+  }
+
+  func isInDigiLimit() -> Bool {
+    return false
   }
 
   // swiftlint:disable cyclomatic_complexity
@@ -215,18 +233,21 @@ struct ClusterSpot: Identifiable, Hashable {
 
   /// Set a specific filter.
   /// - Parameter filterReason: FilterReason
-  mutating func setFilter(reason: FilterReason) {
-    self.filterReasons.append(reason)
-    self.isFiltered = true
-  }
+//  mutating func setFilter(reason: FilterReason) {
+//    self.filterReasons.append(reason)
+//    self.isFiltered = true
+//  }
 
   /// Reset a specific filter.
   /// - Parameter filterReason: FilterReason
-  mutating func resetFilter(reason: FilterReason) {
+  mutating func manageFilters(reason: FilterReason) {
 
     if filterReasons.contains(reason) {
       let index = filterReasons.firstIndex(of: reason)!
       self.filterReasons.remove(at: index)
+    } else {
+      filterReasons.append(reason)
+      self.isFiltered = true
     }
 
     if self.filterReasons.isEmpty {
@@ -236,15 +257,15 @@ struct ClusterSpot: Identifiable, Hashable {
 
   /// Reset the filter state of all of a certain type.
   /// - Parameter filterReason: FilterReason
-  mutating func resetAllFiltersOfType(reason: FilterReason) {
-    self.filterReasons.removeAll { value in
-      return value == reason
-    }
-
-    if self.filterReasons.isEmpty {
-      self.isFiltered = false
-    }
-  }
+//  mutating func resetAllFiltersOfType(reason: FilterReason) {
+//    self.filterReasons.removeAll { value in
+//      return value == reason
+//    }
+//
+//    if self.filterReasons.isEmpty {
+//      self.isFiltered = false
+//    }
+//  }
 }
 
 /// Metadata of the currently connected host.
