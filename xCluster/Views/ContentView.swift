@@ -61,7 +61,7 @@ struct ContentView: View {
         // MARK: - Cluster selection and filtering.
 
         HStack {
-          ControlBarView(controller: controller)
+          ControlBarView(controller: controller, clusters: clusterData )
         }
         .background(currentMode == .dark ? Color.blue : Color.cyan)
         .opacity(0.70)

@@ -16,14 +16,29 @@ struct ControlBarView: View {
   @State private var callSignFilter = ""
   @State private var showSpots = true
   @State private var filterByTime = false
+  var clusters: [ClusterIdentifier]
+  @State private var didTap: Bool = false
+  @ObservedObject var userSettings = UserSettings()
   //@State private var exactMatch = false
 
   @State private var callSign = ""
 
   var body: some View {
     HStack {
-      Spacer()
+      //Spacer()
       HStack {
+        Divider()
+
+        Button("QRZ Logon") {
+          self.didTap = true; controller.qrzLogon(userId: userSettings.username, password: userSettings.password)
+        }
+        .background(didTap ? Color.green : Color.blue)
+        //.padding(.top, 4)
+        .padding(.leading, 4)
+
+        Divider()
+        ClusterPickerView(controller: controller, clusters: clusters)
+        Divider()
 
         NumberOfSpotsPickerView(controller: controller)
 
@@ -63,13 +78,42 @@ struct ControlBarView: View {
 
         CommandButtonsView(controller: controller)
       }
-      .frame(minWidth: 600)
+      .frame(minWidth: 600, maxWidth: .infinity)
       .padding(.leading)
       .padding(.vertical, 2)
 
       Spacer()
     }
   } // end body
+}
+
+// MARK: - Cluster Picker
+
+struct ClusterPickerView: View {
+  @State private var selectedCluster = clusterData[0]
+  var controller: Controller
+  var clusters: [ClusterIdentifier]
+  let characterLimit = 10
+
+  var body: some View {
+    HStack {
+      Picker(selection: $selectedCluster.id, label: Text("")) {
+        ForEach(clusters) { cluster in
+          Text("\(cluster.name)")
+        }
+      }
+      .frame(minWidth: 200, maxWidth: 200)
+      .onReceive([selectedCluster].publisher.first()) { value in
+        if value.id != 9999 {
+          if self.controller.connectedCluster.id != value.id {
+            controller.displayedSpots = [ClusterSpot]()
+            self.controller.connectedCluster = clusterData.first {$0.id == value.id}!
+          }
+        }
+      }
+    }
+    .border(.green)
+  }
 }
 
 // MARK: - Number of Lines Picker
@@ -169,6 +213,7 @@ public struct ClearButton: ViewModifier {
 
 struct ControlBarView_Previews: PreviewProvider {
     static var previews: some View {
-      ControlBarView(controller: Controller())
+      let clusters: [ClusterIdentifier] = clusterData
+      ControlBarView(controller: Controller(), clusters: clusters)
     }
 }
