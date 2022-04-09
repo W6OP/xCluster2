@@ -123,8 +123,13 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   var modeFilters = [ 1: ModeFilterState.isOff, 2: ModeFilterState.isOff, 3: ModeFilterState.isOff]
 
   var callFilter = ""
-  // this is set by the Checkbox view in the ContentView
+  // these is set by the Checkbox views in the ContentView
   var exactMatch = false
+  var digiOnly = false {
+    didSet {
+      setDigiFilter(filterState: digiOnly)
+    }
+  }
   var activeCluster: ClusterIdentifier!
 
   var lastSpotReceivedTime = Date()
@@ -343,8 +348,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
     case .error:
       DispatchQueue.main.async { [self] in
-        statusMessage.append(message)
-      }
+          statusMessage.append(message)
+        }
 
     case .spotReceived:
       do {
@@ -625,6 +630,12 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         spot.manageFilters(reason: .call)
       }
     }
+
+    if digiOnly {
+      if !checkIsDigi(spot: spot) {
+        spot.manageFilters(reason: .notDigi)
+      }
+    }
   }
 
   // MARK: - QRZ Logon
@@ -744,9 +755,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   /// - Parameters:
   ///   - stationInfoCombined: StationInformationCombined
   ///   - spot: ClusterSpot
-  func processCallSignData(stationInformationCombined:
-                           StationInformationCombined,
-                           spot: ClusterSpot) {
+  func processCallSignData(
+    stationInformationCombined: StationInformationCombined,
+    spot: ClusterSpot) {
 
     logger.info("Create Overlay: \(stationInformationCombined.spotterCall): \(stationInformationCombined.dxCall) - 5")
 
@@ -775,7 +786,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
               annotations.append(spot!.spotterPin)
               annotations.append(spot!.dxPin)
             } else {
-              print("____________________ DUPLICATE _____________________")
+              //print("____________________ DUPLICATE _____________________")
             }
           }
 
@@ -871,7 +882,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
     callFilter = callSign
 
-    setAllCallFilters(filterState: false)
+    resetAllCallFilters(filterState: false)
 
     if !callSign.isEmpty {
       updateCallFilterState(call: callSign, filterState: false)
@@ -887,15 +898,15 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   func updateCallFilterState(call: String, filterState: Bool) {
     DispatchQueue.main.async { [self] in
       if exactMatch {
-        print("exact")
+        //print("exact")
         for (index, spot) in displayedSpots.enumerated() where spot.dxStation.prefix(call.count) != call {
           var mutatingSpot = spot
           mutatingSpot.manageFilters(reason: .call)
           displayedSpots[index] = mutatingSpot
         }
       } else {
-        print("almost")
-        for (index, spot) in displayedSpots.enumerated() where !spot.dxStation.contains(call) {
+        //print("almost")
+        for (index, spot) in displayedSpots.enumerated() where !spot.dxStation.starts(with: call) {
           var mutatingSpot = spot
           mutatingSpot.manageFilters(reason: .call)
           displayedSpots[index] = mutatingSpot
@@ -906,13 +917,121 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
   /// Reset all the call filters to the same state.
   /// - Parameter setFilter: FilterState
-  func setAllCallFilters(filterState: Bool) {
+  func resetAllCallFilters(filterState: Bool) {
     DispatchQueue.main.async { [self] in
       for (index, spot) in displayedSpots.enumerated() {
+          var mutatingSpot = spot
+          mutatingSpot.removeFilter(reason: .call)
+          displayedSpots[index] = mutatingSpot
+        }
+    }
+  }
+
+  // MARK: - Filter Digi
+
+  func setDigiFilter(filterState: Bool) {
+    DispatchQueue.main.async { [self] in
+
+      for (index, spot) in displayedSpots.enumerated() {
         var mutatingSpot = spot
-        mutatingSpot.manageFilters(reason: .call)
-        displayedSpots[index] = mutatingSpot
+        if filterState {
+          if !checkIsDigi(spot: spot) {
+            mutatingSpot.manageFilters(reason: .notDigi)
+            displayedSpots[index] = mutatingSpot
+          }
+        } else {
+          resetDigiFilter(spot: mutatingSpot, index: index)
+        }
       }
+    }
+    filterOverlays()
+  }
+
+  func resetDigiFilter(spot: ClusterSpot, index: Int) {
+
+    var mutatingSpot = spot
+    mutatingSpot.removeFilter(reason: .notDigi)
+    displayedSpots[index] = mutatingSpot
+
+    filterOverlays()
+  }
+
+  // MARK: - Digi Frequency Ranges
+
+  func checkIsDigi(spot: ClusterSpot) -> Bool {
+
+    guard let frequency = Float(spot.formattedFrequency) else { return false }
+    //print("input: \(frequency.roundTo(places: 3))")
+    switch Float(frequency.roundTo(places: 3)) {
+    case 1.840...1.845:
+      return true
+    case 1.84...1.845:
+      return true
+//    case 3.568...3.570:
+//      return true
+//    case 3.568...3.57:
+//      return true
+    case 3.573...3.578:
+      return true
+    case 5.357:
+      return true
+//    case 7.047...7.052:
+//      return true
+//    case 7.056...7.061:
+//      return true
+    case 7.074...7.078:
+      return true
+//    case 10.130...10.135:
+//      return true
+//    case 10.13...10.135:
+//      return true
+//    case 10.136...10.138:
+//      return true
+//    case 10.140...10.145:
+//      return true
+    case 10.136...10.145:
+      return true
+    case 14.074...14.078:
+      return true
+    case 14.080...14.082:
+      return true
+    case 14.08...14.082:
+      return true
+//    case 14.090...14.095:
+//      return true
+//    case 14.09...14.095:
+//      return true
+    case 18.100...18.106:
+      return true
+    case 18.10...18.106:
+      return true
+    case 18.1...18.106:
+      return true
+//    case 18.104...18.106:
+//      return true
+    case 21.074...21.078:
+      return true
+//    case 21.091...21.094:
+//      return true
+    case 21.140...21.142:
+      return true
+    case 21.14...21.142:
+      return true
+    case 24.915...24.922:
+      return true
+    case 28.074...28.078:
+      return true
+    case 28.180...28.182:
+      return true
+    case 28.18...28.182:
+      return true
+    case 50.313...50.320:
+      return true
+    case 50.323...50.328:
+      return true
+    default:
+      //print("output: \(spot.formattedFrequency)")
+      return false
     }
   }
 
@@ -1006,6 +1125,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       for spot in displayedSpots {
         if spot.isFiltered == false {
           // spot.id = polyline(overlay) hash value
+          //print("frequency: \(spot.formattedFrequency)")
           if overlays.first(where: {$0.hashValue == spot.id}) == nil {
             overlays.append(spot.overlay!)
           }

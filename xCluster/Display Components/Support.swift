@@ -22,6 +22,7 @@ struct ClusterSpot: Identifiable, Hashable {
     case band
     case call
     case country
+    case notDigi
     case grid
     case mode
     case time
@@ -34,6 +35,7 @@ struct ClusterSpot: Identifiable, Hashable {
   var dxStation: String
   var frequency: String
   var formattedFrequency = ""
+  //var floatFrequency: Float = 0.0
   var band: Int
   var spotter: String
   var timeUTC: String
@@ -70,11 +72,10 @@ struct ClusterSpot: Identifiable, Hashable {
   // need to convert 3.593.4 to 3.5934
   mutating func setFrequency(frequency: String) {
     self.frequency = frequency
-    let formatted = formatFrequency(frequency: frequency)
-    formattedFrequency = String(format: "%.3f", formatted)
+    let format = formatFrequency(frequency: frequency)
+    formattedFrequency = String(format: "%.3f", format)
     band = convertFrequencyToBand(frequency: frequency)
 
-    setDigiMode(band: band, frequency: formatted)
   }
 
   func formatFrequency(frequency: String) -> Float {
@@ -90,16 +91,16 @@ struct ClusterSpot: Identifiable, Hashable {
     return result ?? 0.0
   }
 
-  func setDigiMode(band: Int, frequency: Float) {
-
-    switch band {
-    case 160:
-      break
-    default:
-      break
-    }
-
-  }
+//  func setDigiMode(band: Int, frequency: Float) {
+//
+//    switch band {
+//    case 160:
+//      break
+//    default:
+//      break
+//    }
+//
+//  }
 
   func isInDigiLimit() -> Bool {
     return false
@@ -238,16 +239,22 @@ struct ClusterSpot: Identifiable, Hashable {
 //    self.isFiltered = true
 //  }
 
-  /// Reset a specific filter.
+  /// Add or Reset a specific filter.
   /// - Parameter filterReason: FilterReason
   mutating func manageFilters(reason: FilterReason) {
 
     if filterReasons.contains(reason) {
-      let index = filterReasons.firstIndex(of: reason)!
-      self.filterReasons.remove(at: index)
+      removeFilter(reason: reason)
     } else {
       filterReasons.append(reason)
       self.isFiltered = true
+    }
+  }
+
+  mutating func removeFilter(reason: FilterReason) {
+    if filterReasons.contains(reason) {
+      let index = filterReasons.firstIndex(of: reason)!
+      self.filterReasons.remove(at: index)
     }
 
     if self.filterReasons.isEmpty {

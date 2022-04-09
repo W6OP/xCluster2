@@ -7,6 +7,8 @@
 
 import SwiftUI
 
+// MARK: - Control Bar View Definition
+
 /// Cluster name picker
 struct ControlBarView: View {
   var controller: Controller
@@ -56,12 +58,13 @@ struct ControlBarView: View {
         TextField("Call Filter", text: $callSignFilter, onEditingChanged: { _ in
           // onEditingChanged
           callSignFilter = callSignFilter.uppercased()
-          print("editing changed \(callSignFilter)")
+          //print("editing changed \(callSignFilter)")
           if callSignFilter.count > characterLimit {
             callSignFilter = String(callSignFilter.prefix(characterLimit))
           }
         }) {
           // onCommit
+          //print("editing comitted: \(callSignFilter.uppercased())")
           self.controller.setCallFilter(callSign: callSignFilter.uppercased())
         }
         .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -69,12 +72,11 @@ struct ControlBarView: View {
         .frame(maxWidth: 150)
         }
 
-        CheckBoxView(controller: controller)
-
-//        HStack {
-//          Image(systemName: "magnifyingglass")
-//          TextField("Search", text:$callSign)
-//        }
+        HStack {
+          CheckBoxViewExact(controller: controller)
+          Divider()
+          CheckBoxViewFT8(controller: controller)
+        }
 
         CommandButtonsView(controller: controller)
       }
@@ -145,7 +147,9 @@ struct NumberOfSpotsPickerView: View {
   }
 }
 
-struct CheckBoxView: View {
+// MARK: - Exact CheckBox
+
+struct CheckBoxViewExact: View {
     var controller: Controller
     @State private var exactMatch = false
 
@@ -160,6 +164,24 @@ struct CheckBoxView: View {
     }
 }
 
+// MARK: - FT8/FT4 Checkbox
+
+struct CheckBoxViewFT8: View {
+    var controller: Controller
+    @State private var digiOnly = false
+
+    var body: some View {
+        Image(systemName: digiOnly ? "checkmark.square.fill" : "square")
+        .foregroundColor(digiOnly ? Color(.black) : Color.black)
+            .onTapGesture {
+                self.digiOnly.toggle()
+                controller.digiOnly = digiOnly
+            }
+      Text("FT4/FT8 Only")
+    }
+}
+
+// MARK: - Command Buttons
 struct CommandButtonsView: View {
   var controller: Controller
 
@@ -186,6 +208,8 @@ struct CommandButtonsView: View {
   }
 }
 
+// MARK: - Clear Button View Modifier
+
 public struct ClearButton: ViewModifier {
     var text: Binding<String>
     var trailing: Bool
@@ -210,6 +234,8 @@ public struct ClearButton: ViewModifier {
         }
     }
 }
+
+// MARK: - Preview pProvider
 
 struct ControlBarView_Previews: PreviewProvider {
     static var previews: some View {
