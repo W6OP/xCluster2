@@ -15,115 +15,13 @@ struct ClusterDisplayView: View {
     // MARK: - Spot list display.
 
     VStack {
-      ListDisplayView(controller: controller)
+        SpotHeader()
 
-      StatusDisplayView(controller: controller)
+        ListDisplayView(controller: controller)
+
+        StatusDisplayView(controller: controller)
     }
-    .frame(maxWidth: 700, minHeight: 1000, maxHeight: .infinity)
-    .padding(.vertical, 0)
-  }
-}
-
-// MARK: - Cluster list display.
-struct ListDisplayView: View {
-  @ObservedObject var controller: Controller
-  @Environment(\.colorScheme) var currentMode
-
-  var body: some View {
-    HStack {
-      ScrollView {
-        VStack {
-          SpotHeader()
-          Divider()
-            .frame(maxHeight: 1)
-            .padding(-5)
-          ForEach(controller.displayedSpots, id: \.self) { spot in
-            SpotRow(spot: spot)
-          }
-        }
-        .frame(alignment: .topLeading)
-        .background(currentMode == .dark ?  Color.black : Color(red: 209 / 255, green: 215 / 255, blue: 226 / 255))
-      }
-    }
-    //.frame(minHeight: 700, maxHeight: .infinity)
-    .border(Color.gray)
-  }
-}
-
-// MARK: - Spot Header
-
-struct SpotHeader: View {
-  var body: some View {
-
-    HStack {
-      Text("DX")
-        .frame(minWidth: 75, maxWidth: 75)
-        .border(width: 1, edges: [.trailing], color: .gray)
-      Text("Frequency")
-        .padding(.leading, 20)
-        .frame(minWidth: 90, maxWidth: 90)
-        .border(width: 1, edges: [.trailing], color: .gray)
-      Text("Spotter")
-        .frame(minWidth: 75, maxWidth: 75)
-        .border(width: 1, edges: [.trailing], color: .gray)
-      Text("Time")
-        .frame(minWidth: 60, maxWidth: 60)
-        .border(width: 1, edges: [.trailing], color: .gray)
-      Text("Comment")
-        .padding(.leading, 20)
-        .frame(minWidth: 200, maxWidth: 200, alignment: .leading)
-        .border(width: 1, edges: [.trailing], color: .gray)
-      Text("Country")
-        .frame(minWidth: 120, maxWidth: 120)
-    }
-    .foregroundColor(Color.red)
-    .font(.system(size: 14))
-    .padding(0)
-  }
-}
-
-// MARK: - Spot Row
-
-struct SpotRow: View {
-  var spot: ClusterSpot
-
-  var body: some View {
-    VStack {
-      HStack {
-        Text(spot.dxStation)
-          .frame(minWidth: 75, maxWidth: 75, alignment: .leading)
-          .padding(.leading, 5)
-          .border(width: 1, edges: [.trailing], color: .gray)
-        Text(spot.formattedFrequency)
-          .frame(minWidth: 90, maxWidth: 90, alignment: .leading)
-          .border(width: 1, edges: [.trailing], color: .gray)
-        Text(spot.spotter)
-          .frame(minWidth: 75, maxWidth: 75, alignment: .leading)
-          .border(width: 1, edges: [.trailing], color: .gray)
-        Text(spot.timeUTC)
-          .frame(minWidth: 60, maxWidth: 60, alignment: .leading)
-          .border(width: 1, edges: [.trailing], color: .gray)
-        Text(spot.comment)
-          .frame(minWidth: 200, maxWidth: 200, alignment: .leading)
-          .padding(.leading, 5)
-          .padding(.trailing, 5)
-          .border(width: 1, edges: [.trailing], color: .gray)
-        Text(spot.country)
-          .frame(minWidth: 120, maxWidth: 120, alignment: .leading)
-          .border(width: 1, edges: [.trailing], color: .gray)
-      }
-      .frame(maxWidth: .infinity, maxHeight: 15)
-      .padding(.leading, 5)
-      .padding(.top, -5)
-      .padding(.bottom, -5)
-
-      VStack {
-        Divider()
-          .frame(maxHeight: 1)
-          .padding(-5)
-      }
-      .frame(maxWidth: .infinity, maxHeight: 1)
-    }
+    .frame(minWidth: 700, maxWidth: 700, minHeight: 1000, maxHeight: .infinity, alignment: .topLeading)
   }
 }
 

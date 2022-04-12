@@ -130,6 +130,13 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       setDigiFilter(filterState: digiOnly)
     }
   }
+
+  var formattedFrequency = "" {
+    didSet {
+      print("\(formattedFrequency)")
+    }
+  }
+
   var activeCluster: ClusterIdentifier!
 
   var lastSpotReceivedTime = Date()
