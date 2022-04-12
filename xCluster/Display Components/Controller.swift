@@ -95,12 +95,12 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   var callLookup = CallLookup()
 
   // QRZ.com
-  let callSign = UserDefaults.standard.string(forKey: "callsign") ?? ""
-  let fullName = UserDefaults.standard.string(forKey: "fullname") ?? ""
-  let location = UserDefaults.standard.string(forKey: "location") ?? ""
-  let grid = UserDefaults.standard.string(forKey: "grid") ?? ""
-  let qrzUserName = UserDefaults.standard.string(forKey: "username") ?? ""
-  let qrzPassword = UserDefaults.standard.string(forKey: "password") ?? ""
+  var callSign = UserDefaults.standard.string(forKey: "callsign") ?? ""
+  var fullName = UserDefaults.standard.string(forKey: "fullname") ?? ""
+  var location = UserDefaults.standard.string(forKey: "location") ?? ""
+  var grid = UserDefaults.standard.string(forKey: "grid") ?? ""
+  var qrzUserName = UserDefaults.standard.string(forKey: "username") ?? ""
+  var qrzPassword = UserDefaults.standard.string(forKey: "password") ?? ""
 
   // mapping
   var maxNumberOfSpots = 100
@@ -166,37 +166,61 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   /// disconnect from the connected cluster first.
   /// - Parameter clusterName: String
   func connect(cluster: ClusterIdentifier, isReconnection: Bool) {
-
+    
     if connectedCluster.id != 9999 {
-
+      
       if activeCluster != nil {
         disconnect(activeCluster: activeCluster)
       }
-
+      
       Task {
         await spotCache.clear()
         await hitsCache.clear()
       }
-
+      
       if !isReconnection {
         cleanupConnection(isReconnection, cluster)
       }
-
-      if cluster.clusterProtocol == ClusterProtocol.html {
-        Task {
-          await webManager.connectAsync(cluster: cluster)
-        }
-      } else {
-        // don't use QRZ.com for RBNs
-        if cluster.retraint == .rbn {
-          callLookup.useCallParserOnly = true
+      
+      if updateUserInformation() {
+        if cluster.clusterProtocol == ClusterProtocol.html {
+          Task {
+            await webManager.connectAsync(cluster: cluster)
+          }
         } else {
-          callLookup.useCallParserOnly = false
+          // don't use QRZ.com for RBNs
+          if cluster.retraint == .rbn {
+            callLookup.useCallParserOnly = true
+          } else {
+            callLookup.useCallParserOnly = false
+          }
+          telnetManager.connect(cluster: cluster)
         }
-        telnetManager.connect(cluster: cluster)
+        activeCluster = cluster
+      } else {
+        DispatchQueue.main.async { [weak self] in
+          self?.statusMessage = [String]()
+          self?.statusMessage = ["You must set your call and name in the settings dialog"]
+        }
       }
-      activeCluster = cluster
     }
+  }
+
+
+  /// Update the user information.
+  func updateUserInformation() -> Bool {
+    callSign = UserDefaults.standard.string(forKey: "callsign") ?? ""
+    fullName = UserDefaults.standard.string(forKey: "fullname") ?? ""
+    location = UserDefaults.standard.string(forKey: "location") ?? ""
+    grid = UserDefaults.standard.string(forKey: "grid") ?? ""
+    qrzUserName = UserDefaults.standard.string(forKey: "username") ?? ""
+    qrzPassword = UserDefaults.standard.string(forKey: "password") ?? ""
+
+    if callSign.isEmpty || fullName.isEmpty {
+      return false
+    }
+
+    return true
   }
 
   /// Cleanup before connectiong to a new cluster.

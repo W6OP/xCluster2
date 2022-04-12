@@ -52,6 +52,8 @@ struct PreferencesView: View {
         Spacer()
       }
 
+      Divider()
+
       HStack {
         Form {
           Section(header: Text("QRZ Credentials")) {
