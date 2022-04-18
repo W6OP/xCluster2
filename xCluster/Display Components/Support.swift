@@ -213,14 +213,14 @@ struct ClusterSpot: Identifiable, Hashable {
                                                     .spotterLatitude, longitude:
                                                     stationInfoCombined
                                                     .spotterLongitude)
-    spotterPin.title = ("\(stationInfoCombined.spotterCall):\(formattedFrequency)")
+    spotterPin.title = ("\(stationInfoCombined.spotterCall):\(stationInfoCombined.dxCall)\r\(formattedFrequency)")
 
    let dxPin = MKPointAnnotation()
     dxPin.coordinate = CLLocationCoordinate2D(latitude:
                                                 stationInfoCombined.dxLatitude,
                                               longitude:
                                                 stationInfoCombined.dxLongitude)
-    dxPin.title = ("\(stationInfoCombined.dxCall):\(formattedFrequency)")
+    dxPin.title = ("\(stationInfoCombined.dxCall):\(stationInfoCombined.spotterCall)\r\(formattedFrequency)")
 
     spotterPin.subtitle = stationInfoCombined.spotterCountry
     dxPin.subtitle = stationInfoCombined.dxCountry

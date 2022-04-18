@@ -89,35 +89,6 @@ struct ControlBarView: View {
   } // end body
 }
 
-// MARK: - Cluster Picker
-
-struct ClusterPickerView: View {
-  @State private var selectedCluster = clusterData[0]
-  var controller: Controller
-  var clusters: [ClusterIdentifier]
-  let characterLimit = 10
-
-  var body: some View {
-    HStack {
-      Picker(selection: $selectedCluster.id, label: Text("")) {
-        ForEach(clusters) { cluster in
-          Text("\(cluster.name)")
-        }
-      }
-      .frame(minWidth: 200, maxWidth: 200)
-      .onReceive([selectedCluster].publisher.first()) { value in
-        if value.id != 9999 {
-          if self.controller.connectedCluster.id != value.id {
-            controller.displayedSpots = [ClusterSpot]()
-            self.controller.connectedCluster = clusterData.first {$0.id == value.id}!
-          }
-        }
-      }
-    }
-    .border(.green)
-  }
-}
-
 // MARK: - Number of Lines Picker
 
 struct NumberOfSpotsPickerView: View {

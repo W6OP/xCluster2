@@ -86,6 +86,7 @@ class TelnetManager {
     switch state {
 
     case .ready:
+      print("ready")
       self.connected = true
       self.connectionChanged = true
 

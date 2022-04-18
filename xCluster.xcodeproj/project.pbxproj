@@ -24,6 +24,7 @@
 		995162992804DD29004DC92F /* ListDisplayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 995162982804DD29004DC92F /* ListDisplayView.swift */; };
 		99625D8326122CAF00CC4677 /* Preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99625D8226122CAF00CC4677 /* Preferences.swift */; };
 		996C93D42753FFC500857EE0 /* WebManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 996C93D32753FFC500857EE0 /* WebManager.swift */; };
+		998D06692809C99A00B85360 /* ClusterPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 998D06682809C99A00B85360 /* ClusterPickerView.swift */; };
 		99E3FA6827F9F29700BE1830 /* BandButtonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99E3FA6727F9F29700BE1830 /* BandButtonView.swift */; };
 		99E3FA6A27F9F31B00BE1830 /* ModeButtonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99E3FA6927F9F31B00BE1830 /* ModeButtonView.swift */; };
 		99E3FA6C27F9F5D700BE1830 /* ControlBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99E3FA6B27F9F5D700BE1830 /* ControlBarView.swift */; };
@@ -51,6 +52,7 @@
 		995162982804DD29004DC92F /* ListDisplayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListDisplayView.swift; sourceTree = "<group>"; };
 		99625D8226122CAF00CC4677 /* Preferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preferences.swift; sourceTree = "<group>"; };
 		996C93D32753FFC500857EE0 /* WebManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebManager.swift; sourceTree = "<group>"; };
+		998D06682809C99A00B85360 /* ClusterPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClusterPickerView.swift; sourceTree = "<group>"; };
 		99A610E2279720310089A4BE /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		99E3FA6727F9F29700BE1830 /* BandButtonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BandButtonView.swift; sourceTree = "<group>"; };
 		99E3FA6927F9F31B00BE1830 /* ModeButtonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModeButtonView.swift; sourceTree = "<group>"; };
@@ -124,6 +126,7 @@
 				99E3FA6F27FA195500BE1830 /* TopBarView.swift */,
 				995162962804D915004DC92F /* SpotHeaderView.swift */,
 				995162982804DD29004DC92F /* ListDisplayView.swift */,
+				998D06682809C99A00B85360 /* ClusterPickerView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -263,6 +266,7 @@
 				99E3FA6C27F9F5D700BE1830 /* ControlBarView.swift in Sources */,
 				9907B63725FD455700A0859C /* XClusterApp.swift in Sources */,
 				9907B65525FD498F00A0859C /* Bindings.swift in Sources */,
+				998D06692809C99A00B85360 /* ClusterPickerView.swift in Sources */,
 				9907B66225FD4AB100A0859C /* TelnetManager.swift in Sources */,
 				995162972804D915004DC92F /* SpotHeaderView.swift in Sources */,
 			);

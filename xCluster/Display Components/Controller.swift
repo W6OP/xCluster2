@@ -205,8 +205,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       }
     }
   }
-
-
+  
   /// Update the user information.
   func updateUserInformation() -> Bool {
     callSign = UserDefaults.standard.string(forKey: "callsign") ?? ""

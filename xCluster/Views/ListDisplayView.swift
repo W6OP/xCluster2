@@ -16,7 +16,7 @@ struct ListDisplayView: View {
 
   var body: some View {
       ScrollView {
-        VStack(spacing: 0) {
+        VStack(spacing: 1) {
           ForEach(controller.displayedSpots, id: \.self) { spot in
             SpotRowView(spot: spot)
               .background(spot.id == highlighted ? Color(red: 141, green: 213, blue: 240) : Color(red: 209 / 255, green: 215 / 255, blue: 226 / 255))
