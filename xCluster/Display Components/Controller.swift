@@ -551,13 +551,13 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     await spotCache.addSpot(spot: spot)
 
     let callSigns = [spot.spotter, spot.dxStation]
-    let asyncSpot = spot
+    //let asyncSpot = spot
     await withTaskGroup(of: Void.self) { group in
       for index in 0..<callSigns.count {
-        group.addTask { [self] in
-          callLookup.lookupCall(call: callSigns[index],
+        group.addTask { [spot] in
+          self.callLookup.lookupCall(call: callSigns[index],
                                 spotInformation:
-                                  (spotId: asyncSpot.id, sequence: index))
+                                  (spotId: spot.id, sequence: index))
         }
       }
     }
@@ -568,21 +568,26 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
      callLookup.didUpdate = { hitList in
        if !hitList!.isEmpty {
-         // TODO: - find out why this happens - should never be this many hits
-         if hitList!.count > 10 {
-           print("Call: \(hitList![0].call)")
-           for index in 0..<hitList!.count {
-             print("country: \(hitList![index].country)")
-            }
-          }
+//         // TODO: - find out why this happens - should never be this many hits
+//         if hitList!.count > 10 {
+//           print("Call: \(hitList![0].call)")
+//           for index in 0..<hitList!.count {
+//             print("country: \(hitList![index].country)")
+//            }
+//          }
 
          let hit = hitList![0]
 
          Task {
            await self.hitsCache.addHit(hitId: hit.spotId, hit: hit)
-           if await self.hitsCache.getCount(spotId: hit.spotId) > 1 {
-             await self.processHits(spotId: hit.spotId)
-           }
+           //let count = await self.hitsCache.getCount(spotId: hit.spotId)
+           //if count > 1 {
+             let hits = await self.hitsCache.retrieveHits(spotId: hit.spotId)
+             print("hitCount1: \(hits.count)")
+             if hits.count > 1 {
+             await self.processHits(spotId: hit.spotId, hits: hits)
+             }
+           //}
          }
        }
      }
@@ -592,12 +597,15 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
   /// Process hits returned by the CallParser.
   /// - Parameter spotId: Int
-  func processHits(spotId: Int ) async {
+  func processHits(spotId: Int, hits: [Hit] ) async {
 
-    // see if we have two matching hits
-    let hits = await hitsCache.retrieveHits(spotId: spotId)
-      async let hitPair = HitPair()
-      await hitPair.addHits(hits: hits)
+    // we have two matching hits
+    //let hits = await hitsCache.retrieveHits(spotId: spotId)
+    print("hitCount2: \(hits.count)")
+    let hitPair = HitPair()
+    await hitPair.addHits(hits: hits)
+
+    //let count = await self.hitsCache.getCount(spotId: hit.spotId)
 
       // TODO: - need to clear hit and spot cache on cluster switch
       let spot = await spotCache.retrieveSpot(spotId: spotId)
@@ -613,7 +621,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   ///   - hitPair: HitPair
   ///   - spot: ClusterSpot
   func processSpot(hitPair: HitPair, spot: ClusterSpot) async {
-    await self.processStationInformation(hitPairs: hitPair, spot: spot)
+    await self.processStationInformation(hitPair: hitPair, spot: spot)
     await spotCache.removeSpot(spotId: spot.id)
   }
 
@@ -621,12 +629,16 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   /// - Parameters:
   ///   - hitPairs2: HitPair
   ///   - spot: ClusterSpot
-  func processStationInformation(hitPairs: HitPair, spot: ClusterSpot) async {
+  func processStationInformation(hitPair: HitPair, spot: ClusterSpot) async {
+
+    if await hitPair.hits.count < 2 {
+      return
+    }
 
     await withTaskGroup(of: StationInformation.self) { group in
       for index in 0..<2 {
         group.addTask { [self] in
-          return await populateStationInformation(hit: hitPairs.hits[index],
+          return await populateStationInformation(hit: hitPair.hits[index],
                                                     spotId: spot.id)
         }
       }

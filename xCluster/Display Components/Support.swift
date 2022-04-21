@@ -348,6 +348,21 @@ actor StationInformationPairs {
   }
 } // end actor
 
+extension Array {
+    func unique<T:Hashable>(by: ((Element) -> (T)))  -> [Element] {
+        var set = Set<T>() //the unique list kept in a Set for fast retrieval
+        var arrayOrdered = [Element]() //keeping the unique list of elements but ordered
+        for value in self {
+            if !set.contains(by(value)) {
+                set.insert(by(value))
+                arrayOrdered.append(value)
+            }
+        }
+
+        return arrayOrdered
+    }
+}
+
 /// Structure to hold a matching pair of Hits
 actor HitPair {
   var hits: [Hit] = []
@@ -361,6 +376,9 @@ actor HitPair {
   /// Add an array of HIT.
   /// - Parameter hits: [Hit]
   func addHits(hits: [Hit]) {
+//    if hits.count > 2 {
+//      _ = 2
+//    }
     self.hits.append(contentsOf: hits)
   }
 
@@ -386,7 +404,7 @@ actor HitCache {
   ///   - hit: Hit
   func addHit(hitId: Int, hit: Hit) {
     if hits[hitId] != nil {
-      hits[hitId]?.append(hit)
+        hits[hitId]?.append(hit)
     } else {
       var newHits: [Hit] = []
       newHits.append(hit)
@@ -405,7 +423,11 @@ actor HitCache {
   /// - Returns: [Hit]
   func retrieveHits(spotId: Int) -> [Hit] {
     if hits[spotId] != nil {
-      return hits[spotId]!
+      if hits[spotId]!.count > 2 {
+        _ = 1
+      }
+      // only want to return 2 hits
+      return hits[spotId]!.unique{$0.call}
     }
     return  []
   }
@@ -424,7 +446,7 @@ actor HitCache {
   /// Return the number of Hits.
   /// - Returns: Int
   func getCount(spotId: Int) -> Int {
-    return hits[spotId]!.count
+    return hits[spotId]?.count ?? 0
   }
 }
 
