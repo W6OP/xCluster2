@@ -91,17 +91,6 @@ struct ClusterSpot: Identifiable, Hashable {
     return result ?? 0.0
   }
 
-//  func setDigiMode(band: Int, frequency: Float) {
-//
-//    switch band {
-//    case 160:
-//      break
-//    default:
-//      break
-//    }
-//
-//  }
-
   func isInDigiLimit() -> Bool {
     return false
   }
@@ -367,18 +356,9 @@ extension Array {
 actor HitPair {
   var hits: [Hit] = []
 
-  /// Add a hit.
-  /// - Parameter hit: Hit
-  func addHit(hit: Hit) {
-    hits.append(hit)
-  }
-
   /// Add an array of HIT.
   /// - Parameter hits: [Hit]
   func addHits(hits: [Hit]) {
-//    if hits.count > 2 {
-//      _ = 2
-//    }
     self.hits.append(contentsOf: hits)
   }
 
@@ -414,22 +394,11 @@ actor HitCache {
 
   /// Remove 2 Hits.
   /// - Parameter spotId: Int
-  func removeHits(spotId: Int) {
-    hits.removeValue(forKey: spotId)
-  }
-
-  /// Retrieve an array of Hits.
-  /// - Parameter spotId: Int
-  /// - Returns: [Hit]
-  func retrieveHits(spotId: Int) -> [Hit] {
-    if hits[spotId] != nil {
-      if hits[spotId]!.count > 2 {
-        _ = 1
-      }
-      // only want to return 2 hits
-      return hits[spotId]!.unique{$0.call}
+  func removeHits(spotId: Int) -> [Hit] {
+    if hits[spotId] != nil && hits[spotId]!.count > 1 {
+      return hits.removeValue(forKey: spotId) ?? []
     }
-    return  []
+    return []
   }
 
   /// Remove all Hits.
@@ -453,29 +422,21 @@ actor HitCache {
 /// Temporary storage of ClusterSpots to match with returned.
 /// hits from the Call Parser
 actor SpotCache {
-  var spots: [ClusterSpot] = []
+  var spots: [Int: ClusterSpot] = [:]
 
   /// Add a ClusterSpot to the cache.
   /// - Parameter spot: ClusterSpot
   func addSpot(spot: ClusterSpot) {
-    spots.append(spot)
+    spots[spot.id] = spot
   }
 
-  /// Remove a ClusterSpot by id.
+  /// Retieve and remove a ClusterSpot by id.
   /// - Parameter spotId: Int
-  func removeSpot(spotId: Int) {
-    spots = spots.filter({$0.id != spotId})
-  }
-
-  /// Retrieve a single spot from the cache
-  /// - Parameter spotId: Int
-  /// - Returns: ClusterSpot
-  func retrieveSpot(spotId: Int) -> ClusterSpot {
-    if spots.contains(where: {$0.id == spotId}) {
-      return spots.filter({$0.id == spotId}).first!
+  func removeSpot(spotId: Int) -> ClusterSpot? {
+    if spots[spotId] != nil {
+      return spots.removeValue(forKey: spotId) ?? nil
     }
-
-    return ClusterSpot()
+    return nil
   }
 
   /// Remove all ClusterSpots from the cache.

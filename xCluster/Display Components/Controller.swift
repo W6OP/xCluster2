@@ -555,6 +555,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     await withTaskGroup(of: Void.self) { group in
       for index in 0..<callSigns.count {
         group.addTask { [spot] in
+          //print("input: \(spot.id):\(callSigns[index])")
           self.callLookup.lookupCall(call: callSigns[index],
                                 spotInformation:
                                   (spotId: spot.id, sequence: index))
@@ -564,34 +565,25 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   }
 
   /// Callback when CallLookup finds a Hit.
-   func callParserCallback() {
+  func callParserCallback() {
 
-     callLookup.didUpdate = { hitList in
-       if !hitList!.isEmpty {
-//         // TODO: - find out why this happens - should never be this many hits
-//         if hitList!.count > 10 {
-//           print("Call: \(hitList![0].call)")
-//           for index in 0..<hitList!.count {
-//             print("country: \(hitList![index].country)")
-//            }
-//          }
+    callLookup.didUpdate = { [self] hitList in
+      if !hitList!.isEmpty {
 
-         let hit = hitList![0]
+        let hit = hitList![0]
 
-         Task {
-           await self.hitsCache.addHit(hitId: hit.spotId, hit: hit)
-           //let count = await self.hitsCache.getCount(spotId: hit.spotId)
-           //if count > 1 {
-             let hits = await self.hitsCache.retrieveHits(spotId: hit.spotId)
-             print("hitCount1: \(hits.count)")
-             if hits.count > 1 {
-             await self.processHits(spotId: hit.spotId, hits: hits)
-             }
-           //}
-         }
-       }
-     }
-   }
+        Task {
+          await hitsCache.addHit(hitId: hit.spotId, hit: hit)
+          let hits = await hitsCache.removeHits(spotId: hit.spotId)
+          
+          if hits.count > 1 {
+            //print("processHits: \(hit.spotId)")
+            await self.processHits(spotId: hit.spotId, hits: hits)
+          }
+        }
+      }
+    }
+  }
 
 // MARK: - Process the returned Hits and Spots
 
@@ -600,19 +592,13 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   func processHits(spotId: Int, hits: [Hit] ) async {
 
     // we have two matching hits
-    //let hits = await hitsCache.retrieveHits(spotId: spotId)
-    print("hitCount2: \(hits.count)")
     let hitPair = HitPair()
     await hitPair.addHits(hits: hits)
 
-    //let count = await self.hitsCache.getCount(spotId: hit.spotId)
+    let spot = await spotCache.removeSpot(spotId: spotId)
 
-      // TODO: - need to clear hit and spot cache on cluster switch
-      let spot = await spotCache.retrieveSpot(spotId: spotId)
-
-    if !spot.isInvalidSpot {
-      await processSpot(hitPair: hitPair, spot: spot)
-      await hitsCache.removeHits(spotId: spotId)
+    if spot != nil {
+      await processSpot(hitPair: hitPair, spot: spot!)
     }
   }
 
@@ -622,7 +608,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   ///   - spot: ClusterSpot
   func processSpot(hitPair: HitPair, spot: ClusterSpot) async {
     await self.processStationInformation(hitPair: hitPair, spot: spot)
-    await spotCache.removeSpot(spotId: spot.id)
   }
 
   /// Build the station information for both calls in the spot.
