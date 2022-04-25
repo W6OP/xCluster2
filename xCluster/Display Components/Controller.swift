@@ -64,7 +64,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     didSet {
       maxNumberOfSpots = selectedNumberOfSpots.maxLines
       Task {
-        await manageSpots(spot: nil, doInsert: false)
+        await manageSpots(spot: nil, stationInformationCombined: nil, doInsert: false)
       }
     }
   }
@@ -786,23 +786,60 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     stationInformationCombined: StationInformationCombined,
     spot: ClusterSpot) {
 
-    logger.info("Create Overlay: \(stationInformationCombined.spotterCall): \(stationInformationCombined.dxCall) - 5")
+      //var combinedDxTitles = ""
+      //var combinedSpotterTitles = ""
 
-    // need to make spot mutable
-    var spot = spot
-    spot.createOverlay(stationInfoCombined: stationInformationCombined)
-    spot.createAnnotation(stationInfoCombined: stationInformationCombined)
+      logger.info("Create Overlay: \(stationInformationCombined.spotterCall): \(stationInformationCombined.dxCall) - 5")
 
-    let spot2 = spot
-    Task {
-      await manageSpots(spot: spot2, doInsert: true)
+      // need to make spot mutable
+      var spot = spot
+
+      let dxCall = stationInformationCombined.dxCall + ":"
+      let dxTitles = retrieveExistingSpot(call: dxCall)
+
+      if !dxTitles.isEmpty {
+        spot.addAnnotationTitles(titles: dxTitles, annotationType: .dx)
+      }
+
+//      let spotterCall = ":" + stationInformationCombined.spotterCall
+//      let spotterTitles = retrieveExistingSpot(call: spotterCall)
+//
+//      if !spotterTitles.isEmpty {
+//        spot.addAnnotationTitles(titles: spotterTitles, annotationType: .spotter)
+//      }
+
+      spot.createOverlay(stationInfoCombined: stationInformationCombined)
+      spot.createAnnotation(stationInfoCombined: stationInformationCombined)
+
+      let spot2 = spot
+      Task {
+        // might need to pass in annotation and create mutating function in spot
+        await manageSpots(spot: spot2, stationInformationCombined:stationInformationCombined, doInsert: true)
+      }
     }
+
+  // if the spot exists get all the annotation titles
+  // they will be added to the new spots annotations and the title
+  func retrieveExistingSpot(call: String) -> [String] {
+  var annotationTitles: [String] = []
+
+      for spot in displayedSpots {
+        if spot.dxAnnotationTitles.contains(where: { $0.contains(call) }) {
+          annotationTitles.append(contentsOf: spot.dxAnnotationTitles)
+
+          // need to delete existing annotation
+          // occaionnally some pins missing and some missing items in list
+          annotations = annotations.filter({ $0.hashValue != spot.dxPinId })
+        }
+    }
+
+    return annotationTitles
   }
 
   /// Insert and delete spots and overlays.
   /// - Parameter spot: ClusterSpot
   /// - Parameter doDelete: Bool
-  func manageSpots(spot: ClusterSpot?, doInsert: Bool) async {
+  func manageSpots(spot: ClusterSpot?, stationInformationCombined: StationInformationCombined?, doInsert: Bool) async {
 
     Task {
         await MainActor.run {

@@ -13,6 +13,10 @@ import Combine
 import os
 import CallParser
 
+enum AnnotationType {
+  case dx
+  case spotter
+}
 // MARK: - ClusterSpots
 
 /// Definition of a ClusterSpot
@@ -49,8 +53,9 @@ struct ClusterSpot: Identifiable, Hashable {
   var filterReasons = [FilterReason]()
   var isInvalidSpot = true
   var overlayExists = false
-  var annotationExists = false
   var isDigiMode = false
+  var dxAnnotationTitles: [String] = []
+  var spotterAnnotationTitles: [String] = []
 
   private(set) var isFiltered: Bool
 
@@ -184,40 +189,95 @@ struct ClusterSpot: Identifiable, Hashable {
     let polyline = MKGeodesicPolyline(coordinates: locations, count: locations.count)
     polyline.title = String(band)
     polyline.subtitle = stationInfoCombined.mode
-    //polyline.subtitle = String(id)
 
     id = polyline.hashValue
 
     self.overlay = polyline
   }
 
+  mutating func addAnnotationTitles(titles: [String], annotationType: AnnotationType) {
+
+    if annotationType == .dx {
+    dxAnnotationTitles.append(contentsOf: titles)
+    dxAnnotationTitles = dxAnnotationTitles.uniqued()
+    } else {
+      spotterAnnotationTitles.append(contentsOf: titles)
+      spotterAnnotationTitles = spotterAnnotationTitles.uniqued()
+    }
+  }
+
+
   // https://medium.com/macoclock/mapkit-map-pin-and-annotation-5c7d56439c66
   mutating func createAnnotation(stationInfoCombined: StationInformationCombined) {
+    //var titles: String = ""
 
-    if annotationExists { return }
+      createSpotterPin(stationInfoCombined: stationInfoCombined)
+      createDXPin(stationInfoCombined: stationInfoCombined)
 
-    let spotterPin = MKPointAnnotation()
-    spotterPin.coordinate = CLLocationCoordinate2D(latitude:
-                                                    stationInfoCombined
-                                                    .spotterLatitude, longitude:
-                                                    stationInfoCombined
-                                                    .spotterLongitude)
-    spotterPin.title = ("\(stationInfoCombined.spotterCall):\(stationInfoCombined.dxCall)\r\(formattedFrequency)")
+      dxAnnotationTitles = dxAnnotationTitles.uniqued()
 
-   let dxPin = MKPointAnnotation()
+//    for (index, title) in dxAnnotationTitles.enumerated() {
+//      //combinedDxTitles.append(title + "\r")
+//      //print("spot\(index): \(title)\r")
+//      self.overlay.title! += ("\(title)\r")
+//    }
+  }
+
+    /// Create the pin for the spotter and populate it's data.
+    /// - Parameter stationInfoCombined: StationInformationCombined
+    mutating func createSpotterPin(stationInfoCombined: StationInformationCombined) {
+
+      var combinedTitle = ""
+      let spotterPin = MKPointAnnotation()
+      let title = ("\(stationInfoCombined.spotterCall):\(stationInfoCombined.dxCall)\r\(formattedFrequency)")
+      spotterAnnotationTitles.insert(title, at: 0)
+
+      spotterPin.coordinate = CLLocationCoordinate2D(latitude:
+                                                      stationInfoCombined
+                                                      .spotterLatitude, longitude:
+                                                      stationInfoCombined
+                                                      .spotterLongitude)
+
+
+
+      for title in spotterAnnotationTitles {
+        combinedTitle += (title + "\r")
+      }
+
+      spotterPin.title = String(combinedTitle.dropLast(2))
+      spotterPin.subtitle = stationInfoCombined.spotterCountry
+      spotterPinId = spotterPin.hashValue
+      
+      self.spotterPin = spotterPin
+    }
+
+   /// Create the pin for the DX station and populate it's data.
+   /// - Parameter stationInfoCombined: StationInformationCombined
+  mutating func createDXPin(stationInfoCombined: StationInformationCombined) {
+
+    var combinedTitle = ""
+    let dxPin = MKPointAnnotation()
+    let title = ("\(stationInfoCombined.dxCall):\(stationInfoCombined.spotterCall)\r\(formattedFrequency)")
+
+    dxAnnotationTitles.insert(title, at: 0)
+    dxAnnotationTitles = dxAnnotationTitles.uniqued()
+    if dxAnnotationTitles.count > 15 {
+      dxAnnotationTitles.removeLast()
+    }
+
     dxPin.coordinate = CLLocationCoordinate2D(latitude:
                                                 stationInfoCombined.dxLatitude,
                                               longitude:
                                                 stationInfoCombined.dxLongitude)
-    dxPin.title = ("\(stationInfoCombined.dxCall):\(stationInfoCombined.spotterCall)\r\(formattedFrequency)")
+    //dxPin.title = title
+    for title in dxAnnotationTitles {
+      combinedTitle += (title + "\r")
+    }
 
-    spotterPin.subtitle = stationInfoCombined.spotterCountry
+    dxPin.title = String(combinedTitle.dropLast(2))
     dxPin.subtitle = stationInfoCombined.dxCountry
-
-    spotterPinId = spotterPin.hashValue
     dxPinId = dxPin.hashValue
 
-    self.spotterPin = spotterPin
     self.dxPin = dxPin
   }
 

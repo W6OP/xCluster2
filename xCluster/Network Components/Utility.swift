@@ -112,6 +112,15 @@ extension Float {
   }
 }
 
+// https://stackoverflow.com/questions/25738817/removing-duplicate-elements-from-an-array-in-swift
+// [1,2,4,2,1].uniqued()  // => [1,2,4]
+extension Sequence where Element: Hashable {
+    func uniqued() -> [Element] {
+        var set = Set<Element>()
+        return filter { set.insert($0).inserted }
+    }
+}
+
 /// Type of command sent to the cluster server.
 enum CommandType: String {
   case announce = "Announcement"
