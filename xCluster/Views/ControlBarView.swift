@@ -35,7 +35,6 @@ struct ControlBarView: View {
           self.didTap = true; controller.qrzLogon(userId: userSettings.username, password: userSettings.password)
         }
         .background(didTap ? Color.green : Color.blue)
-        //.padding(.top, 4)
         .padding(.leading, 4)
 
         Divider()

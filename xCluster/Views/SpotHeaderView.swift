@@ -7,41 +7,84 @@
 
 import SwiftUI
 
-struct SpotHeader: View {
+struct SpotHeaderView: View {
   var body: some View {
-
-    VStack {
       HStack {
-        Text("DX")
-          .frame(minWidth: 75, maxWidth: 75, alignment: .center)
-          .border(width: 1, edges: [.trailing], color: .gray)
-        Text("Frequency")
-        //.padding(.leading, 5)
-          .frame(minWidth: 90, maxWidth: 90, alignment: .center)
-          .border(width: 1, edges: [.trailing], color: .gray)
-        Text("Spotter")
-          .frame(minWidth: 75, maxWidth: 75, alignment: .center)
-          .border(width: 1, edges: [.trailing], color: .gray)
-        Text("Time")
-          .frame(minWidth: 60, maxWidth: 60, alignment: .center)
-          .border(width: 1, edges: [.trailing], color: .gray)
-        Text("Comment")
-        //.padding(.leading, 5)
-          .frame(minWidth: 200, maxWidth: 220, alignment: .leading)
-          .border(width: 1, edges: [.trailing], color: .gray)
-        Text("Country")
-          .frame(minWidth: 140, alignment: .center)
+        SpotHeaderDX()
+        SpotHeaderFrequency()
+        SpotHeaderSpotter()
+        SpotHeaderTime()
+        SpotHeaderComment()
+        SpotHeaderCountry()
       }
-      .border(Color.gray)
-      .foregroundColor(Color.red)
-      .font(.system(size: 14))
-    }
-    .frame(width: 700, height: 22)
+      .foregroundColor(Color.blue)
+      //.font(.system(size: 13))
+    Divider()
   }
 }
 
 struct SpotHeaderView_Previews: PreviewProvider {
   static var previews: some View {
-    SpotHeader()
+    SpotHeaderView()
+  }
+}
+
+/// Have to break out individual rows because you can't
+/// have more than 10 child views in a parent view.
+struct SpotHeaderDX: View {
+  var body: some View {
+    HStack {
+    Text("DX")
+      .frame(width: 90, alignment: .center)
+    Divider()
+    }
+  }
+}
+
+struct SpotHeaderFrequency: View {
+  var body: some View {
+    HStack {
+    Text("Freq")
+      .frame(width: 60, alignment: .center)
+    Divider()
+    }
+  }
+}
+struct SpotHeaderSpotter: View {
+  var body: some View {
+    HStack {
+    Text("Spotter")
+      .frame(width: 90, alignment: .center)
+    Divider()
+    }
+  }
+}
+
+struct SpotHeaderTime: View {
+  var body: some View {
+    HStack {
+    Text("Time")
+      .frame(width: 40, alignment: .center)
+    Divider()
+    }
+  }
+}
+
+struct SpotHeaderComment: View {
+  var body: some View {
+    HStack {
+    Text("Comment")
+      .frame(width: 200, alignment: .leading)
+    Divider()
+    }
+  }
+}
+
+struct SpotHeaderCountry: View {
+  var body: some View {
+    HStack {
+    Text("Country")
+        .frame(minWidth:140, maxWidth: .infinity, alignment: .leading)
+    }
   }
 }

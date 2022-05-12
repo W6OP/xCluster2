@@ -198,8 +198,8 @@ struct ClusterSpot: Identifiable, Hashable {
   mutating func addAnnotationTitles(titles: [String], annotationType: AnnotationType) {
 
     if annotationType == .dx {
-    dxAnnotationTitles.append(contentsOf: titles)
-    dxAnnotationTitles = dxAnnotationTitles.uniqued()
+      dxAnnotationTitles.append(contentsOf: titles)
+      dxAnnotationTitles = dxAnnotationTitles.uniqued()
     } else {
       spotterAnnotationTitles.append(contentsOf: titles)
       spotterAnnotationTitles = spotterAnnotationTitles.uniqued()
@@ -209,18 +209,8 @@ struct ClusterSpot: Identifiable, Hashable {
 
   // https://medium.com/macoclock/mapkit-map-pin-and-annotation-5c7d56439c66
   mutating func createAnnotation(stationInfoCombined: StationInformationCombined) {
-    //var titles: String = ""
-
       createSpotterPin(stationInfoCombined: stationInfoCombined)
       createDXPin(stationInfoCombined: stationInfoCombined)
-
-      dxAnnotationTitles = dxAnnotationTitles.uniqued()
-
-//    for (index, title) in dxAnnotationTitles.enumerated() {
-//      //combinedDxTitles.append(title + "\r")
-//      //print("spot\(index): \(title)\r")
-//      self.overlay.title! += ("\(title)\r")
-//    }
   }
 
     /// Create the pin for the spotter and populate it's data.
@@ -229,16 +219,19 @@ struct ClusterSpot: Identifiable, Hashable {
 
       var combinedTitle = ""
       let spotterPin = MKPointAnnotation()
-      let title = ("\(stationInfoCombined.spotterCall):\(stationInfoCombined.dxCall)\r\(formattedFrequency)")
+      let title = ("\(stationInfoCombined.spotterCall)-\(stationInfoCombined.dxCall):\(formattedFrequency)")
+
       spotterAnnotationTitles.insert(title, at: 0)
+      spotterAnnotationTitles = spotterAnnotationTitles.uniqued()
+      if spotterAnnotationTitles.count > 15 {
+        spotterAnnotationTitles.removeLast()
+      }
 
       spotterPin.coordinate = CLLocationCoordinate2D(latitude:
                                                       stationInfoCombined
                                                       .spotterLatitude, longitude:
                                                       stationInfoCombined
                                                       .spotterLongitude)
-
-
 
       for title in spotterAnnotationTitles {
         combinedTitle += (title + "\r")
@@ -257,7 +250,7 @@ struct ClusterSpot: Identifiable, Hashable {
 
     var combinedTitle = ""
     let dxPin = MKPointAnnotation()
-    let title = ("\(stationInfoCombined.dxCall):\(stationInfoCombined.spotterCall)\r\(formattedFrequency)")
+    let title = ("\(stationInfoCombined.dxCall)-\(stationInfoCombined.spotterCall):\(formattedFrequency)")
 
     dxAnnotationTitles.insert(title, at: 0)
     dxAnnotationTitles = dxAnnotationTitles.uniqued()
