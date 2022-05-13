@@ -24,14 +24,12 @@ struct ClusterDisplayView: View {
       HStack {
         ListDisplayView(controller: controller)
       }
-      //.border(Color.yellow)
       Divider()
 
       HStack {
         StatusDisplayView(controller: controller)
       }
     }
-    //.border(Color.red, width: 2)
     .frame(minWidth: 750, maxWidth: 750, minHeight: 1000, maxHeight: .infinity, alignment: .topLeading)
   }
 }
