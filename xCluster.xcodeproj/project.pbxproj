@@ -19,6 +19,7 @@
 		9907B66225FD4AB100A0859C /* TelnetManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9907B65E25FD4AB100A0859C /* TelnetManager.swift */; };
 		9907B66625FD4BA400A0859C /* CallParser in Frameworks */ = {isa = PBXBuildFile; productRef = 9907B66525FD4BA400A0859C /* CallParser */; };
 		9907B66925FD503C00A0859C /* ClusterDisplayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9907B66825FD503C00A0859C /* ClusterDisplayView.swift */; };
+		99485E14282EEAC70078824E /* StatusDisplayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99485E13282EEAC70078824E /* StatusDisplayView.swift */; };
 		99511BA927E6694F00576983 /* Support.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99511BA827E6694F00576983 /* Support.swift */; };
 		995162972804D915004DC92F /* SpotHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 995162962804D915004DC92F /* SpotHeaderView.swift */; };
 		995162992804DD29004DC92F /* ListDisplayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 995162982804DD29004DC92F /* ListDisplayView.swift */; };
@@ -47,6 +48,7 @@
 		9907B65C25FD4AB100A0859C /* SpotProcessor.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SpotProcessor.swift; sourceTree = "<group>"; };
 		9907B65E25FD4AB100A0859C /* TelnetManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TelnetManager.swift; sourceTree = "<group>"; };
 		9907B66825FD503C00A0859C /* ClusterDisplayView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ClusterDisplayView.swift; sourceTree = "<group>"; };
+		99485E13282EEAC70078824E /* StatusDisplayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusDisplayView.swift; sourceTree = "<group>"; };
 		99511BA827E6694F00576983 /* Support.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Support.swift; sourceTree = "<group>"; };
 		995162962804D915004DC92F /* SpotHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotHeaderView.swift; sourceTree = "<group>"; };
 		995162982804DD29004DC92F /* ListDisplayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListDisplayView.swift; sourceTree = "<group>"; };
@@ -92,8 +94,8 @@
 		9907B63525FD455700A0859C /* xCluster */ = {
 			isa = PBXGroup;
 			children = (
-				99A610E2279720310089A4BE /* README.md */,
 				9907B64D25FD47AC00A0859C /* Views */,
+				99A610E2279720310089A4BE /* README.md */,
 				9907B65325FD495600A0859C /* Display Components */,
 				9907B65A25FD4A3F00A0859C /* Network Components */,
 				9907B63F25FD455800A0859C /* Info.plist */,
@@ -127,6 +129,7 @@
 				9907B66825FD503C00A0859C /* ClusterDisplayView.swift */,
 				995162962804D915004DC92F /* SpotHeaderView.swift */,
 				995162982804DD29004DC92F /* ListDisplayView.swift */,
+				99485E13282EEAC70078824E /* StatusDisplayView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -252,6 +255,7 @@
 				9907B65825FD49FD00A0859C /* Controller.swift in Sources */,
 				99E3FA7027FA195500BE1830 /* TopBarView.swift in Sources */,
 				9907B63925FD455700A0859C /* ContentView.swift in Sources */,
+				99485E14282EEAC70078824E /* StatusDisplayView.swift in Sources */,
 				9907B66025FD4AB100A0859C /* SpotProcessor.swift in Sources */,
 				99E3FA6E27F9FE2500BE1830 /* MappingView.swift in Sources */,
 				99E3FA6827F9F29700BE1830 /* BandButtonView.swift in Sources */,

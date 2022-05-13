@@ -10,56 +10,72 @@ import SwiftUI
 
 struct ClusterDisplayView: View {
   @EnvironmentObject var controller: Controller
-
+  @State private var selectedTab = "Spots"
   var body: some View {
     // MARK: - Spot list display.
+      TabView(selection: $selectedTab) {
+        VStack(spacing: 0) {
+          Divider()
+          HStack {
+            SpotHeaderView()
+          }
+          .frame(width: .infinity, height: 20)
+          Divider()
 
-    VStack(spacing: 0) {
-      HStack {
-      SpotHeaderView()
+          HStack {
+            ListDisplayView(controller: controller)
+          }
+        }
+        .background(Color(red: 209 / 255, green: 215 / 255, blue: 226 / 255))
+        .onTapGesture {
+          selectedTab = "Status"
+        }
+        .tabItem {
+          Label("Spots", systemImage: "star")
+        }
+        .tag("Spots")
+        VStack(spacing: 0) {
+          Divider()
+          HStack {
+            StatusDisplayView(controller: controller)
+          }
+        }
+        .background(Color(red: 209 / 255, green: 215 / 255, blue: 226 / 255))
+        .tabItem {
+          Label("Status", systemImage: "circle")
+        }
+        .tag("Status")
       }
-      .frame(width: .infinity, height: 20)
-      Divider()
-
-      HStack {
-        ListDisplayView(controller: controller)
-      }
-      Divider()
-
-      HStack {
-        StatusDisplayView(controller: controller)
-      }
-    }
     .frame(minWidth: 750, maxWidth: 750, minHeight: 1000, maxHeight: .infinity, alignment: .topLeading)
   }
 }
 
-// MARK: - Status message display.
-struct StatusDisplayView: View {
-  @ObservedObject var controller: Controller
-
-  var body: some View {
-    HStack {
-      ScrollView {
-        VStack {
-          ForEach(controller.statusMessage, id: \.self) { message in
-            HStack {
-              Text(message)
-                .padding(.leading, 2)
-                .foregroundColor(Color.black)
-              Spacer()
-            }
-            .frame(maxHeight: 15)
-            .multilineTextAlignment(.leading)
-          }
-        }
-        .background(Color(red: 209 / 255, green: 215 / 255, blue: 226 / 255))
-      }
-    }
-    .frame(minHeight: 50, maxHeight: 200, alignment: .topLeading)
-    .border(Color.gray)
-  }
-}
+//// MARK: - Status message display.
+//struct StatusDisplayView: View {
+//  @ObservedObject var controller: Controller
+//
+//  var body: some View {
+//    //HStack {
+//      ScrollView {
+//        VStack {
+//          ForEach(controller.statusMessage, id: \.self) { message in
+//            HStack {
+//              Text(message)
+//                .padding(.leading, 2)
+//                .foregroundColor(Color.black)
+//              Spacer()
+//            }
+//            .frame(maxHeight: 15)
+//            .multilineTextAlignment(.leading)
+//          }
+//        }
+//        //.background(Color(red: 209 / 255, green: 215 / 255, blue: 226 / 255))
+//      }
+////    }
+////    .frame(minHeight: 50, maxHeight: .infinity, alignment: .topLeading)
+////    .border(Color.gray)
+//  }
+//}
 
 /// Preview of ClusterDisplayView
 struct ClusterDisplayView_Previews: PreviewProvider {

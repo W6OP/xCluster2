@@ -19,6 +19,12 @@ enum AnnotationType {
 }
 // MARK: - ClusterSpots
 
+/// Status message definition
+struct StatusMessage: Identifiable, Hashable {
+  var id = UUID()
+  var message = ""
+}
+
 /// Definition of a ClusterSpot
 struct ClusterSpot: Identifiable, Hashable {
 
