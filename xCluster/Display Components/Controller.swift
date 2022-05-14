@@ -29,7 +29,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   // MARK: - Published Properties
 
   @Published var displayedSpots = [ClusterSpot]()
-  @Published var statusMessage = [String]()
+  @Published var statusMessages = [StatusMessage]()
   @Published var overlays = [MKPolyline]()
   @Published var annotations = [MKPointAnnotation]()
 
@@ -199,8 +199,10 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         activeCluster = cluster
       } else {
         DispatchQueue.main.async { [weak self] in
-          self?.statusMessage = [String]()
-          self?.statusMessage = ["You must set your call and name in the settings dialog"]
+          var statusMessage = StatusMessage()
+          statusMessage.message = "You must set your call and name in the settings dialog"
+          self?.statusMessages = [StatusMessage]()
+          self?.statusMessages.append(statusMessage)
         }
       }
     }
@@ -246,7 +248,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
     // clear the status message
     DispatchQueue.main.async { [weak self] in
-      self?.statusMessage = [String]()
+      self?.statusMessages = [StatusMessage]()
     }
   }
 
@@ -279,8 +281,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     }
 
     DispatchQueue.main.async { [self] in
-      if statusMessage.count > maxStatusMessages {
-        statusMessage.removeFirst()
+      if statusMessages.count > maxStatusMessages {
+        statusMessages.removeFirst()
       }
     }
   }
@@ -306,7 +308,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
     case .waiting:
       DispatchQueue.main.async {
-        self.statusMessage.append(message)
+        var statusMessage = StatusMessage()
+        statusMessage.message = "You must set your call and name in the settings dialog"
+        self.statusMessages.append(statusMessage)
       }
 
     case .disconnected:
@@ -315,7 +319,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     case .error:
       DispatchQueue.main.async {
         self.logger.info("Error: \(message)")
-        self.statusMessage.append(message)
+        var statusMessage = StatusMessage()
+        statusMessage.message = "You must set your call and name in the settings dialog"
+        self.statusMessages.append(statusMessage)
       }
 
     case .callSignRequested:
@@ -332,17 +338,21 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
     case .clusterInformation:
       DispatchQueue.main.async {
-        self.statusMessage.append(message)
+        var statusMessage = StatusMessage()
+        statusMessage.message = message
+        self.statusMessages.append(statusMessage)
       }
     default:
       DispatchQueue.main.async {
-        self.statusMessage.append(message)
+        var statusMessage = StatusMessage()
+        statusMessage.message = message
+        self.statusMessages.append(statusMessage)
       }
     }
 
     DispatchQueue.main.async {
-      if self.statusMessage.count > self.maxStatusMessages {
-       self.statusMessage.removeFirst()
+      if self.statusMessages.count > self.maxStatusMessages {
+       self.statusMessages.removeFirst()
       }
     }
   }
@@ -359,12 +369,16 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     switch messageKey {
     case .clusterType:
       DispatchQueue.main.async { [weak self] in
-        self?.statusMessage.append(message.condenseWhitespace())
+        var statusMessage = StatusMessage()
+        statusMessage.message = message.condenseWhitespace()
+        self?.statusMessages.append(statusMessage)
       }
 
     case .announcement:
       DispatchQueue.main.async { [weak self] in
-        self?.statusMessage.append(message.condenseWhitespace() )
+        var statusMessage = StatusMessage()
+        statusMessage.message = message.condenseWhitespace()
+        self?.statusMessages.append(statusMessage)
       }
 
     case .clusterInformation:
@@ -372,13 +386,17 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         let messages = limitMessageLength(message: message)
 
         for item in messages {
-          statusMessage.append(item)
+          var statusMessage = StatusMessage()
+          statusMessage.message = item
+          self.statusMessages.append(statusMessage)
         }
       }
 
     case .error:
       DispatchQueue.main.async { [self] in
-          statusMessage.append(message)
+        var statusMessage = StatusMessage()
+        statusMessage.message = message
+        self.statusMessages.append(statusMessage)
         }
 
     case .spotReceived:
@@ -399,8 +417,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     }
 
     DispatchQueue.main.async { [weak self] in
-      if (self?.statusMessage.count)! > 200 {
-        self?.statusMessage.removeFirst()
+      if (self?.statusMessages.count)! > 200 {
+        self?.statusMessages.removeFirst()
       }
     }
   }
@@ -551,11 +569,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     await spotCache.addSpot(spot: spot)
 
     let callSigns = [spot.spotter, spot.dxStation]
-    //let asyncSpot = spot
     await withTaskGroup(of: Void.self) { group in
       for index in 0..<callSigns.count {
         group.addTask { [spot] in
-          //print("input: \(spot.id):\(callSigns[index])")
           self.callLookup.lookupCall(call: callSigns[index],
                                 spotInformation:
                                   (spotId: spot.id, sequence: index))
@@ -577,7 +593,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
           let hits = await hitsCache.removeHits(spotId: hit.spotId)
           
           if hits.count > 1 {
-            //print("processHits: \(hit.spotId)")
             await self.processHits(spotId: hit.spotId, hits: hits)
           }
         }
@@ -598,18 +613,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     let spot = await spotCache.removeSpot(spotId: spotId)
 
     if spot != nil {
-      //await processSpot(hitPair: hitPair, spot: spot!)
       await self.processStationInformation(hitPair: hitPair, spot: spot!)
     }
   }
-
-  /// Process a spot and the associated HitPair.
-  /// - Parameters:
-  ///   - hitPair: HitPair
-  ///   - spot: ClusterSpot
-//  func processSpot(hitPair: HitPair, spot: ClusterSpot) async {
-//    await self.processStationInformation(hitPair: hitPair, spot: spot)
-//  }
 
   /// Build the station information for both calls in the spot.
   /// - Parameters:
@@ -683,9 +689,13 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     callLookup.didGetSessionKey = { arg0 in
       let session: (state: Bool, message: String) = arg0!
       if !session.state {
-        self.statusMessage.append("QRZ logon failed: \(session.message)")
+        var statusMessage = StatusMessage()
+        statusMessage.message = "QRZ logon failed: \(session.message)"
+        self.statusMessages.append(statusMessage)
       } else {
-        self.statusMessage.append("QRZ logon successful")
+        var statusMessage = StatusMessage()
+        statusMessage.message = "QRZ logon successful"
+        self.statusMessages.append(statusMessage)
       }
     }
   }
@@ -980,14 +990,12 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   func updateCallFilterState(call: String, filterState: Bool) {
     DispatchQueue.main.async { [self] in
       if exactMatch {
-        //print("exact")
         for (index, spot) in displayedSpots.enumerated() where spot.dxStation.prefix(call.count) != call {
           var mutatingSpot = spot
           mutatingSpot.manageFilters(reason: .call)
           displayedSpots[index] = mutatingSpot
         }
       } else {
-        //print("almost")
         for (index, spot) in displayedSpots.enumerated() where !spot.dxStation.starts(with: call) {
           var mutatingSpot = spot
           mutatingSpot.manageFilters(reason: .call)

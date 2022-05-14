@@ -67,7 +67,7 @@ struct DXStationRowView: View {
       Text(spot.dxStation)
         .padding(.leading, 5)
         .frame(width: 90, alignment: .leading)
-        //.border(Color.red)
+      //.border(Color.red)
       Divider()
     }
     //.border(Color.green)
@@ -191,7 +191,7 @@ struct DXStationRowViewDummy: View {
       Text("OZ50DDXG")
         .padding(.leading, 5)
         .frame(width: 90, alignment: .leading)
-        //.border(Color.red)
+      //.border(Color.red)
       Divider()
     }
     //.border(Color.green)
