@@ -164,8 +164,12 @@ let clusterData = [
                     port: "7000", clusterProtocol: ClusterProtocol.telnet, retraint: .rbn),
 
   ClusterIdentifier(id: 200, name: "DXSummit", address: "http://www.dxsummit.fi/text/dx25.html",
-                    port: "80", clusterProtocol: ClusterProtocol.html, retraint: .none)
+                    port: "80", clusterProtocol: ClusterProtocol.html, retraint: .none)//,
+//  ClusterIdentifier(id: 201, name: "DXWatch", address: "https://dxwatch.com/dxsd1/dxsd1.php?f=13",
+//                    port: "80", clusterProtocol: ClusterProtocol.html, retraint: .none)
 ]
+
+// https://dxwatch.com/dxsd1/dxsd1.php?f=13
 
 /**
  http://www.dxcluster.info/telnet/index.php

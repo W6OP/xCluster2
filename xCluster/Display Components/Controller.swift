@@ -1127,21 +1127,22 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
   // MARK: - Filter Bands
 
-  /// Manage the band button state.
+  /// Manage the band button state. If the button is in the "on" position then no spots from that
+  /// band will show on the map.
   /// - Parameters:
   ///   - band: Int
   ///   - state: Bool
   func setBandButtons( band: Int, state: Bool) {
 
-    if band == 9999 {return}
+    //if band == 9999 {return}
 
     switch state {
     case true:
       if band != 0 {
-        bandFilters[Int(band)] = .isOff
+        bandFilters[Int(band)] = .isOn
       } else {
         // turn off all bands
-        bandFilters.keys.forEach { bandFilters[$0] = .isOff }
+        bandFilters.keys.forEach { bandFilters[$0] = .isOn }
         resetAllBandSpotFilters(filterState: state)
         DispatchQueue.main.async { [self] in
           overlays.removeAll()
@@ -1151,10 +1152,10 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       }
     case false:
       if band != 0 {
-        bandFilters[Int(band)] = .isOn
+        bandFilters[Int(band)] = .isOff
       } else {
         // turn on all bands
-        bandFilters.keys.forEach { bandFilters[$0] = .isOn }
+        bandFilters.keys.forEach { bandFilters[$0] = .isOff }
         resetAllBandSpotFilters(filterState: state)
         filterOverlays()
         return
@@ -1179,7 +1180,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     }
   }
 
-  /// Set all the band filters to the same state.
+  /// Set all the band filters to the same state on all spots.
   /// - Parameter setFilter: FilterState
   func resetAllBandSpotFilters(filterState: Bool) {
     DispatchQueue.main.async { [self] in

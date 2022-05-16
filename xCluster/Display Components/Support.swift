@@ -86,7 +86,6 @@ struct ClusterSpot: Identifiable, Hashable {
     let format = formatFrequency(frequency: frequency)
     formattedFrequency = String(format: "%.3f", format)
     band = convertFrequencyToBand(frequency: frequency)
-
   }
 
   func formatFrequency(frequency: String) -> Float {
@@ -293,10 +292,13 @@ struct ClusterSpot: Identifiable, Hashable {
 
     if filterReasons.contains(reason) {
       removeFilter(reason: reason)
+      print("filter removed: \(self.formattedFrequency)")
     } else {
       filterReasons.append(reason)
       self.isFiltered = true
+      print("filter added: \(self.formattedFrequency)")
     }
+    print("filter count: \(filterReasons.count)")
   }
 
   mutating func removeFilter(reason: FilterReason) {
