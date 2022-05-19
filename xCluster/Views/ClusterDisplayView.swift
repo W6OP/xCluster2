@@ -11,6 +11,7 @@ import SwiftUI
 struct ClusterDisplayView: View {
   @EnvironmentObject var controller: Controller
   @State private var selectedTab = "Spots"
+  
   var body: some View {
     // MARK: - Spot list display.
       TabView(selection: $selectedTab) {

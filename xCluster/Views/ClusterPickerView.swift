@@ -10,9 +10,10 @@ import SwiftUI
 // MARK: - Cluster Picker
 
 struct ClusterPickerView: View {
-  @State private var selectedCluster = clusterData[0]
+
   var controller: Controller
   var clusters: [ClusterIdentifier]
+  @State private var selectedCluster = clusterData[0]
 
   var body: some View {
     HStack {

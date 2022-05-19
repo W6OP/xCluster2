@@ -9,7 +9,6 @@ import SwiftUI
 
 struct PreferencesView: View {
   @Environment(\.presentationMode) var presentationMode
-  @Environment(\.colorScheme) var currentMode
   @ObservedObject var userSettings = UserSettings()
 
   var body: some View {
@@ -22,27 +21,23 @@ struct PreferencesView: View {
               Spacer()
               TextField("", text: $userSettings.callsign)
               .textFieldStyle(RoundedBorderTextFieldStyle())
-              //.frame(minWidth: 230, maxWidth: 230)
             }
             HStack {
               Text("Full Name")
               TextField("", text: $userSettings.fullname)
                 .textFieldStyle(RoundedBorderTextFieldStyle())
-              //.frame(minWidth: 230, maxWidth: 230)
             }
             HStack {
               Text("City, State")
               Spacer()
               TextField("", text: $userSettings.location)
                 .textFieldStyle(RoundedBorderTextFieldStyle())
-              //.frame(minWidth: 230, maxWidth: 230)
             }
             HStack {
               Text("Grid")
               Spacer()
               TextField("", text: $userSettings.grid)
                 .textFieldStyle(RoundedBorderTextFieldStyle())
-              //.frame(minWidth: 230, maxWidth: 230)
             }
           }
         }
@@ -78,11 +73,9 @@ struct PreferencesView: View {
           }
         }
       }
-      //.frame(minWidth: 275,maxWidth: 275)
     }
       .frame(minWidth: 300, maxWidth: 300)
     .padding(5)
-    .background(currentMode == .dark ?  Color.black : Color(red: 209 / 255, green: 215 / 255, blue: 226 / 255))
   }
 }
 

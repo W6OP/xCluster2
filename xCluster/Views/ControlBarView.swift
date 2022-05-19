@@ -11,23 +11,21 @@ import SwiftUI
 
 /// Cluster name picker
 struct ControlBarView: View {
-  var controller: Controller
-  let characterLimit = 10
 
   @Environment(\.openURL) var openURL
+  @ObservedObject var userSettings = UserSettings()
   @State private var callSignFilter = ""
   @State private var showSpots = true
   @State private var filterByTime = false
-  var clusters: [ClusterIdentifier]
   @State private var didTap: Bool = false
-  @ObservedObject var userSettings = UserSettings()
-  //@State private var exactMatch = false
-
   @State private var callSign = ""
+
+  var controller: Controller
+  var clusters: [ClusterIdentifier]
+  let characterLimit = 10
 
   var body: some View {
     HStack {
-      //Spacer()
       HStack {
         Divider()
 

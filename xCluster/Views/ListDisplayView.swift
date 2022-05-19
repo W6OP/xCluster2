@@ -11,7 +11,6 @@ import SwiftUI
 
 struct ListDisplayView: View {
   @ObservedObject var controller: Controller
-  @Environment(\.colorScheme) var currentMode
   @State private var highlighted: Int?
 
   var body: some View {
@@ -132,122 +131,6 @@ struct CountryRowView: View {
       Text(spot.country)
         .padding(.leading, 5)
         .frame(minWidth: 140, maxWidth: .infinity, alignment: .leading)
-    }
-  }
-}
-
-// MARK: - Dummy Cluster list display.
-
-struct ListDisplayViewDummy: View {
-  @ObservedObject var controller: Controller
-  @Environment(\.colorScheme) var currentMode
-  @State private var highlighted: Int?
-
-  var body: some View {
-    ScrollView {
-      VStack(spacing: 1) {
-        SpotRowViewDummy()
-        SpotRowViewDummy()
-        SpotRowViewDummy()
-        SpotRowViewDummy()
-      }
-//      .background(currentMode == .dark ?  Color(red: 0.2, green: 0.6, blue: 0.8) : Color(red: 209 / 255, green: 215 / 255, blue: 226 / 255))
-    }
-  }
-}
-
-// MARK: - Spot Row
-
-struct SpotRowViewDummy: View {
-
-  var body: some View {
-    HStack {
-      DXStationRowViewDummy()
-      FrequencyRowViewDummy()
-      SpotterRowViewDummy()
-      TimeRowViewDummy()
-      CommentRowViewDummy()
-      CountryRowViewDummy()
-    }
-    .font(.system(size: 12))
-    .frame(maxHeight: 17)
-    Divider()
-  }
-}
-
-struct ListDisplayView_PreviewsDummy: PreviewProvider {
-  static var previews: some View {
-    ListDisplayViewDummy(controller: Controller())
-  }
-}
-
-/// Have to break out individual rows because you can't
-/// have more than 10 child views in a parent view.
-struct DXStationRowViewDummy: View {
-
-  var body: some View {
-    HStack {
-      Text("OZ50DDXG")
-        .padding(.leading, 5)
-        .frame(width: 90, alignment: .leading)
-      //.border(Color.red)
-      Divider()
-    }
-    //.border(Color.green)
-  }
-}
-
-struct FrequencyRowViewDummy: View {
-
-  var body: some View {
-    HStack {
-      Text("1144.216")
-        .frame(width: 60, alignment: .leading)
-      Divider()
-    }
-  }
-}
-
-struct SpotterRowViewDummy: View {
-
-  var body: some View {
-    HStack {
-      Text("WA6YUL/KP2")
-        .frame(width: 90, alignment: .leading)
-      Divider()
-    }
-  }
-}
-
-struct TimeRowViewDummy: View {
-
-  var body: some View {
-    HStack {
-      Text("1200")
-        .frame(width: 40, alignment: .center)
-      Divider()
-    }
-  }
-}
-
-struct CommentRowViewDummy: View {
-
-  var body: some View {
-    HStack {
-      Text("spot.comment")
-        .frame(width: 200, alignment: .leading)
-      Divider()
-    }
-  }
-}
-
-struct CountryRowViewDummy: View {
-
-  var body: some View {
-    HStack {
-      Text("spot.country")
-        .frame(minWidth: 140, maxWidth: .infinity, alignment: .leading)
-      Divider()
     }
   }
 }

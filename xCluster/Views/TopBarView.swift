@@ -9,9 +9,6 @@ import SwiftUI
 
 struct TopBarView: View {
   @Environment(\.openURL) var openURL
-  @Environment(\.colorScheme) var currentMode
-  //@ObservedObject var userSettings = UserSettings()
-  //@State private var didTap: Bool = false
   @State private var showPreferences = false
 
   var controller: Controller
@@ -55,13 +52,13 @@ struct TopBarView: View {
     }
     .padding(.top, -2).padding(.bottom, 2)
     .frame(maxWidth: .infinity, minHeight: 30, maxHeight: 30)
-    .background(currentMode == .dark ? Color.blue : Color.cyan)
+    .background(Color("TopRowBackground"))
     .opacity(0.70)
   }
 }
 
-//struct TopBarView_Previews: PreviewProvider {
-//    static var previews: some View {
-//        TopBarView()
-//    }
-//}
+struct TopBarView_Previews: PreviewProvider {
+    static var previews: some View {
+      TopBarView(controller: Controller())
+    }
+}

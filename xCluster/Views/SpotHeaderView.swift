@@ -8,7 +8,6 @@
 import SwiftUI
 
 struct SpotHeaderView: View {
-  @Environment(\.colorScheme) var currentMode
   
   var body: some View {
       HStack {

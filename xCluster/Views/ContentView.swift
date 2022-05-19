@@ -14,7 +14,6 @@ import Combine
 
 /// Main entry point
 struct ContentView: View {
-  @Environment(\.colorScheme) var currentMode
   @EnvironmentObject var controller: Controller
 
   var bands: [BandIdentifier] = bandData
@@ -63,14 +62,13 @@ struct ContentView: View {
         HStack {
           ControlBarView(controller: controller, clusters: clusterData )
         }
-        .background(currentMode == .dark ? Color.blue : Color.cyan)
+        //.background(currentMode == .dark ? Color.blue : Color.cyan)
         .opacity(0.70)
         .frame(maxWidth: .infinity, minHeight: 30, maxHeight: 30)
         .padding(0)
       } // end containor VStack
       .frame(minWidth: 1300)
     } // end outer HStack
-    //.background(currentMode == .dark ? Color.green : Color.red)
   }
 } // end ContentView
 
