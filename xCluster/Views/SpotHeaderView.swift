@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct SpotHeaderView: View {
+  @Environment(\.colorScheme) var currentMode
+  
   var body: some View {
       HStack {
         SpotHeaderDX()
@@ -17,8 +19,7 @@ struct SpotHeaderView: View {
         SpotHeaderComment()
         SpotHeaderCountry()
       }
-      .foregroundColor(Color.blue)
-      //.font(.system(size: 13))
+      .foregroundColor(Color("SpotRowHeaderForeground"))
     Divider()
   }
 }

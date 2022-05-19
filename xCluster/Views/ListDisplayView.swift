@@ -19,14 +19,13 @@ struct ListDisplayView: View {
       VStack(spacing: 1) {
         ForEach(controller.displayedSpots, id: \.self) { spot in
           SpotRowView(spot: spot)
-            .background(spot.id == highlighted ? Color(red: 141, green: 213, blue: 240) : Color(red: 209 / 255, green: 215 / 255, blue: 226 / 255))
+            .background(spot.id == highlighted ? Color("Hilite") : Color("Background"))
             .onTapGesture(count: 1) {
               highlighted = spot.id
               controller.formattedFrequency = spot.formattedFrequency
             }
         }
       }
-      .background(currentMode == .dark ?  Color(red: 0.2, green: 0.6, blue: 0.8) : Color(red: 209 / 255, green: 215 / 255, blue: 226 / 255))
     }
   }
 }
@@ -152,7 +151,7 @@ struct ListDisplayViewDummy: View {
         SpotRowViewDummy()
         SpotRowViewDummy()
       }
-      .background(currentMode == .dark ?  Color(red: 0.2, green: 0.6, blue: 0.8) : Color(red: 209 / 255, green: 215 / 255, blue: 226 / 255))
+//      .background(currentMode == .dark ?  Color(red: 0.2, green: 0.6, blue: 0.8) : Color(red: 209 / 255, green: 215 / 255, blue: 226 / 255))
     }
   }
 }
