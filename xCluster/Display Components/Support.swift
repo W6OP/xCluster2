@@ -23,6 +23,10 @@ enum AnnotationType {
 struct StatusMessage: Identifiable, Hashable {
   var id = UUID()
   var message = ""
+
+  init(message: String) {
+    self.message = message
+  }
 }
 
 /// Definition of a ClusterSpot
@@ -224,7 +228,7 @@ struct ClusterSpot: Identifiable, Hashable {
 
       var combinedTitle = ""
       let spotterPin = MKPointAnnotation()
-      let title = ("\(stationInfoCombined.spotterCall)-\(stationInfoCombined.dxCall):\(formattedFrequency)")
+      let title = ("\(stationInfoCombined.spotterCall)-\(stationInfoCombined.dxCall): \(formattedFrequency)")
 
       spotterAnnotationTitles.insert(title, at: 0)
       spotterAnnotationTitles = spotterAnnotationTitles.uniqued()

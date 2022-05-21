@@ -25,6 +25,8 @@ class SpotProcessor {
     var spot = ClusterSpot()
     spot.isInvalidSpot = false
 
+    //  missing date
+    // DX de OH6BG-#:   14074.0  DH2UN          FT8  -15 dB  JN49    CQ      1453
     if rawSpot.count < 75 {
       print("\(rawSpot.count) -- \(rawSpot)")
       throw SpotError.spotError("processRawSpot: spot length too short")
@@ -42,11 +44,12 @@ class SpotProcessor {
       throw SpotError.spotError("processRawSpot: invalid spotter call sign: \(spot.dxStation)")
     }
 
-    balance = balance.dropFirst(10)
+    // "DX de HS/F8UKP-#:  18100.0  JG1JPE         FT8  -18 dB  PM96    CQ      1446Z"
+    balance = balance.dropFirst(11)
     endIndex = balance.index(balance.startIndex, offsetBy: 8)
     let frequency = convertStringSliceToString(String(balance[balance.startIndex..<endIndex]))
     guard Float(frequency) != nil else {
-      print(frequency)
+      print("processRawSpot: \(frequency)")
       throw SpotError.spotError("processRawSpot: unable to parse \(frequency)")
     }
 

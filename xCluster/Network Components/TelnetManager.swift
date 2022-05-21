@@ -43,7 +43,7 @@ class TelnetManager {
   var isLoggedOn: Bool
   var connectedHost = ClusterIdentifier(id: 0, name: "", address: "", port: "",
                                         clusterProtocol: ClusterProtocol.none,
-                                        retraint: .none)
+                                        restraint: .none)
 
   var clusterType: ClusterType
   var currentCommandType: CommandType

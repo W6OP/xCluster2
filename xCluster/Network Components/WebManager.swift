@@ -28,7 +28,7 @@ class WebManager {
   var isLoggedOn: Bool
   var connectedHost = ClusterIdentifier(id: 0, name: "", address: "",
                                         port: "",
-                                        clusterProtocol: ClusterProtocol.none, retraint: .none)
+                                        clusterProtocol: ClusterProtocol.none, restraint: .none)
 
   var clusterType: ClusterType
   var currentCommandType: CommandType

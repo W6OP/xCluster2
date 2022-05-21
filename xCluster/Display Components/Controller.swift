@@ -28,10 +28,10 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
   // MARK: - Published Properties
 
+  @Published var annotations = [MKPointAnnotation]()
   @Published var displayedSpots = [ClusterSpot]()
   @Published var statusMessages = [StatusMessage]()
   @Published var overlays = [MKPolyline]()
-  @Published var annotations = [MKPointAnnotation]()
 
   @Published var bandFilter = (id: 0, state: false) {
     didSet {
@@ -50,7 +50,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
                                                       address: "",
                                                       port: "",
                                                       clusterProtocol:
-                                                        ClusterProtocol.none, retraint: .none) {
+                                                        ClusterProtocol.none, restraint: .none) {
     didSet {
       if !connectedCluster.address.isEmpty {
         connect(cluster: connectedCluster, isReconnection: false)
@@ -63,9 +63,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
                                                          displayedLines: "25") {
     didSet {
       maxNumberOfSpots = selectedNumberOfSpots.maxLines
-      Task {
-        await manageSpots(spot: nil, stationInformationCombined: nil, doInsert: false)
-      }
+      manageTotalSpotCount()
     }
   }
 
@@ -103,7 +101,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   var qrzPassword = UserDefaults.standard.string(forKey: "password") ?? ""
 
   // mapping
-  var maxNumberOfSpots = 100
+  var maxNumberOfSpots = 50
   let maxStatusMessages = 200
   let regionRadius: CLLocationDistance = 10000000
   let centerLatitude = 28.282778
@@ -189,7 +187,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
           }
         } else {
           // don't use QRZ.com for RBNs
-          if cluster.retraint == .rbn {
+          if cluster.restraint == .rbn {
             callLookup.useCallParserOnly = true
           } else {
             callLookup.useCallParserOnly = false
@@ -198,14 +196,14 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         }
         activeCluster = cluster
       } else {
-        DispatchQueue.main.async { [weak self] in
-          var statusMessage = StatusMessage()
-          statusMessage.message = "You must set your call and name in the settings dialog"
-          self?.statusMessages = [StatusMessage]()
-          self?.statusMessages.append(statusMessage)
-        }
+       notifyUser()
       }
     }
+  }
+
+  /// Notify the user to fill out the preferences dialog.
+  func notifyUser() {
+    createStatusMessage(message: "You must set your call and name in the settings dialog")
   }
   
   /// Update the user information.
@@ -224,16 +222,15 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     return true
   }
 
-  /// Cleanup before connectiong to a new cluster.
+  /// Cleanup before connecting to a new cluster.
   /// - Parameters:
   ///   - isReconnection: Bool
   ///   - cluster: ClusterIdentifier
   fileprivate func cleanupConnection(_ isReconnection: Bool, _ cluster: ClusterIdentifier) {
-      overlays.removeAll()
-      annotations.removeAll()
-      displayedSpots.removeAll()
-      bandFilters.keys.forEach { bandFilters[$0] = .isOff }
-      logger.info("Connecting to: \(cluster.name)")
+    deleteExistingData(includeSpots: true)
+
+    bandFilters.keys.forEach { bandFilters[$0] = .isOff }
+    logger.info("Connecting to: \(cluster.name)")
   }
 
   /// Disconnect on cluster change or application termination.
@@ -247,8 +244,29 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     }
 
     // clear the status message
-    DispatchQueue.main.async { [weak self] in
-      self?.statusMessages = [StatusMessage]()
+    Task {
+      await MainActor.run {
+        self.statusMessages = [StatusMessage]()
+      }
+    }
+  }
+
+  /// Delete existing overlays, annotations and cluster spots.
+  /// - Parameter includeSpots: Bool
+  func deleteExistingData(includeSpots: Bool) {
+
+    Task {
+      await MainActor.run {
+        switch includeSpots {
+        case true:
+          overlays.removeAll()
+          annotations.removeAll()
+          displayedSpots.removeAll()
+        case false:
+          overlays.removeAll()
+          annotations.removeAll()
+        }
+      }
     }
   }
 
@@ -272,7 +290,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     switch messageKey {
     case.htmlSpotReceived:
       do {
-      try parseClusterSpot(message: message, messageType: messageKey)
+        try parseClusterSpot(message: message, messageType: messageKey)
       } catch {
         logger.info("Duplicate spot received \(messageKey.rawValue) : \(message)")
       }
@@ -280,9 +298,11 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       logger.info("Invalid message type \(messageKey.rawValue) : \(message)")
     }
 
-    DispatchQueue.main.async { [self] in
-      if statusMessages.count > maxStatusMessages {
-        statusMessages.removeFirst()
+    Task {
+      await MainActor.run {
+        if statusMessages.count > maxStatusMessages {
+          statusMessages.removeFirst()
+        }
       }
     }
   }
@@ -307,22 +327,14 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       sendPersonalData()
 
     case .waiting:
-      DispatchQueue.main.async {
-        var statusMessage = StatusMessage()
-        statusMessage.message = "You must set your call and name in the settings dialog"
-        self.statusMessages.append(statusMessage)
-      }
+      createStatusMessage(message: message)
 
     case .disconnected:
       reconnectCluster()
 
     case .error:
-      DispatchQueue.main.async {
-        self.logger.info("Error: \(message)")
-        var statusMessage = StatusMessage()
-        statusMessage.message = "You must set your call and name in the settings dialog"
-        self.statusMessages.append(statusMessage)
-      }
+      self.logger.info("Error: \(message)")
+      createStatusMessage(message: message)
 
     case .callSignRequested:
       self.sendClusterCommand(message: "\(callSign)", commandType: CommandType.logon)
@@ -337,22 +349,17 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       self.sendClusterCommand(message: "set/qra \(grid)", commandType: CommandType.message)
 
     case .clusterInformation:
-      DispatchQueue.main.async {
-        var statusMessage = StatusMessage()
-        statusMessage.message = message
-        self.statusMessages.append(statusMessage)
-      }
+      createStatusMessage(message: message)
+
     default:
-      DispatchQueue.main.async {
-        var statusMessage = StatusMessage()
-        statusMessage.message = message
-        self.statusMessages.append(statusMessage)
-      }
+      createStatusMessage(message: message)
     }
 
-    DispatchQueue.main.async {
-      if self.statusMessages.count > self.maxStatusMessages {
-       self.statusMessages.removeFirst()
+    Task {
+      await MainActor.run {
+        if self.statusMessages.count > self.maxStatusMessages {
+          self.statusMessages.removeFirst()
+        }
       }
     }
   }
@@ -368,36 +375,24 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
     switch messageKey {
     case .clusterType:
-      DispatchQueue.main.async { [weak self] in
-        var statusMessage = StatusMessage()
-        statusMessage.message = message.condenseWhitespace()
-        self?.statusMessages.append(statusMessage)
-      }
+      createStatusMessage(message: message.condenseWhitespace())
 
     case .announcement:
-      DispatchQueue.main.async { [weak self] in
-        var statusMessage = StatusMessage()
-        statusMessage.message = message.condenseWhitespace()
-        self?.statusMessages.append(statusMessage)
-      }
+      createStatusMessage(message: message.condenseWhitespace())
 
     case .clusterInformation:
-      DispatchQueue.main.async { [self] in
-        let messages = limitMessageLength(message: message)
-
-        for item in messages {
-          var statusMessage = StatusMessage()
-          statusMessage.message = item
-          self.statusMessages.append(statusMessage)
+      Task {
+        await MainActor.run {
+          let messages = limitMessageLength(message: message)
+          for item in messages {
+          let statusMessage = StatusMessage(message: item)
+            self.statusMessages.append(statusMessage)
+          }
         }
       }
 
     case .error:
-      DispatchQueue.main.async { [self] in
-        var statusMessage = StatusMessage()
-        statusMessage.message = message
-        self.statusMessages.append(statusMessage)
-        }
+      createStatusMessage(message: message)
 
     case .spotReceived:
       do {
@@ -416,9 +411,23 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       break
     }
 
-    DispatchQueue.main.async { [weak self] in
-      if (self?.statusMessages.count)! > 200 {
-        self?.statusMessages.removeFirst()
+    Task {
+      await MainActor.run {
+        if (self.statusMessages.count) > 200 {
+          self.statusMessages.removeFirst()
+        }
+      }
+    }
+  }
+
+  /// Create a new status message.
+  /// - Parameter message: String
+  func createStatusMessage(message: String) {
+
+    Task {
+      await MainActor.run {
+        let statusMessage = StatusMessage(message: message)
+        self.statusMessages = [statusMessage]
       }
     }
   }
@@ -428,13 +437,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   func sendApplicationCommand(command: CommandType) {
     switch command {
     case .clear:
-      Task {
-        await MainActor.run {
-        annotations.removeAll()
-        overlays.removeAll()
-        displayedSpots.removeAll()
-        }
-      }
+      deleteExistingData(includeSpots: true)
     default:
       break
     }
@@ -538,12 +541,15 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         return
       }
 
-      // if spot already exists, don't add again
-      if displayedSpots.firstIndex(where: { $0.spotter == spot.spotter &&
-        $0.dxStation == spot.dxStation && $0.band == spot.band
-      }) != nil {
-        logger.info("Duplicate Spot: \(spot.spotter):\(spot.dxStation)")
-        throw (RequestError.duplicateSpot)
+      DispatchQueue.main.async { [self] in
+        // if spot already exists, don't add again
+        if displayedSpots.firstIndex(where: { $0.spotter == spot.spotter &&
+          $0.dxStation == spot.dxStation && $0.band == spot.band
+        }) != nil {
+          logger.info("Duplicate Spot: \(spot.spotter):\(spot.dxStation)")
+          //throw (RequestError.duplicateSpot)
+          return
+        }
       }
 
       let asyncSpot = spot
@@ -685,17 +691,13 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
   /// Callback from the Call Parser for QRZ logon success/failure.
   func setupSessionCallback() {
-
-    callLookup.didGetSessionKey = { arg0 in
+    callLookup.didGetSessionKey = { [self] arg0 in
       let session: (state: Bool, message: String) = arg0!
+
       if !session.state {
-        var statusMessage = StatusMessage()
-        statusMessage.message = "QRZ logon failed: \(session.message)"
-        self.statusMessages.append(statusMessage)
+        createStatusMessage(message: "QRZ logon failed: \(session.message)")
       } else {
-        var statusMessage = StatusMessage()
-        statusMessage.message = "QRZ logon successful"
-        self.statusMessages.append(statusMessage)
+        createStatusMessage(message: "QRZ logon successful: \(session.message)")
       }
     }
   }
@@ -804,7 +806,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
       // dx list
       let dxCall = stationInformationCombined.dxCall + "-"
-      let dxTitles = retrieveExistingDxSpot(call: dxCall)
+      let dxTitles = retrieveAnnotationTitles(call: dxCall, spotter: false)
 
       if !dxTitles.isEmpty {
         spot.addAnnotationTitles(titles: dxTitles, annotationType: .dx)
@@ -812,7 +814,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
       // spotter list
       let spotterCall = stationInformationCombined.spotterCall + "-"
-      let spotterTitles = retrieveExistingSpotterSpot(call: spotterCall)
+      let spotterTitles = retrieveAnnotationTitles(call: spotterCall, spotter: true)
 
       if !spotterTitles.isEmpty {
         spot.addAnnotationTitles(titles: spotterTitles, annotationType: .spotter)
@@ -821,77 +823,85 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       spot.createOverlay(stationInfoCombined: stationInformationCombined)
       spot.createAnnotation(stationInfoCombined: stationInformationCombined)
 
-      let spot2 = spot
-      Task {
-        await manageSpots(spot: spot2, stationInformationCombined:stationInformationCombined, doInsert: true)
+      addSpot(spot: spot, doInsert: true)
+    }
+
+  // if the spot exists get all the annotation titles
+  // they will be added to the new spots annotations and the title
+  func retrieveAnnotationTitles(call: String, spotter: Bool) -> [String] {
+    var annotationTitles: [String] = []
+    var pinIds: [Int] = []
+
+    for spot in displayedSpots {
+      switch spotter {
+      case true:
+        if spot.spotterAnnotationTitles.contains(where: { $0.contains(call) }) {
+          annotationTitles.append(contentsOf: spot.spotterAnnotationTitles)
+          pinIds.append(spot.spotterPinId)
+        }
+      case false:
+        if spot.dxAnnotationTitles.contains(where: { $0.contains(call) }) {
+          annotationTitles.append(contentsOf: spot.dxAnnotationTitles)
+          pinIds.append(spot.dxPinId)
+        }
       }
     }
 
-  // if the spot exists get all the annotation titles
-  // they will be added to the new spots annotations and the title
-  func retrieveExistingDxSpot(call: String) -> [String] {
-  var annotationTitles: [String] = []
-
-      for spot in displayedSpots {
-        if spot.dxAnnotationTitles.contains(where: { $0.contains(call) }) {
-          annotationTitles.append(contentsOf: spot.dxAnnotationTitles)
-
-          // need to delete existing annotation
-          // occasionally some pins missing and some missing items in list
-          annotations = annotations.filter({ $0.hashValue != spot.dxPinId })
-        }
+    for pinId in pinIds {
+      deleteAnnotation(annotationId: pinId)
     }
 
     return annotationTitles
   }
 
-  // if the spot exists get all the annotation titles
-  // they will be added to the new spots annotations and the title
-  func retrieveExistingSpotterSpot(call: String) -> [String] {
-  var annotationTitles: [String] = []
 
-      for spot in displayedSpots {
-        if spot.spotterAnnotationTitles.contains(where: { $0.contains(call) }) {
-          annotationTitles.append(contentsOf: spot.spotterAnnotationTitles)
-
-          // need to delete existing annotation
-          // occasionally some pins missing and some missing items in list
-          annotations = annotations.filter({ $0.hashValue != spot.spotterPinId })
-        }
+  /// Delete a duplicate annotation
+  /// - Parameter annotationId: Int
+  func deleteAnnotation(annotationId: Int) {
+    Task {
+      await MainActor.run {
+        annotations = annotations.filter({ $0.hashValue != annotationId })
+      }
     }
-
-    return annotationTitles
   }
-
 
   /// Insert and delete spots and overlays.
   /// - Parameter spot: ClusterSpot
   /// - Parameter doDelete: Bool
-  func manageSpots(spot: ClusterSpot?, stationInformationCombined: StationInformationCombined?, doInsert: Bool) async {
+  func addSpot(spot: ClusterSpot?, doInsert: Bool) {
 
     Task {
-        await MainActor.run {
-          if doInsert {
-            displayedSpots.insert(spot!, at: 0)
-            if spot!.isFiltered == false && spot!.overlayExists == false {
-              overlays.append(spot!.overlay)
-              annotations.append(spot!.spotterPin)
-              annotations.append(spot!.dxPin)
-            } else {
-              //print("____________________ DUPLICATE _____________________")
-            }
-          }
-
-          if displayedSpots.count > maxNumberOfSpots {
-            while displayedSpots.count > maxNumberOfSpots {
-              let spot = displayedSpots[displayedSpots.count - 1]
-              overlays = overlays.filter({ $0.hashValue != spot.id })
-              annotations = annotations.filter({ $0.hashValue != spot.spotterPinId })
-              annotations = annotations.filter({ $0.hashValue != spot.dxPinId })
-              displayedSpots.removeLast()
-            }
+      await MainActor.run {
+        if doInsert {
+          displayedSpots.insert(spot!, at: 0)
+          if spot!.isFiltered == false && spot!.overlayExists == false {
+            overlays.append(spot!.overlay)
+            annotations.append(spot!.spotterPin)
+            annotations.append(spot!.dxPin)
+          } else {
+            //print("____________________ DUPLICATE _____________________")
           }
         }
+
+        manageTotalSpotCount()
+      }
+    }
+  }
+
+  /// Limit the number of spots to the user selected limit.
+  func manageTotalSpotCount() {
+    Task {
+      await MainActor.run {
+        if displayedSpots.count > maxNumberOfSpots {
+          while displayedSpots.count > maxNumberOfSpots {
+            let spot = displayedSpots[displayedSpots.count - 1]
+            overlays = overlays.filter({ $0.hashValue != spot.id })
+            annotations = annotations.filter({ $0.hashValue != spot.spotterPinId })
+            annotations = annotations.filter({ $0.hashValue != spot.dxPinId })
+            displayedSpots.removeLast()
+          }
+        }
+      }
     }
   }
 
@@ -981,6 +991,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     }
 
     filterOverlays()
+    updateAnnotations()
   }
 
   /// Update the filter state on a spot.
@@ -1035,15 +1046,22 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       }
     }
     filterOverlays()
+    updateAnnotations()
   }
 
   func resetDigiFilter(spot: ClusterSpot, index: Int) {
 
     var mutatingSpot = spot
     mutatingSpot.removeFilter(reason: .notDigi)
-    displayedSpots[index] = mutatingSpot
 
+    let spot = mutatingSpot
+    Task {
+      await MainActor.run {
+        displayedSpots[index] = spot
+      }
+    }
     filterOverlays()
+    updateAnnotations()
   }
 
   // MARK: - Digi Frequency Ranges
@@ -1134,8 +1152,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   ///   - state: Bool
   func setBandButtons( band: Int, state: Bool) {
 
-    //if band == 9999 {return}
-
     switch state {
     case true:
       if band != 0 {
@@ -1144,10 +1160,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         // turn off all bands
         bandFilters.keys.forEach { bandFilters[$0] = .isOn }
         resetAllBandSpotFilters(filterState: state)
-        DispatchQueue.main.async { [self] in
-          overlays.removeAll()
-          annotations.removeAll()
-        }
+        deleteExistingData(includeSpots: false)
         return
       }
     case false:
@@ -1158,12 +1171,14 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         bandFilters.keys.forEach { bandFilters[$0] = .isOff }
         resetAllBandSpotFilters(filterState: state)
         filterOverlays()
+        updateAnnotations()
         return
       }
     }
 
     updateBandFilterState(band: band, filterState: state)
     filterOverlays()
+    updateAnnotations()
   }
 
   /// Update the filter state on a spot.
@@ -1171,11 +1186,13 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   ///   - band: Int
   ///   - setFilter: Bool
   func updateBandFilterState(band: Int, filterState: Bool) {
-    DispatchQueue.main.async { [self] in
-      for (index, spot) in displayedSpots.enumerated() where spot.band == band {
-        var mutatingSpot = spot
-        mutatingSpot.manageFilters(reason: .band)
-        displayedSpots[index] = mutatingSpot
+    Task {
+      await MainActor.run {
+        for (index, spot) in displayedSpots.enumerated() where spot.band == band {
+          var mutatingSpot = spot
+          mutatingSpot.manageFilters(reason: .band)
+          displayedSpots[index] = mutatingSpot
+        }
       }
     }
   }
@@ -1183,72 +1200,52 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   /// Set all the band filters to the same state on all spots.
   /// - Parameter setFilter: FilterState
   func resetAllBandSpotFilters(filterState: Bool) {
-    DispatchQueue.main.async { [self] in
-      for (index, spot) in displayedSpots.enumerated() {
-        var mutatingSpot = spot
-        mutatingSpot.manageFilters(reason: .band)
-        displayedSpots[index] = mutatingSpot
+    Task {
+      await MainActor.run {
+        for (index, spot) in displayedSpots.enumerated() {
+          var mutatingSpot = spot
+          mutatingSpot.manageFilters(reason: .band)
+          displayedSpots[index] = mutatingSpot
+        }
       }
     }
   }
-
-  // MARK: - Filter Modes
-
-//  func setModeButtons(mode: Int, state: Bool) {
-//
-//    switch state {
-//    case true:
-//      modeFilters[Int(mode)] = .isOn
-//    default:
-//      modeFilters[Int(mode)] = .isOff
-//      break;
-//    }
-//
-//    //updateSpotModeFilterState(mode: mode, filterState: state)
-//    filterOverlays()
-//  }
 
   // MARK: - Filter Overlays
 
   /// Only allow overlays where isFiltered == false
   func filterOverlays() {
-    DispatchQueue.main.async { [self] in
-      for spot in displayedSpots {
-        if spot.isFiltered == false {
-          // spot.id = polyline(overlay) hash value
-          //print("frequency: \(spot.formattedFrequency)")
-          if overlays.first(where: {$0.hashValue == spot.id}) == nil {
-            overlays.append(spot.overlay!)
+    Task {
+      await MainActor.run {
+        for spot in displayedSpots {
+          if spot.isFiltered == false {
+            if overlays.first(where: {$0.hashValue == spot.id}) == nil {
+              overlays.append(spot.overlay!)
+            }
+          } else {
+            overlays = overlays.filter({ $0.hashValue != spot.id })
           }
-        } else {
-          overlays = overlays.filter({ $0.hashValue != spot.id })
         }
       }
     }
-    filterAnnotations()
   }
 
   /// Filter the annotations or flags at each end of an overlay.
-  func filterAnnotations() {
-    DispatchQueue.main.async { [self] in
-      for spot in displayedSpots {
-        if spot.isFiltered == false {
-          if annotations.first(where: {$0.hashValue == spot.spotterPinId}) == nil {
-            annotations.append(spot.spotterPin)
-            annotations.append(spot.dxPin)
+  func updateAnnotations() {
+    Task {
+      await MainActor.run {
+        for spot in displayedSpots {
+          if spot.isFiltered == false {
+            if annotations.first(where: {$0.hashValue == spot.spotterPinId}) == nil {
+              annotations.append(spot.spotterPin)
+              annotations.append(spot.dxPin)
+            }
+          } else {
+            annotations = annotations.filter({ $0.hashValue != spot.spotterPinId })
+            annotations = annotations.filter({ $0.hashValue != spot.dxPinId })
           }
-        } else {
-          annotations = annotations.filter({ $0.hashValue != spot.spotterPinId })
-          annotations = annotations.filter({ $0.hashValue != spot.dxPinId })
         }
       }
-    }
-  }
-
-  /// Remove and recreate the overlays to match the current spots.
-  func regenerateOverlays() {
-    DispatchQueue.main.async { [self] in
-      overlays.removeAll()
     }
   }
 
