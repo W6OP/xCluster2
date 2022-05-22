@@ -40,13 +40,6 @@ struct TopBarView: View {
 
       Divider()
 
-//      Button("QRZ Logon") {
-//        self.didTap = true; controller.qrzLogon(userId: userSettings.username, password: userSettings.password)
-//      }
-//      .background(didTap ? Color.green : Color.blue)
-//      .padding(.top, 4)
-//      .padding(.leading, 4)
-
       // MARK: - Band buttons
       ButtonBarView(controller: controller, clusters: clusters, bands: bands)
     }

@@ -37,16 +37,9 @@ struct ControlBarView: View {
 
         Divider()
         ClusterPickerView(controller: controller, clusters: clusters)
+
         Divider()
-
         NumberOfSpotsPickerView(controller: controller)
-
-//        Divider()
-//
-//        Toggle("Last 30 minutes", isOn: $filterByTime.didSet { (filterByTime) in
-//          controller.setTimeFilter(filterState: filterByTime)
-//        })
-//        .toggleStyle(SwitchToggleStyle(tint: Color.green))
 
         Divider()
 
@@ -61,7 +54,6 @@ struct ControlBarView: View {
           }
         }) {
           // onCommit
-          //print("editing comitted: \(callSignFilter.uppercased())")
           self.controller.setCallFilter(callSign: callSignFilter.uppercased())
         }
         .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -83,7 +75,7 @@ struct ControlBarView: View {
 
       Spacer()
     }
-  } // end body
+  }
 }
 
 // MARK: - Number of Lines Picker

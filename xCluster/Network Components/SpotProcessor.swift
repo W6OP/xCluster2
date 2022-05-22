@@ -134,6 +134,9 @@ class SpotProcessor {
     return slice.trimmingCharacters(in: .whitespaces)
   }
 
+  //70154.7 shows as 70.154 correct
+    // 144174.0 shows as 44.174
+
   /// Convert the frequency (10136000) to a string with a decimal place (10136.000)
   /// Use an extension to String to format frequency correctly. This is used to
   /// display the frequency formatted in the tableview.
@@ -141,6 +144,7 @@ class SpotProcessor {
   /// - Returns: String
   // swiftlint:disable function_body_length
   func convertFrequencyToDecimalString (frequency: String) -> String {
+    
     var converted: String
     var components = frequency.trimmingCharacters(in: .whitespaces).components(separatedBy: ".")
     let firstComponent = components[0]
@@ -206,7 +210,7 @@ class SpotProcessor {
     if components[1] != "0" {
       converted += (".\(components[1])")
     }
-
+    print("frequency: \(frequency) - \(converted)")
     return converted
   }
 

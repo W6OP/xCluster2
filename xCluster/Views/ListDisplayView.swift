@@ -43,7 +43,6 @@ struct SpotRowView: View {
       CommentRowView(spot: spot)
       CountryRowView(spot: spot)
     }
-    //.font(.system(size: 12))
     .frame(maxHeight: 17)
     Divider()
   }
@@ -65,10 +64,8 @@ struct DXStationRowView: View {
       Text(spot.dxStation)
         .padding(.leading, 5)
         .frame(width: 90, alignment: .leading)
-      //.border(Color.red)
       Divider()
     }
-    //.border(Color.green)
   }
 }
 

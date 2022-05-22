@@ -109,6 +109,9 @@ struct ClusterSpot: Identifiable, Hashable {
     return false
   }
 
+//70154.7 shows as 70.154 correct
+  // 144174.0 shows as 44.174
+  
   // swiftlint:disable cyclomatic_complexity
   /// Convert a frequency to a band.
   /// - Parameter frequency: String
@@ -228,7 +231,7 @@ struct ClusterSpot: Identifiable, Hashable {
 
       var combinedTitle = ""
       let spotterPin = MKPointAnnotation()
-      let title = ("\(stationInfoCombined.spotterCall)-\(stationInfoCombined.dxCall): \(formattedFrequency)")
+      let title = ("\(stationInfoCombined.spotterCall)-\(stationInfoCombined.dxCall)  \(formattedFrequency)MHz")
 
       spotterAnnotationTitles.insert(title, at: 0)
       spotterAnnotationTitles = spotterAnnotationTitles.uniqued()

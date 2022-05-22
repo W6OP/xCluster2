@@ -39,12 +39,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     }
   }
 
-  @Published var modeFilter = (id: 0, state: false) {
-    didSet {
-      //setModeButtons(mode: modeFilter.id, state: modeFilter.state)
-    }
-  }
-
   @Published var connectedCluster = ClusterIdentifier(id: 9999,
                                                       name: "Select Cluster",
                                                       address: "",
@@ -118,7 +112,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
                      15: BandFilterState.isOff, 12: BandFilterState.isOff, 10: BandFilterState.isOff,
                      6: BandFilterState.isOff]
 
-  var modeFilters = [ 1: ModeFilterState.isOff, 2: ModeFilterState.isOff, 3: ModeFilterState.isOff]
+  //var modeFilters = [ 1: ModeFilterState.isOff, 2: ModeFilterState.isOff, 3: ModeFilterState.isOff]
 
   var callFilter = ""
   // these is set by the Checkbox views in the ContentView
@@ -541,20 +535,22 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         return
       }
 
-      DispatchQueue.main.async { [self] in
-        // if spot already exists, don't add again
-        if displayedSpots.firstIndex(where: { $0.spotter == spot.spotter &&
-          $0.dxStation == spot.dxStation && $0.band == spot.band
-        }) != nil {
-          logger.info("Duplicate Spot: \(spot.spotter):\(spot.dxStation)")
-          //throw (RequestError.duplicateSpot)
-          return
+      let mutatingSpot = spot
+      Task {
+        await MainActor.run {
+          // if spot already exists, don't add again
+          if displayedSpots.firstIndex(where: { $0.spotter == mutatingSpot.spotter &&
+            $0.dxStation == mutatingSpot.dxStation && $0.band == mutatingSpot.band
+          }) != nil {
+            logger.info("Duplicate Spot: \(mutatingSpot.spotter):\(mutatingSpot.dxStation)")
+            //throw (RequestError.duplicateSpot)
+            return
+          }
         }
       }
 
-      let asyncSpot = spot
       Task {
-        try await lookupCompletedSpot(spot: asyncSpot)
+        try await lookupCompletedSpot(spot: mutatingSpot)
       }
 
     } catch {
@@ -832,17 +828,19 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     var annotationTitles: [String] = []
     var pinIds: [Int] = []
 
-    for spot in displayedSpots {
-      switch spotter {
-      case true:
-        if spot.spotterAnnotationTitles.contains(where: { $0.contains(call) }) {
-          annotationTitles.append(contentsOf: spot.spotterAnnotationTitles)
-          pinIds.append(spot.spotterPinId)
-        }
-      case false:
-        if spot.dxAnnotationTitles.contains(where: { $0.contains(call) }) {
-          annotationTitles.append(contentsOf: spot.dxAnnotationTitles)
-          pinIds.append(spot.dxPinId)
+    DispatchQueue.main.async { [self] in
+      for spot in displayedSpots {
+        switch spotter {
+        case true:
+          if spot.spotterAnnotationTitles.contains(where: { $0.contains(call) }) {
+            annotationTitles.append(contentsOf: spot.spotterAnnotationTitles)
+            pinIds.append(spot.spotterPinId)
+          }
+        case false:
+          if spot.dxAnnotationTitles.contains(where: { $0.contains(call) }) {
+            annotationTitles.append(contentsOf: spot.dxAnnotationTitles)
+            pinIds.append(spot.dxPinId)
+          }
         }
       }
     }
@@ -905,77 +903,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     }
   }
 
-  // MARK: - Filter by Time
-
-  /// Remove spots older than 30 minutes
-  /// - Parameter filterState: filter/don't filter
-  func setTimeFilter(filterState: Bool) {
-
-    //let localDateTime = Date()
-
-    //let iso8601DateFormatter = ISO8601DateFormatter()
-    //iso8601DateFormatter.formatOptions = [.withFullTime]
-    //let string = iso8601DateFormatter.string(from: localDateTime)
-    //print("utc_date-->", string.prefix(5).replacingOccurrences(of: ":", with: "")) // 18:35:17Z
-
-    // set the dxcall to "expired"
-    //    if filterState {
-    //      for overlay in overlays {
-    //
-    //      }
-    //    }
-  }
-
-  func getGMTTimeDate() -> Date {
-    var comp: DateComponents = Calendar.current.dateComponents([.year, .month, .hour, .minute], from: Date())
-    comp.calendar = Calendar.current
-    comp.timeZone = TimeZone(abbreviation: "UTC")!
-    return Calendar.current.date(from: comp)!
-  }
-
-  func getCurrentUTCTime() {
-
-    let utcDateFormatter = DateFormatter()
-    utcDateFormatter.dateStyle = .medium
-    utcDateFormatter.timeStyle = .medium
-
-    // The default timeZone on DateFormatter is the device’s
-    // local time zone. Set timeZone to UTC to get UTC time.
-    utcDateFormatter.timeZone = TimeZone(abbreviation: "UTC")
-
-    // Printing a Date
-    //let date = Date()
-    //print(utcDateFormatter.string(from: date))
-
-    // Parsing a string representing a date
-    //let dateString = "hmm"
-    //let utcDate = utcDateFormatter.date(from: dateString)
-
-    //print("UTC: \(String(describing: utcDate))")
-
-  }
-
-  func localToUTC(dateStr: String) -> String? {
-    let dateFormatter = DateFormatter()
-    dateFormatter.dateFormat = "h:mm a"
-    dateFormatter.calendar = Calendar.current
-    dateFormatter.timeZone = TimeZone.current
-
-    if let date = dateFormatter.date(from: dateStr) {
-      dateFormatter.timeZone = TimeZone(abbreviation: "UTC")
-      dateFormatter.dateFormat = "H:mm:ss"
-
-      return dateFormatter.string(from: date)
-    }
-    return nil
-  }
-
-  func filterMapLinesByTime(callSign: String) {
-    DispatchQueue.main.async {
-      //self.overlays = self.overlays.filter {$0.subtitle == String(time)}
-    }
-  }
-
   // MARK: - Filter Call Signs
 
   /// Remove overlays where the call sign does not match the filter.
@@ -999,18 +926,20 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   ///   - call: String
   ///   - setFilter: Bool
   func updateCallFilterState(call: String, filterState: Bool) {
-    DispatchQueue.main.async { [self] in
-      if exactMatch {
-        for (index, spot) in displayedSpots.enumerated() where spot.dxStation.prefix(call.count) != call {
-          var mutatingSpot = spot
-          mutatingSpot.manageFilters(reason: .call)
-          displayedSpots[index] = mutatingSpot
-        }
-      } else {
-        for (index, spot) in displayedSpots.enumerated() where !spot.dxStation.starts(with: call) {
-          var mutatingSpot = spot
-          mutatingSpot.manageFilters(reason: .call)
-          displayedSpots[index] = mutatingSpot
+    Task {
+      await MainActor.run {
+        if exactMatch {
+          for (index, spot) in displayedSpots.enumerated() where spot.dxStation.prefix(call.count) != call {
+            var mutatingSpot = spot
+            mutatingSpot.manageFilters(reason: .call)
+            displayedSpots[index] = mutatingSpot
+          }
+        } else {
+          for (index, spot) in displayedSpots.enumerated() where !spot.dxStation.starts(with: call) {
+            var mutatingSpot = spot
+            mutatingSpot.manageFilters(reason: .call)
+            displayedSpots[index] = mutatingSpot
+          }
         }
       }
     }
@@ -1019,29 +948,34 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   /// Reset all the call filters to the same state.
   /// - Parameter setFilter: FilterState
   func resetAllCallFilters(filterState: Bool) {
-    DispatchQueue.main.async { [self] in
-      for (index, spot) in displayedSpots.enumerated() {
+    Task {
+      await MainActor.run {
+        for (index, spot) in displayedSpots.enumerated() {
           var mutatingSpot = spot
           mutatingSpot.removeFilter(reason: .call)
           displayedSpots[index] = mutatingSpot
         }
+      }
     }
   }
 
   // MARK: - Filter Digi
 
   func setDigiFilter(filterState: Bool) {
-    DispatchQueue.main.async { [self] in
-
-      for (index, spot) in displayedSpots.enumerated() {
-        var mutatingSpot = spot
-        if filterState {
-          if !checkIsDigi(spot: spot) {
-            mutatingSpot.manageFilters(reason: .notDigi)
+    Task {
+      await MainActor.run {
+        for (index, spot) in displayedSpots.enumerated() {
+          var mutatingSpot = spot
+          if filterState {
+            if !checkIsDigi(spot: spot) {
+              mutatingSpot.manageFilters(reason: .notDigi)
+              displayedSpots[index] = mutatingSpot
+            }
+          } else {
+            //resetDigiFilter(spot: mutatingSpot, index: index)
+            mutatingSpot.removeFilter(reason: .notDigi)
             displayedSpots[index] = mutatingSpot
           }
-        } else {
-          resetDigiFilter(spot: mutatingSpot, index: index)
         }
       }
     }
@@ -1049,20 +983,19 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     updateAnnotations()
   }
 
-  func resetDigiFilter(spot: ClusterSpot, index: Int) {
-
-    var mutatingSpot = spot
-    mutatingSpot.removeFilter(reason: .notDigi)
-
-    let spot = mutatingSpot
-    Task {
-      await MainActor.run {
-        displayedSpots[index] = spot
-      }
-    }
-    filterOverlays()
-    updateAnnotations()
-  }
+//  func resetDigiFilter(spot: ClusterSpot, index: Int) {
+//    var mutatingSpot = spot
+//    mutatingSpot.removeFilter(reason: .notDigi)
+//
+////    let spot = mutatingSpot
+////    Task {
+////      await MainActor.run {
+//        displayedSpots[index] = mutatingSpot
+//      //}
+//    //}
+//    //filterOverlays()
+//    //updateAnnotations()
+//  }
 
   // MARK: - Digi Frequency Ranges
 
