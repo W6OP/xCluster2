@@ -125,7 +125,7 @@ struct CountryRowView: View {
 
   var body: some View {
     HStack {
-      Text(spot.country)
+      Text(spot.dxCountry)
         .padding(.leading, 5)
         .frame(minWidth: 140, maxWidth: .infinity, alignment: .leading)
     }

@@ -44,8 +44,9 @@ class SpotProcessor {
       throw SpotError.spotError("processRawSpot: invalid spotter call sign: \(spot.dxStation)")
     }
 
-    // "DX de HS/F8UKP-#:  18100.0  JG1JPE         FT8  -18 dB  PM96    CQ      1446Z"
-    balance = balance.dropFirst(11)
+    // this needs fixing
+    // "HS/F8UKP-#:  18100.0  JG1JPE         FT8  -18 dB  PM96    CQ      1446Z"
+    balance = balance.dropFirst(10)
     endIndex = balance.index(balance.startIndex, offsetBy: 8)
     let frequency = convertStringSliceToString(String(balance[balance.startIndex..<endIndex]))
     guard Float(frequency) != nil else {
@@ -210,7 +211,7 @@ class SpotProcessor {
     if components[1] != "0" {
       converted += (".\(components[1])")
     }
-    //print("frequency: \(frequency) - \(converted)")
+    print("frequency: \(frequency) - \(converted)")
     return converted
   }
 

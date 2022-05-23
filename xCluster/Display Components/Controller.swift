@@ -803,24 +803,18 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       spot.createAnnotations()
 
       // dx list
-      let dxCall = stationInformationCombined.dxCall //+ "-"
-      //let dxTitles = retrieveAnnotationTitles(call: dxCall, spotter: false)
-
-      let dxTitles = await searchAnnotations(call: dxCall, spotter: false)
-      //print("dx: \(dxTitles)")
-
+      let dxTitles = await searchAnnotations(call: stationInformationCombined.dxCall, spotter: false)
       if !dxTitles.isEmpty {
         spot.addAnnotationTitles(titles: dxTitles, annotationType: .dx)
+        //print("dx: \(dxTitles)")
       }
 
       // spotter list
-      let spotterCall = stationInformationCombined.spotterCall //+ "-"
-      let spotterTitles = await searchAnnotations(call: spotterCall, spotter: true)
-      //      let spotterTitles = retrieveAnnotationTitles(call: spotterCall, spotter: true)
-
-      if !spotterTitles.isEmpty {
-        spot.addAnnotationTitles(titles: spotterTitles, annotationType: .spotter)
-      }
+//      let spotterTitles = await searchAnnotations(call: stationInformationCombined.spotterCall, spotter: true)
+//      if !spotterTitles.isEmpty {
+//        spot.addAnnotationTitles(titles: spotterTitles, annotationType: .spotter)
+//        //print("spotter: \(spotterTitles)")
+//      }
 
       addSpot(spot: spot, doInsert: true)
     }
@@ -880,38 +874,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
     return annotationTitles
   }
-
-
-//  // if the spot exists get all the annotation titles
-//  // they will be added to the new spots annotations and the title
-//  func retrieveAnnotationTitles(call: String, spotter: Bool) -> [String] {
-//    var annotationTitles: [String] = []
-//    var pinIds: [Int] = []
-//
-//    DispatchQueue.main.async { [self] in
-//      for spot in displayedSpots {
-//        switch spotter {
-//        case true:
-//          if spot.spotterAnnotationTitles.contains(where: { $0.contains(call) }) {
-//            annotationTitles.append(contentsOf: spot.spotterAnnotationTitles)
-//            pinIds.append(spot.spotterPinId)
-//          }
-//        case false:
-//          if spot.dxAnnotationTitles.contains(where: { $0.contains(call) }) {
-//            annotationTitles.append(contentsOf: spot.dxAnnotationTitles)
-//            pinIds.append(spot.dxPinId)
-//          }
-//        }
-//      }
-//    }
-//
-//    for pinId in pinIds {
-//      deleteAnnotation(annotationId: pinId)
-//    }
-//
-//    return annotationTitles
-//  }
-
 
   /// Delete a duplicate annotation
   /// - Parameter annotationId: Int
