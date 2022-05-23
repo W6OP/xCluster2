@@ -777,12 +777,11 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       stationInformationCombined.error = callSignPair[1].error
     }
 
-    // used in the ListView for display
-    var spot = spot
-    spot.country = stationInformationCombined.dxCountry
-
-    processCallSignData(stationInformationCombined:
-                          stationInformationCombined, spot: spot)
+    let stationInfoCombined = stationInformationCombined
+    Task {
+      await processCallSignData(stationInformationCombined:
+                          stationInfoCombined, spot: spot)
+    }
   }
 
   // MARK: - Create Overlays and Annotations
@@ -793,34 +792,64 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   ///   - spot: ClusterSpot
   func processCallSignData(
     stationInformationCombined: StationInformationCombined,
-    spot: ClusterSpot) {
+    spot: ClusterSpot) async {
 
       logger.info("Create Overlay: \(stationInformationCombined.spotterCall): \(stationInformationCombined.dxCall) - 5")
 
       // need to make spot mutable
       var spot = spot
+      spot.populateSpotInformation(stationInformationCombined: stationInformationCombined)
+      spot.createOverlay()
+      spot.createAnnotations()
 
       // dx list
-      let dxCall = stationInformationCombined.dxCall + "-"
-      let dxTitles = retrieveAnnotationTitles(call: dxCall, spotter: false)
+      let dxCall = stationInformationCombined.dxCall //+ "-"
+      //let dxTitles = retrieveAnnotationTitles(call: dxCall, spotter: false)
+
+      let dxTitles = await searchAnnotations(call: dxCall, spotter: false)
+      //print("dx: \(dxTitles)")
 
       if !dxTitles.isEmpty {
         spot.addAnnotationTitles(titles: dxTitles, annotationType: .dx)
       }
 
       // spotter list
-      let spotterCall = stationInformationCombined.spotterCall + "-"
-      let spotterTitles = retrieveAnnotationTitles(call: spotterCall, spotter: true)
+      let spotterCall = stationInformationCombined.spotterCall //+ "-"
+      let spotterTitles = await searchAnnotations(call: spotterCall, spotter: true)
+      //      let spotterTitles = retrieveAnnotationTitles(call: spotterCall, spotter: true)
 
       if !spotterTitles.isEmpty {
         spot.addAnnotationTitles(titles: spotterTitles, annotationType: .spotter)
       }
 
-      spot.createOverlay(stationInfoCombined: stationInformationCombined)
-      spot.createAnnotation(stationInfoCombined: stationInformationCombined)
-
       addSpot(spot: spot, doInsert: true)
     }
+
+ @MainActor func searchAnnotations(call: String, spotter: Bool) async -> [String]  {
+    var annotationTitles: [String] = []
+    var pinIds: [Int] = []
+
+    for spot in displayedSpots {
+      switch spotter {
+      case true:
+        if spot.spotter == call {
+          annotationTitles.append(contentsOf: spot.spotterAnnotationTitles)
+          pinIds.append(spot.spotterPinId)
+        }
+      case false:
+        if spot.dxStation == call {
+          annotationTitles.append(contentsOf: spot.dxAnnotationTitles)
+          pinIds.append(spot.dxPinId)
+        }
+      }
+    }
+
+    for pinId in pinIds {
+      deleteAnnotation(annotationId: pinId)
+    }
+
+    return annotationTitles
+  }
 
   // if the spot exists get all the annotation titles
   // they will be added to the new spots annotations and the title
@@ -832,25 +861,56 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       for spot in displayedSpots {
         switch spotter {
         case true:
-          if spot.spotterAnnotationTitles.contains(where: { $0.contains(call) }) {
+          if spot.spotter == call {
             annotationTitles.append(contentsOf: spot.spotterAnnotationTitles)
             pinIds.append(spot.spotterPinId)
           }
         case false:
-          if spot.dxAnnotationTitles.contains(where: { $0.contains(call) }) {
+          if spot.dxStation == call {
             annotationTitles.append(contentsOf: spot.dxAnnotationTitles)
             pinIds.append(spot.dxPinId)
           }
         }
       }
-    }
 
-    for pinId in pinIds {
-      deleteAnnotation(annotationId: pinId)
+      for pinId in pinIds {
+        deleteAnnotation(annotationId: pinId)
+      }
     }
 
     return annotationTitles
   }
+
+
+//  // if the spot exists get all the annotation titles
+//  // they will be added to the new spots annotations and the title
+//  func retrieveAnnotationTitles(call: String, spotter: Bool) -> [String] {
+//    var annotationTitles: [String] = []
+//    var pinIds: [Int] = []
+//
+//    DispatchQueue.main.async { [self] in
+//      for spot in displayedSpots {
+//        switch spotter {
+//        case true:
+//          if spot.spotterAnnotationTitles.contains(where: { $0.contains(call) }) {
+//            annotationTitles.append(contentsOf: spot.spotterAnnotationTitles)
+//            pinIds.append(spot.spotterPinId)
+//          }
+//        case false:
+//          if spot.dxAnnotationTitles.contains(where: { $0.contains(call) }) {
+//            annotationTitles.append(contentsOf: spot.dxAnnotationTitles)
+//            pinIds.append(spot.dxPinId)
+//          }
+//        }
+//      }
+//    }
+//
+//    for pinId in pinIds {
+//      deleteAnnotation(annotationId: pinId)
+//    }
+//
+//    return annotationTitles
+//  }
 
 
   /// Delete a duplicate annotation

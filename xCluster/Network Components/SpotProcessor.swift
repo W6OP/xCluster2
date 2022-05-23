@@ -210,7 +210,7 @@ class SpotProcessor {
     if components[1] != "0" {
       converted += (".\(components[1])")
     }
-    print("frequency: \(frequency) - \(converted)")
+    //print("frequency: \(frequency) - \(converted)")
     return converted
   }
 

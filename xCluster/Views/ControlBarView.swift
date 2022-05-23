@@ -32,6 +32,10 @@ struct ControlBarView: View {
         Button("QRZ Logon") {
           self.didTap = true; controller.qrzLogon(userId: userSettings.username, password: userSettings.password)
         }
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .strokeBorder(.black, lineWidth: 1) /// here!
+        )
         .background(didTap ? Color.green : Color.blue)
         .padding(.leading, 4)
 
