@@ -164,11 +164,24 @@ let clusterData = [
                     port: "7000", clusterProtocol: ClusterProtocol.telnet, restraint: .rbn),
 
   ClusterIdentifier(id: 200, name: "DXSummit", address: "http://www.dxsummit.fi/text/dx25.html",
-                    port: "80", clusterProtocol: ClusterProtocol.html, restraint: .none)//,
+                    port: "80", clusterProtocol: ClusterProtocol.html, restraint: .none),
+  ClusterIdentifier(id: 201, name: "DXSummit Digi Only", address: "http://www.dxsummit.fi/#/?exclude_modes=PHONE,CW&include_modes=DIGI",
+                    port: "80", clusterProtocol: ClusterProtocol.html, restraint: .none),
+  ClusterIdentifier(id: 202, name: "DXSummit VHF Only", address: "http://www.dxsummit.fi/#/?include=VHF&exclude=HF",
+                    port: "80", clusterProtocol: ClusterProtocol.html, restraint: .none)
+  //,
 //  ClusterIdentifier(id: 201, name: "DXWatch", address: "https://dxwatch.com/dxsd1/dxsd1.php?f=13",
 //                    port: "80", clusterProtocol: ClusterProtocol.html, retraint: .none)
 ]
 
+// http://www.dxsummit.fi/text/dx25.html
+// http://dxsummit.fi/#/?exclude=14MHz
+// http://dxsummit.fi/#/?include_modes=DIGI
+// http://www.dxsummit.fi/text/dx25.html?exclude_modes=PHONE,CW&include_modes=DIGI
+// http://www.dxsummit.fi/#/?include=VHF&exclude=HF
+// http://www.dxsummit.fi/#/
+// http://www.dxsummit.fi/DxSpots.aspx?count=50&range=1
+// http://www.dxsummit.fi/#/?include=50MHz // this auto excludes HF
 // https://dxwatch.com/dxsd1/dxsd1.php?f=13
 
 /**

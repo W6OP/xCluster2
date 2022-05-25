@@ -802,74 +802,45 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       spot.createOverlay()
       spot.createAnnotations()
 
-      // dx list
-      let dxTitles = await searchAnnotations(call: stationInformationCombined.dxCall, spotter: false)
-      if !dxTitles.isEmpty {
-        spot.addAnnotationTitles(titles: dxTitles, annotationType: .dx)
-        //print("dx: \(dxTitles)")
-      }
-
-      // spotter list
-//      let spotterTitles = await searchAnnotations(call: stationInformationCombined.spotterCall, spotter: true)
-//      if !spotterTitles.isEmpty {
-//        spot.addAnnotationTitles(titles: spotterTitles, annotationType: .spotter)
-//        //print("spotter: \(spotterTitles)")
-//      }
+        let dxTitles = await searchAnnotations(call: spot.dxStation, spotter: false)
+        if !dxTitles.isEmpty {
+          spot.addAnnotationTitles(titles: dxTitles, annotationType: .dx)
+        }
 
       addSpot(spot: spot, doInsert: true)
     }
 
- @MainActor func searchAnnotations(call: String, spotter: Bool) async -> [String]  {
+  ///  Check if there is already a spot for this DX call, if so there must also be an annotation.
+  ///  Get the annotationTiles to append to the new spot.
+  ///  Delete the existing annotation.
+  /// - Parameters:
+  ///   - call: String
+  ///   - spotter: Bool
+  /// - Returns: [String]]
+  @MainActor func searchAnnotations(call: String, spotter: Bool) async -> [String]  {
     var annotationTitles: [String] = []
     var pinIds: [Int] = []
 
+    guard displayedSpots.contains( where: {$0.dxStation == call} ) else {
+      return [String]()
+    }
+
+    // try - occasionally an annotation is missing
+//    let spots = displayedSpots.filter( {$0.dxStation == call} )
+//    for spot in spots {
+//      annotationTitles.append(contentsOf: spot.spotterAnnotationTitles)
+//      pinIds.append(spot.spotterPinId)
+//    }
+
     for spot in displayedSpots {
-      switch spotter {
-      case true:
-        if spot.spotter == call {
-          annotationTitles.append(contentsOf: spot.spotterAnnotationTitles)
-          pinIds.append(spot.spotterPinId)
-        }
-      case false:
         if spot.dxStation == call {
           annotationTitles.append(contentsOf: spot.dxAnnotationTitles)
           pinIds.append(spot.dxPinId)
         }
-      }
     }
 
     for pinId in pinIds {
       deleteAnnotation(annotationId: pinId)
-    }
-
-    return annotationTitles
-  }
-
-  // if the spot exists get all the annotation titles
-  // they will be added to the new spots annotations and the title
-  func retrieveAnnotationTitles(call: String, spotter: Bool) -> [String] {
-    var annotationTitles: [String] = []
-    var pinIds: [Int] = []
-
-    DispatchQueue.main.async { [self] in
-      for spot in displayedSpots {
-        switch spotter {
-        case true:
-          if spot.spotter == call {
-            annotationTitles.append(contentsOf: spot.spotterAnnotationTitles)
-            pinIds.append(spot.spotterPinId)
-          }
-        case false:
-          if spot.dxStation == call {
-            annotationTitles.append(contentsOf: spot.dxAnnotationTitles)
-            pinIds.append(spot.dxPinId)
-          }
-        }
-      }
-
-      for pinId in pinIds {
-        deleteAnnotation(annotationId: pinId)
-      }
     }
 
     return annotationTitles
@@ -880,7 +851,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   func deleteAnnotation(annotationId: Int) {
     Task {
       await MainActor.run {
-        annotations = annotations.filter({ $0.hashValue != annotationId })
+        for (index, annotation) in annotations.enumerated() where annotation.hashValue == annotationId {
+          annotations.remove(at: index)
+        }
       }
     }
   }
@@ -1178,12 +1151,27 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
               overlays.append(spot.overlay!)
             }
           } else {
+            //deleteOverlay(spotId: spot.id)
             overlays = overlays.filter({ $0.hashValue != spot.id })
+            //overlays.removeAll(where: { $0.hashValue != spot.id })
           }
         }
       }
     }
   }
+
+  /// Delete a duplicate annotation
+  /// - Parameter annotationId: Int
+  func deleteOverlay(spotId: Int) {
+    Task {
+      await MainActor.run {
+        for (index, overlay) in overlays.enumerated() where overlay.hashValue == spotId {
+          overlays.remove(at: index)
+        }
+      }
+    }
+  }
+
 
   /// Filter the annotations or flags at each end of an overlay.
   func updateAnnotations() {
@@ -1196,6 +1184,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
               annotations.append(spot.dxPin)
             }
           } else {
+           // deleteAnnotation(annotationId: spot.spotterPinId)
+            //deleteAnnotation(annotationId: spot.dxPinId)
             annotations = annotations.filter({ $0.hashValue != spot.spotterPinId })
             annotations = annotations.filter({ $0.hashValue != spot.dxPinId })
           }

@@ -77,13 +77,6 @@ class WebManager {
       self.removeHeaderAndFooter(html: html)
       return
     }
-
-    //      do { // for future use
-    //        let json = try JSONSerialization.jsonObject(with: data!, options: [])
-    //        print(json)
-    //      } catch {
-    //        print("JSON error: \(error.localizedDescription)")
-    //      }
   }
 
   /// Remove the header and footer from the html.

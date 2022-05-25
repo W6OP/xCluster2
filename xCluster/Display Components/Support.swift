@@ -243,22 +243,13 @@ struct ClusterSpot: Identifiable, Hashable {
     /// - Parameter stationInfoCombined: StationInformationCombined
     mutating func createSpotterAnnotation() {
 
-      //var combinedTitle = ""
       let spotterPin = MKPointAnnotation()
       let title = ("\(spotter)-\(dxStation)  \(formattedFrequency)")
 
       spotterAnnotationTitles.insert(title, at: 0)
-//      spotterAnnotationTitles = spotterAnnotationTitles.uniqued()
-//      if spotterAnnotationTitles.count > 15 {
-//        spotterAnnotationTitles.removeLast()
-//      }
 
       spotterPin.coordinate = CLLocationCoordinate2D(latitude: spotterCoordinates["latitude"] ?? 0,
                                                      longitude: spotterCoordinates["longitude"] ?? 0)
-
-//      for title in spotterAnnotationTitles {
-//        combinedTitle += (title + "\r")
-//      }
 
       spotterPin.title = title //String(combinedTitle.dropLast(2))
       spotterPin.subtitle = country
@@ -271,22 +262,14 @@ struct ClusterSpot: Identifiable, Hashable {
    /// - Parameter stationInfoCombined: StationInformationCombined
   mutating func createDXAnnotation() {
 
-    //var combinedTitle = ""
     let dxPin = MKPointAnnotation()
     let title = ("\(dxStation)-\(spotter)  \(formattedFrequency)")
 
     dxAnnotationTitles.insert(title, at: 0)
-//    dxAnnotationTitles = dxAnnotationTitles.uniqued()
-//    if dxAnnotationTitles.count > 15 {
-//      dxAnnotationTitles.removeLast()
-//    }
+
 
     dxPin.coordinate = CLLocationCoordinate2D(latitude: dxCoordinates["latitude"] ?? 0,
                                               longitude: dxCoordinates["longitude"] ?? 0)
-    //dxPin.title = title
-//    for title in dxAnnotationTitles {
-//      combinedTitle += (title + "\r")
-//    }
 
     dxPin.title = title //String(combinedTitle.dropLast(2))
     dxPin.subtitle = dxCountry
@@ -295,6 +278,11 @@ struct ClusterSpot: Identifiable, Hashable {
     self.dxPin = dxPin
   }
 
+
+  /// Add a title to the annotationTitles array.
+  /// - Parameters:
+  ///   - titles: String
+  ///   - annotationType: AnnotationType
   mutating func addAnnotationTitles(titles: [String], annotationType: AnnotationType) {
 
     if annotationType == .dx {
@@ -308,6 +296,11 @@ struct ClusterSpot: Identifiable, Hashable {
     }
   }
 
+
+  /// Update the annotation titles.
+  /// - Parameters:
+  ///   - titles: [String]
+  ///   - annotationType: AnnotationType
   mutating func updateAnnotationTitle(titles: [String], annotationType: AnnotationType) {
     var combinedTitle = ""
 
@@ -339,11 +332,11 @@ struct ClusterSpot: Identifiable, Hashable {
 
     if filterReasons.contains(reason) {
       removeFilter(reason: reason)
-      print("filter removed: \(self.formattedFrequency)")
+      //print("filter removed: \(self.formattedFrequency)")
     } else {
       filterReasons.append(reason)
       self.isFiltered = true
-      print("filter added: \(self.formattedFrequency)")
+      //print("filter added: \(self.formattedFrequency)")
     }
     print("filter count: \(filterReasons.count)")
   }
