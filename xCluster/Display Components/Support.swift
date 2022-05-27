@@ -67,7 +67,7 @@ struct ClusterSpot: Identifiable, Hashable {
   var overlayExists = false
   var isDigiMode = false
   var dxAnnotationTitles: [String] = []
-  var spotterAnnotationTitles: [String] = []
+  //var spotterAnnotationTitles: [String] = []
   var spotterCoordinates: [String: Double] = ["": 0]
   var dxCoordinates: [String: Double] = ["": 0]
   var deleteAnnotations = false
@@ -246,7 +246,7 @@ struct ClusterSpot: Identifiable, Hashable {
       let spotterPin = MKPointAnnotation()
       let title = ("\(spotter)-\(dxStation)  \(formattedFrequency)")
 
-      spotterAnnotationTitles.insert(title, at: 0)
+      //spotterAnnotationTitles.insert(title, at: 0)
 
       spotterPin.coordinate = CLLocationCoordinate2D(latitude: spotterCoordinates["latitude"] ?? 0,
                                                      longitude: spotterCoordinates["longitude"] ?? 0)
@@ -267,7 +267,6 @@ struct ClusterSpot: Identifiable, Hashable {
 
     dxAnnotationTitles.insert(title, at: 0)
 
-
     dxPin.coordinate = CLLocationCoordinate2D(latitude: dxCoordinates["latitude"] ?? 0,
                                               longitude: dxCoordinates["longitude"] ?? 0)
 
@@ -285,17 +284,16 @@ struct ClusterSpot: Identifiable, Hashable {
   ///   - annotationType: AnnotationType
   mutating func addAnnotationTitles(titles: [String], annotationType: AnnotationType) {
 
-    if annotationType == .dx {
+  //  if annotationType == .dx {
       dxAnnotationTitles.append(contentsOf: titles)
       dxAnnotationTitles = dxAnnotationTitles.uniqued()
       updateAnnotationTitle(titles: dxAnnotationTitles, annotationType: .dx)
-    } else {
-      spotterAnnotationTitles.append(contentsOf: titles)
-      spotterAnnotationTitles = spotterAnnotationTitles.uniqued()
-      updateAnnotationTitle(titles: spotterAnnotationTitles, annotationType: .spotter)
-    }
+//    } else {
+//      spotterAnnotationTitles.append(contentsOf: titles)
+//      spotterAnnotationTitles = spotterAnnotationTitles.uniqued()
+//      updateAnnotationTitle(titles: spotterAnnotationTitles, annotationType: .spotter)
+//    }
   }
-
 
   /// Update the annotation titles.
   /// - Parameters:
@@ -304,8 +302,8 @@ struct ClusterSpot: Identifiable, Hashable {
   mutating func updateAnnotationTitle(titles: [String], annotationType: AnnotationType) {
     var combinedTitle = ""
 
-    switch annotationType {
-    case .dx:
+//    switch annotationType {
+//    case .dx:
       for title in dxAnnotationTitles {
         combinedTitle += (title + "\r")
       }
@@ -313,15 +311,15 @@ struct ClusterSpot: Identifiable, Hashable {
       if dxAnnotationTitles.count > maxNumberOfAnnotations {
         dxAnnotationTitles.removeLast()
       }
-    case .spotter:
-      for title in spotterAnnotationTitles {
-        combinedTitle += (title + "\r")
-      }
-      spotterPin.title = String(combinedTitle.dropLast(2))
-      if spotterAnnotationTitles.count > maxNumberOfAnnotations {
-        spotterAnnotationTitles.removeLast()
-      }
-    }
+//    case .spotter:
+//      for title in spotterAnnotationTitles {
+//        combinedTitle += (title + "\r")
+//      }
+//      spotterPin.title = String(combinedTitle.dropLast(2))
+//      if spotterAnnotationTitles.count > maxNumberOfAnnotations {
+//        spotterAnnotationTitles.removeLast()
+//      }
+//    }
   }
 
   // MARK: - Filters

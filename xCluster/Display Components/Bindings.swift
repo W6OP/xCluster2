@@ -90,9 +90,9 @@ let spotsData = [
   SpotsIdentifier(id: 25, maxLines: 25, displayedLines: "25"),
   SpotsIdentifier(id: 50, maxLines: 50, displayedLines: "50"),
   SpotsIdentifier(id: 75, maxLines: 75, displayedLines: "75"),
-  SpotsIdentifier(id: 100, maxLines: 100, displayedLines: "100"),
-  SpotsIdentifier(id: 150, maxLines: 150, displayedLines: "150"),
-  SpotsIdentifier(id: 200, maxLines: 200, displayedLines: "200")
+  SpotsIdentifier(id: 100, maxLines: 100, displayedLines: "100")//,
+  //SpotsIdentifier(id: 150, maxLines: 150, displayedLines: "150"),
+  //SpotsIdentifier(id: 200, maxLines: 200, displayedLines: "200")
 ]
 
 // MARK: - Cluster Definition
@@ -124,15 +124,15 @@ struct ClusterIdentifier: Identifiable, Hashable {
 let clusterData = [
   ClusterIdentifier(id: 9999, name: "Select Cluster", address: "",
                     port: "", clusterProtocol: ClusterProtocol.none, restraint: .none),
-  ClusterIdentifier(id: 0, name: "WW1R_9", address: "dxc.ww1r.com",
-                    port: "7300", clusterProtocol: ClusterProtocol.telnet, restraint: .none),
   ClusterIdentifier(id: 1, name: "VE7CC", address: "dxc.ve7cc.net",
                     port: "23", clusterProtocol: ClusterProtocol.telnet, restraint: .none),
-  ClusterIdentifier(id: 2, name: "VE6DXC", address: "dxc.middlebrook.ca",
-                    port: "8000", clusterProtocol: ClusterProtocol.telnet, restraint: .none),
   ClusterIdentifier(id: 3, name: "WA9PIE", address: "dxc.wa9pie.net",
                     port: "8000", clusterProtocol: ClusterProtocol.telnet, restraint: .none),
   ClusterIdentifier(id: 4, name: "WA9PIE-2", address: "hrd.wa9pie.net",
+                    port: "8000", clusterProtocol: ClusterProtocol.telnet, restraint: .none),
+  ClusterIdentifier(id: 0, name: "WW1R_9", address: "dxc.ww1r.com",
+                    port: "7300", clusterProtocol: ClusterProtocol.telnet, restraint: .none),
+  ClusterIdentifier(id: 2, name: "VE6DXC", address: "dxc.middlebrook.ca",
                     port: "8000", clusterProtocol: ClusterProtocol.telnet, restraint: .none),
   ClusterIdentifier(id: 5, name: "AE5E", address: "dxspots.com",
                     port: "23", clusterProtocol: ClusterProtocol.telnet, restraint: .none),
@@ -154,7 +154,8 @@ let clusterData = [
                     port: "7373", clusterProtocol: ClusterProtocol.telnet, restraint: .none),
   ClusterIdentifier(id: 14, name: "K4UJ-1", address: "cluster-eu.dx-is.com",
                     port: "7300", clusterProtocol: ClusterProtocol.telnet, restraint: .none),
-//VA3MW  va3mw.dxcluster.net  41112
+  ClusterIdentifier(id: 15, name: "K2LS", address: "dxc.k2ls.com",
+                    port: "23", clusterProtocol: ClusterProtocol.telnet, restraint: .none),
 
     // telnet.reversebeacon.net port 7001, for FT8 spots
   ClusterIdentifier(id: 99, name: "FT8 RBN", address: "telnet.reversebeacon.net",
@@ -164,11 +165,11 @@ let clusterData = [
                     port: "7000", clusterProtocol: ClusterProtocol.telnet, restraint: .rbn),
 
   ClusterIdentifier(id: 200, name: "DXSummit", address: "http://www.dxsummit.fi/text/dx25.html",
-                    port: "80", clusterProtocol: ClusterProtocol.html, restraint: .none),
-  ClusterIdentifier(id: 201, name: "DXSummit Digi Only", address: "http://www.dxsummit.fi/#/?exclude_modes=PHONE,CW&include_modes=DIGI",
-                    port: "80", clusterProtocol: ClusterProtocol.html, restraint: .none),
-  ClusterIdentifier(id: 202, name: "DXSummit VHF Only", address: "http://www.dxsummit.fi/#/?include=VHF&exclude=HF",
                     port: "80", clusterProtocol: ClusterProtocol.html, restraint: .none)
+//  ClusterIdentifier(id: 201, name: "DXSummit Digi Only", address: "http://www.dxsummit.fi/#/?exclude_modes=PHONE,CW&include_modes=DIGI",
+//                    port: "80", clusterProtocol: ClusterProtocol.html, restraint: .none),
+//  ClusterIdentifier(id: 202, name: "DXSummit VHF Only", address: "http://www.dxsummit.fi/#/?include=VHF&exclude=HF",
+//                    port: "80", clusterProtocol: ClusterProtocol.html, restraint: .none)
   //,
 //  ClusterIdentifier(id: 201, name: "DXWatch", address: "https://dxwatch.com/dxsd1/dxsd1.php?f=13",
 //                    port: "80", clusterProtocol: ClusterProtocol.html, retraint: .none)
