@@ -20,7 +20,7 @@ struct ClusterDisplayView: View {
           HStack {
             SpotHeaderView()
           }
-          .frame(width: .infinity, height: 20)
+          .frame(height: 20)
           Divider()
 
           HStack {

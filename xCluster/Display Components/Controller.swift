@@ -724,7 +724,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
     var stationInformation = StationInformation()
 
-    logger.info("Processing stationInformation for: \(hit.call) - 2a")
+    //logger.info("Processing stationInformation for: \(hit.call) - 2a")
 
     stationInformation.id = spotId
     stationInformation.call = hit.call
@@ -767,7 +767,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   ///   - callSignPair: [StationInformation]
   func combineHitInformation(spot: ClusterSpot, callSignPair: [StationInformation]) {
 
-    logger.info("combineHitInformation: \(callSignPair[0].call): \(callSignPair[1].call) - 4")
+    //logger.info("combineHitInformation: \(callSignPair[0].call): \(callSignPair[1].call) - 4")
 
     // need to sort here so spotter and dx is in correct order
     let callSignPair = sortCallSignPair(callSignPair: callSignPair)
@@ -809,7 +809,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     stationInformationCombined: StationInformationCombined,
     spot: ClusterSpot) async {
 
-      logger.info("Create Overlay: \(stationInformationCombined.spotterCall): \(stationInformationCombined.dxCall) - 5")
+      //logger.info("Create Overlay: \(stationInformationCombined.spotterCall): \(stationInformationCombined.dxCall) - 5")
 
       // need to make spot mutable
       var spot = spot
