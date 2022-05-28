@@ -10,15 +10,17 @@ import SwiftUI
 struct TopBarView: View {
   @Environment(\.openURL) var openURL
   @State private var showPreferences = false
+  @State private var alertCallSign = ""
 
   var controller: Controller
   var bands: [BandIdentifier] = bandData
   var clusters: [ClusterIdentifier] = clusterData
+  let characterLimit = 10
 
   var body: some View {
     HStack {
       HStack {
-        Button("Open Viewer") {
+        Button("Show List") {
           if let url = URL(string: "xCluster://ClusterDisplayView") {
             openURL(url)
           }
@@ -42,7 +44,26 @@ struct TopBarView: View {
 
       // MARK: - Band buttons
       ButtonBarView(controller: controller, clusters: clusters, bands: bands)
-    }
+
+      HStack {
+      Image(systemName: "magnifyingglass")
+      TextField("Find DX", text: $alertCallSign, onEditingChanged: { _ in
+        // onEditingChanged
+        alertCallSign = alertCallSign.uppercased()
+        if alertCallSign.count > characterLimit {
+          alertCallSign = String(alertCallSign.prefix(characterLimit))
+        }
+      }) {
+        // onCommit
+        self.controller.setAlert(callSign: alertCallSign)
+      }
+      .textFieldStyle(RoundedBorderTextFieldStyle())
+      .modifier(ClearButton(boundText: $alertCallSign))
+      .frame(maxWidth: 150)
+      }
+      Spacer()
+
+    } // outer HStack
     .padding(.top, -2).padding(.bottom, 2)
     .frame(maxWidth: .infinity, minHeight: 30, maxHeight: 30)
     .background(Color("TopRowBackground"))

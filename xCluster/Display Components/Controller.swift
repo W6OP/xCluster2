@@ -96,7 +96,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
   // mapping
   var maxNumberOfSpots = 50
-  let maxStatusMessages = 200
+  let maxStatusMessages = 100
   let regionRadius: CLLocationDistance = 10000000
   let centerLatitude = 28.282778
   let centerLongitude = -40.829444
@@ -112,9 +112,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
                      15: BandFilterState.isOff, 12: BandFilterState.isOff, 10: BandFilterState.isOff,
                      6: BandFilterState.isOff]
 
-  //var modeFilters = [ 1: ModeFilterState.isOff, 2: ModeFilterState.isOff, 3: ModeFilterState.isOff]
-
   var callFilter = ""
+  var alertList: [String] = []
   // these is set by the Checkbox views in the ContentView
   var exactMatch = false
   var digiOnly = false {
@@ -197,7 +196,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
   /// Notify the user to fill out the preferences dialog.
   func notifyUser() {
-    createStatusMessage(message: "You must set your call and name in the settings dialog")
+    insertStatusMessage(message: "You must set your call and name in the settings dialog")
   }
   
   /// Update the user information.
@@ -237,12 +236,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       telnetManager.disconnect()
     }
 
-    // clear the status message
-    Task {
-      await MainActor.run {
-        self.statusMessages = [StatusMessage]()
-      }
-    }
+    clearStatusMessages()
   }
 
   /// Delete existing overlays, annotations and cluster spots.
@@ -292,13 +286,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       logger.info("Invalid message type \(messageKey.rawValue) : \(message)")
     }
 
-    Task {
-      await MainActor.run {
-        if statusMessages.count > maxStatusMessages {
-          statusMessages.removeFirst()
-        }
-      }
-    }
+    limitStatusMessages()
   }
 
   // MARK: - Telnet Status Received
@@ -321,14 +309,14 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       sendPersonalData()
 
     case .waiting:
-      createStatusMessage(message: message)
+      appendStatusMessage(message: message)
 
     case .disconnected:
       reconnectCluster()
 
     case .error:
       self.logger.info("Error: \(message)")
-      createStatusMessage(message: message)
+      insertStatusMessage(message: message)
 
     case .callSignRequested:
       self.sendClusterCommand(message: "\(callSign)", commandType: CommandType.logon)
@@ -343,19 +331,13 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       self.sendClusterCommand(message: "set/qra \(grid)", commandType: CommandType.message)
 
     case .clusterInformation:
-      createStatusMessage(message: message)
+      appendStatusMessage(message: message)
 
     default:
-      createStatusMessage(message: message)
+      appendStatusMessage(message: message)
     }
 
-    Task {
-      await MainActor.run {
-        if self.statusMessages.count > self.maxStatusMessages {
-          self.statusMessages.removeFirst()
-        }
-      }
-    }
+    limitStatusMessages()
   }
 
   // MARK: - Telnet Data Received
@@ -369,11 +351,12 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
     switch messageKey {
     case .clusterType:
-      createStatusMessage(message: message.condenseWhitespace())
+      appendStatusMessage(message: message.condenseWhitespace())
 
     case .announcement:
-      createStatusMessage(message: message.condenseWhitespace())
+      appendStatusMessage(message: message.condenseWhitespace())
 
+      // TODO: do something with append
     case .clusterInformation:
       Task {
         await MainActor.run {
@@ -386,7 +369,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       }
 
     case .error:
-      createStatusMessage(message: message)
+      appendStatusMessage(message: message)
 
     case .spotReceived:
       do {
@@ -405,23 +388,53 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       break
     }
 
-    Task {
-      await MainActor.run {
-        if (self.statusMessages.count) > 200 {
-          self.statusMessages.removeFirst()
-        }
-      }
-    }
+    limitStatusMessages()
+
   }
 
-  /// Create a new status message.
+  // MARK: - Status Messages
+
+  /// Append a new status message.
   /// - Parameter message: String
-  func createStatusMessage(message: String) {
+  func appendStatusMessage(message: String) {
 
     Task {
       await MainActor.run {
         let statusMessage = StatusMessage(message: message)
-        self.statusMessages = [statusMessage]
+        self.statusMessages.append(statusMessage) //= [statusMessage]
+      }
+    }
+  }
+
+
+  /// Insert a status message at the beginning.
+  /// - Parameter message: String
+  func insertStatusMessage(message: String) {
+    Task {
+      await MainActor.run {
+        let statusMessage = StatusMessage(message: message)
+        self.statusMessages.insert(statusMessage, at: 0) //= [statusMessage]
+      }
+    }
+  }
+
+  /// Clear all status messages.
+  func clearStatusMessages() {
+    Task {
+      await MainActor.run {
+        self.statusMessages = [StatusMessage]()
+      }
+    }
+  }
+
+
+  /// Limit the number of status messages.
+  func limitStatusMessages() {
+    Task {
+      await MainActor.run {
+        if (self.statusMessages.count) > maxStatusMessages {
+          self.statusMessages.removeFirst()
+        }
       }
     }
   }
@@ -522,6 +535,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   func parseClusterSpot(message: String, messageType: NetworkMessage) throws {
 
     lastSpotReceivedTime = Date()
+
+    insertStatusMessage(message: message)
 
     do {
       var spot: ClusterSpot
@@ -691,9 +706,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       let session: (state: Bool, message: String) = arg0!
 
       if !session.state {
-        createStatusMessage(message: "QRZ logon failed: \(session.message)")
+        insertStatusMessage(message: "QRZ logon failed: \(session.message)")
       } else {
-        createStatusMessage(message: "QRZ logon successful: \(session.message)")
+        insertStatusMessage(message: "QRZ logon successful: \(session.message)")
       }
     }
   }
@@ -798,6 +813,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
       // need to make spot mutable
       var spot = spot
+      if alertList.contains(spot.dxStation) {
+        spot.isHilited = true
+      }
       spot.populateSpotInformation(stationInformationCombined: stationInformationCombined)
       spot.createOverlay()
       spot.createAnnotations()
@@ -898,13 +916,61 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     }
   }
 
+  // MARK: - Alerts
+
+  /// Hilite calls in list.
+  /// - Parameter callSign: String
+  func setAlert(callSign: String) {
+    if callSign.isEmpty {
+      alertList.removeAll()
+      clearHilites()
+      return
+    }
+
+    alertList.append(callSign.uppercased())
+    for call in alertList {
+      hiliteSpot(callSign: call)
+    }
+  }
+
+  /// Mark a spot as hilited.
+  /// - Parameter callSign: String
+  func hiliteSpot(callSign: String) {
+    Task {
+      await MainActor.run {
+        for (index, spot) in displayedSpots.enumerated() {
+          if spot.dxStation == callSign {
+            var mutatingSpot = spot
+            mutatingSpot.isHilited = true
+            displayedSpots[index] = mutatingSpot
+          }
+        }
+      }
+    }
+  }
+
+  /// Clear all the hilited spots.
+  func clearHilites() {
+    Task {
+      await MainActor.run {
+        for (index, spot) in displayedSpots.enumerated() {
+          if spot.isHilited {
+            var mutatingSpot = spot
+            mutatingSpot.isHilited = false
+            displayedSpots[index] = mutatingSpot
+          }
+        }
+      }
+    }
+  }
+
   // MARK: - Filter Call Signs
 
   /// Remove overlays where the call sign does not match the filter.
   /// - Parameter callSign: String
   func setCallFilter(callSign: String) {
 
-    callFilter = callSign
+    callFilter = callSign.uppercased()
 
     resetAllCallFilters(filterState: false)
 

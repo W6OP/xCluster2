@@ -48,7 +48,7 @@ struct BandViewToggle: View {
         .toggleStyle(SwitchToggleStyle(tint: .mint))
         Divider()
       }
-      Spacer()
+      //Spacer()
     }
   }
 }

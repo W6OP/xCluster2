@@ -70,7 +70,7 @@ struct ClusterSpot: Identifiable, Hashable {
   //var spotterAnnotationTitles: [String] = []
   var spotterCoordinates: [String: Double] = ["": 0]
   var dxCoordinates: [String: Double] = ["": 0]
-  var deleteAnnotations = false
+  var isHilited = false
 
   let maxNumberOfAnnotations = 14
 

@@ -58,7 +58,7 @@ struct ControlBarView: View {
           }
         }) {
           // onCommit
-          self.controller.setCallFilter(callSign: callSignFilter.uppercased())
+          self.controller.setCallFilter(callSign: callSignFilter)
         }
         .textFieldStyle(RoundedBorderTextFieldStyle())
         .modifier(ClearButton(boundText: $callSignFilter))
