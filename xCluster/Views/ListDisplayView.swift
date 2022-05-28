@@ -11,16 +11,16 @@ import SwiftUI
 
 struct ListDisplayView: View {
   @ObservedObject var controller: Controller
-  @State private var highlighted: Int?
+  @State private var highlightedSpotId: Int?
 
   var body: some View {
     ScrollView {
       VStack(spacing: 1) {
         ForEach(controller.displayedSpots, id: \.self) { spot in
           SpotRowView(spot: spot)
-            .background(spot.id == highlighted ? Color("Hilite") : Color("Background"))
+            .background(spot.id == highlightedSpotId ? Color("Hilite") : Color("Background"))
             .onTapGesture(count: 1) {
-              highlighted = spot.id
+              highlightedSpotId = spot.id
               controller.formattedFrequency = spot.formattedFrequency
             }
         }
