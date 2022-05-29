@@ -280,7 +280,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       do {
         try parseClusterSpot(message: message, messageType: messageKey)
       } catch {
-        logger.info("Duplicate spot received \(messageKey.rawValue) : \(message)")
+        //logger.info("Duplicate spot received \(messageKey.rawValue) : \(message)")
+        return
       }
     default:
       logger.info("Invalid message type \(messageKey.rawValue) : \(message)")
@@ -814,8 +815,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       // need to make spot mutable
       var spot = spot
       if alertList.contains(spot.dxStation) {
-        spot.isHilited = true
+        spot.isHighlighted = true
       }
+
       spot.populateSpotInformation(stationInformationCombined: stationInformationCombined)
       spot.createOverlay()
       spot.createAnnotations()
@@ -869,9 +871,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   func deleteAnnotation(annotationId: Int) {
     Task {
       await MainActor.run {
-        for (index, annotation) in annotations.enumerated() where annotation.hashValue == annotationId {
-          annotations.remove(at: index)
-        }
+        annotations.removeFirst(where: { $0.hashValue == annotationId })
       }
     }
   }
@@ -906,9 +906,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         if displayedSpots.count > maxNumberOfSpots {
           while displayedSpots.count > maxNumberOfSpots {
             let spot = displayedSpots[displayedSpots.count - 1]
-            overlays = overlays.filter({ $0.hashValue != spot.id })
-            annotations = annotations.filter({ $0.hashValue != spot.spotterPinId })
-            annotations = annotations.filter({ $0.hashValue != spot.dxPinId })
+            overlays.removeFirst(where: { $0.hashValue == spot.id })
+            deleteAnnotation(annotationId: spot.spotterPinId)
+            deleteAnnotation(annotationId: spot.dxPinId)
             displayedSpots.removeLast()
           }
         }
@@ -918,30 +918,31 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
   // MARK: - Alerts
 
-  /// Hilite calls in list.
+  /// Highlight calls in list.
   /// - Parameter callSign: String
   func setAlert(callSign: String) {
-    if callSign.isEmpty {
+
+    guard !callSign.isEmpty else {
       alertList.removeAll()
-      clearHilites()
+      clearHighlights()
       return
     }
 
     alertList.append(callSign.uppercased())
     for call in alertList {
-      hiliteSpot(callSign: call)
+      highlightSpot(callSign: call)
     }
   }
 
-  /// Mark a spot as hilited.
+  /// Mark a spot as highlighted.
   /// - Parameter callSign: String
-  func hiliteSpot(callSign: String) {
+  func highlightSpot(callSign: String) {
     Task {
       await MainActor.run {
         for (index, spot) in displayedSpots.enumerated() {
           if spot.dxStation == callSign {
             var mutatingSpot = spot
-            mutatingSpot.isHilited = true
+            mutatingSpot.isHighlighted = true
             displayedSpots[index] = mutatingSpot
           }
         }
@@ -949,14 +950,14 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     }
   }
 
-  /// Clear all the hilited spots.
-  func clearHilites() {
+  /// Clear all the highlighted spots.
+  func clearHighlights() {
     Task {
       await MainActor.run {
         for (index, spot) in displayedSpots.enumerated() {
-          if spot.isHilited {
+          if spot.isHighlighted {
             var mutatingSpot = spot
-            mutatingSpot.isHilited = false
+            mutatingSpot.isHighlighted = false
             displayedSpots[index] = mutatingSpot
           }
         }
@@ -1033,7 +1034,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
               displayedSpots[index] = mutatingSpot
             }
           } else {
-            //resetDigiFilter(spot: mutatingSpot, index: index)
             mutatingSpot.removeFilter(reason: .notDigi)
             displayedSpots[index] = mutatingSpot
           }
@@ -1043,20 +1043,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     filterOverlays()
     updateAnnotations()
   }
-
-//  func resetDigiFilter(spot: ClusterSpot, index: Int) {
-//    var mutatingSpot = spot
-//    mutatingSpot.removeFilter(reason: .notDigi)
-//
-////    let spot = mutatingSpot
-////    Task {
-////      await MainActor.run {
-//        displayedSpots[index] = mutatingSpot
-//      //}
-//    //}
-//    //filterOverlays()
-//    //updateAnnotations()
-//  }
 
   // MARK: - Digi Frequency Ranges
 
@@ -1250,10 +1236,11 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
               annotations.append(spot.dxPin)
             }
           } else {
-           // deleteAnnotation(annotationId: spot.spotterPinId)
-            //deleteAnnotation(annotationId: spot.dxPinId)
-            annotations = annotations.filter({ $0.hashValue != spot.spotterPinId })
-            annotations = annotations.filter({ $0.hashValue != spot.dxPinId })
+            deleteAnnotation(annotationId: spot.spotterPinId)
+            deleteAnnotation(annotationId: spot.dxPinId)
+            // TODO: Needs testing
+            //annotations = annotations.filter({ $0.hashValue != spot.spotterPinId })
+            //annotations = annotations.filter({ $0.hashValue != spot.dxPinId })
           }
         }
       }

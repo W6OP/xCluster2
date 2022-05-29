@@ -70,7 +70,7 @@ struct ClusterSpot: Identifiable, Hashable {
   //var spotterAnnotationTitles: [String] = []
   var spotterCoordinates: [String: Double] = ["": 0]
   var dxCoordinates: [String: Double] = ["": 0]
-  var isHilited = false
+  var isHighlighted = false
 
   let maxNumberOfAnnotations = 14
 
@@ -424,21 +424,6 @@ actor StationInformationPairs {
   }
 } // end actor
 
-extension Array {
-    func unique<T:Hashable>(by: ((Element) -> (T)))  -> [Element] {
-        var set = Set<T>() //the unique list kept in a Set for fast retrieval
-        var arrayOrdered = [Element]() //keeping the unique list of elements but ordered
-        for value in self {
-            if !set.contains(by(value)) {
-                set.insert(by(value))
-                arrayOrdered.append(value)
-            }
-        }
-
-        return arrayOrdered
-    }
-}
-
 /// Structure to hold a matching pair of Hits
 actor HitPair {
   var hits: [Hit] = []
@@ -536,4 +521,40 @@ actor SpotCache {
   func getSpotCount() -> Int {
     return spots.count
   }
+}
+
+// MARK: - Extensions
+
+/// Keep a collection with unique values only
+extension Array {
+    func unique<T:Hashable>(by: ((Element) -> (T)))  -> [Element] {
+        var set = Set<T>() //the unique list kept in a Set for fast retrieval
+        var arrayOrdered = [Element]() //keeping the unique list of elements but ordered
+        for value in self {
+            if !set.contains(by(value)) {
+                set.insert(by(value))
+                arrayOrdered.append(value)
+            }
+        }
+
+        return arrayOrdered
+    }
+}
+
+/// Remove first element that meets condition.
+extension RangeReplaceableCollection {
+    @discardableResult
+    mutating func removeFirst(where predicate: (Element) throws -> Bool) rethrows -> Element? {
+        guard let index = try firstIndex(where: predicate) else { return nil }
+        return remove(at: index)
+    }
+}
+
+// Remove last element that meets condition.
+extension RangeReplaceableCollection where Self: BidirectionalCollection {
+    @discardableResult
+    mutating func removeLast(where predicate: (Element) throws -> Bool) rethrows -> Element? {
+        guard let index = try lastIndex(where: predicate) else { return nil }
+        return remove(at: index)
+    }
 }

@@ -44,7 +44,7 @@ struct SpotRowView: View {
       CountryRowView(spot: spot)
     }
     .frame(maxHeight: 17)
-    .background(spot.isHilited ? Color("Alert") : Color("Background"))
+    .background(spot.isHighlighted ? Color("Alert") : Color("Background"))
     Divider()
   }
 }
