@@ -29,6 +29,19 @@ struct StatusMessage: Identifiable, Hashable {
   }
 }
 
+extension MKPointAnnotation {
+
+  func updateAnnotationTitle(title: String) {
+    let combinedTitle = "\r" + title// + "-updated"
+
+    self.title! += combinedTitle
+  }
+
+  func setExpired() {
+    self.subtitle = "expired"
+  }
+}
+
 /// Definition of a ClusterSpot
 struct ClusterSpot: Identifiable, Hashable {
 
@@ -246,8 +259,6 @@ struct ClusterSpot: Identifiable, Hashable {
       let spotterPin = MKPointAnnotation()
       let title = ("\(spotter)-\(dxStation)  \(formattedFrequency)")
 
-      //spotterAnnotationTitles.insert(title, at: 0)
-
       spotterPin.coordinate = CLLocationCoordinate2D(latitude: spotterCoordinates["latitude"] ?? 0,
                                                      longitude: spotterCoordinates["longitude"] ?? 0)
 
@@ -270,7 +281,7 @@ struct ClusterSpot: Identifiable, Hashable {
     dxPin.coordinate = CLLocationCoordinate2D(latitude: dxCoordinates["latitude"] ?? 0,
                                               longitude: dxCoordinates["longitude"] ?? 0)
 
-    dxPin.title = title //String(combinedTitle.dropLast(2))
+    dxPin.title = title
     dxPin.subtitle = dxCountry
     dxPinId = dxPin.hashValue
 
@@ -302,8 +313,6 @@ struct ClusterSpot: Identifiable, Hashable {
   mutating func updateAnnotationTitle(titles: [String], annotationType: AnnotationType) {
     var combinedTitle = ""
 
-//    switch annotationType {
-//    case .dx:
       for title in dxAnnotationTitles {
         combinedTitle += (title + "\r")
       }
@@ -311,15 +320,6 @@ struct ClusterSpot: Identifiable, Hashable {
       if dxAnnotationTitles.count > maxNumberOfAnnotations {
         dxAnnotationTitles.removeLast()
       }
-//    case .spotter:
-//      for title in spotterAnnotationTitles {
-//        combinedTitle += (title + "\r")
-//      }
-//      spotterPin.title = String(combinedTitle.dropLast(2))
-//      if spotterAnnotationTitles.count > maxNumberOfAnnotations {
-//        spotterAnnotationTitles.removeLast()
-//      }
-//    }
   }
 
   // MARK: - Filters
@@ -336,7 +336,7 @@ struct ClusterSpot: Identifiable, Hashable {
       self.isFiltered = true
       //print("filter added: \(self.formattedFrequency)")
     }
-    print("filter count: \(filterReasons.count)")
+    //print("filter count: \(filterReasons.count)")
   }
 
   mutating func removeFilter(reason: FilterReason) {

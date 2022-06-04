@@ -90,9 +90,9 @@ let spotsData = [
   SpotsIdentifier(id: 25, maxLines: 25, displayedLines: "25"),
   SpotsIdentifier(id: 50, maxLines: 50, displayedLines: "50"),
   SpotsIdentifier(id: 75, maxLines: 75, displayedLines: "75"),
-  SpotsIdentifier(id: 100, maxLines: 100, displayedLines: "100")//,
-  //SpotsIdentifier(id: 150, maxLines: 150, displayedLines: "150"),
-  //SpotsIdentifier(id: 200, maxLines: 200, displayedLines: "200")
+  SpotsIdentifier(id: 100, maxLines: 100, displayedLines: "100"),
+  SpotsIdentifier(id: 150, maxLines: 150, displayedLines: "150"),
+  SpotsIdentifier(id: 200, maxLines: 200, displayedLines: "200")
 ]
 
 // MARK: - Cluster Definition

@@ -32,12 +32,7 @@ struct ControlBarView: View {
         Button("QRZ Logon") {
           self.didTap = true; controller.qrzLogon(userId: userSettings.username, password: userSettings.password)
         }
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .strokeBorder(.black, lineWidth: 1) /// here!
-        )
-        .background(didTap ? Color.green : Color.blue)
-        .padding(.leading, 4)
+        .selectButton()
 
         Divider()
         ClusterPickerView(controller: controller, clusters: clusters)
@@ -206,4 +201,43 @@ struct ControlBarView_Previews: PreviewProvider {
       let clusters: [ClusterIdentifier] = clusterData
       ControlBarView(controller: Controller(), clusters: clusters)
     }
+}
+
+// MARK: - Custom QRZ Button
+
+/**
+Custom button template for the select button style.
+*/
+struct SelectButtonStyle: ButtonStyle {
+  var foregroundColor: Color
+  var backgroundColor: Color
+  var pressedColor: Color
+
+  func makeBody(configuration: Self.Configuration) -> some View {
+    configuration.label
+      .padding(2)
+      .foregroundColor(foregroundColor)
+      .background(configuration.isPressed ? pressedColor : backgroundColor)
+      .cornerRadius(5)
+    // .background(didTap ? Color.green : Color.blue)
+  }
+}
+
+/**
+ Extension to apply custom button styles.
+ */
+extension View {
+  func selectButton(
+    foregroundColor: Color = .black,
+    backgroundColor: Color = .green,
+    pressedColor: Color = .accentColor
+  ) -> some View {
+    self.buttonStyle(
+      SelectButtonStyle(
+        foregroundColor: foregroundColor,
+        backgroundColor: backgroundColor.opacity(0.30),
+        pressedColor: pressedColor
+      )
+    )
+  }
 }

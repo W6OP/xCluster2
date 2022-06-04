@@ -7,6 +7,7 @@
 
 import SwiftUI
 import MapKit
+import Foundation
 
 // MARK: - Map View
 struct MapView: NSViewRepresentable {
@@ -24,34 +25,56 @@ struct MapView: NSViewRepresentable {
   func updateNSView(_ uiView: MKMapView, context: Context) {
     updateOverlays(from: uiView)
     updateAnnotations(from: uiView)
+    print("MapView Updated")
   }
 
   // https://medium.com/@mauvazquez/decoding-a-polyline-and-drawing-it-with-swiftui-mapkit-611952bd0ecb
   public func updateOverlays(from mapView: MKMapView) {
 
     mapView.removeOverlays(mapView.overlays)
+    mapView.addOverlays(overlays)
 
-    for overlay in overlays {
-      if overlay.subtitle != "expired" {
-        // NEED TO LOOK AT JSON
-        mapView.addOverlay(overlay)
-      } else {
-        mapView.removeOverlay(overlay)
-      }
-    }
+//    for overlay in overlays {
+//      if overlay.subtitle != "expired" {
+//        mapView.addOverlay(overlay)
+//      } else {
+//        mapView.removeOverlay(overlay)
+//      }
+//    }
+
+    print("overlays: \(overlays.count)-\(mapView.overlays.count)")
   }
 
   public func updateAnnotations(from mapView: MKMapView) {
-
+    var group = [String]()
     mapView.removeAnnotations(mapView.annotations)
+    mapView.addAnnotations(annotations)
 
-    for annotation in annotations {
-      if annotation.subtitle != "expired" {
-        mapView.addAnnotation(annotation)
-      } else {
-        mapView.removeAnnotation(annotation)
-      }
-    }
+        for annotation in mapView.annotations {
+          let title: String = annotation.title!!
+          if title.count > 30 {
+            group.append(title)
+          }
+        }
+//    for annotation in annotations {
+//      let result = Bool((annotation.title?.contains("-updated"))!)
+//      if result {
+//        let title = annotation.title?.dropLast(8)
+//        mapView.removeAnnotation(annotation)
+//        let newTitle: String = String(title!)
+//        annotation.title = newTitle
+//        //mapView.addAnnotation(annotation)
+//        print("annotation updated: \(annotation.title)")
+//      } else {
+//        if annotation.subtitle != "expired" {
+//          mapView.addAnnotation(annotation)
+//        } else {
+//          mapView.removeAnnotation(annotation)
+//        }
+//      }
+//    }
+    print("titles: \(group)")
+    //print("annotations: \(annotations.count)-\(mapView.annotations.count)")
   }
 
   func makeCoordinator() -> Coordinator {
@@ -74,20 +97,22 @@ class Coordinator: NSObject, MKMapViewDelegate {
   // displays custom pin and callout
   func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
 
-     let identifier = "2m"
-     let annotationView = mapView.dequeueReusableAnnotationView(withIdentifier:
-          identifier) ?? MKAnnotationView(annotation: annotation,
-                                          reuseIdentifier: identifier)
+    let identifier = "spot"
+    //let spotFoundIdentifier = "spotFound"
+    let annotationView = mapView.dequeueReusableAnnotationView(withIdentifier:
+                                                                identifier) ?? MKAnnotationView(annotation: annotation,
+                                                                                                reuseIdentifier: identifier)
 
-     annotationView.canShowCallout = true
-     if annotation is MKUserLocation {
-        return nil
-     } else if annotation is MKPointAnnotation {
-        annotationView.image =  NSImage(imageLiteralResourceName: "2m")
-        return annotationView
-     } else {
-        return nil
-     }
+    annotationView.canShowCallout = true
+
+    if annotation is MKUserLocation {
+      return nil
+    } else if annotation is MKPointAnnotation {
+      annotationView.image =  NSImage(imageLiteralResourceName: identifier)
+      return annotationView
+    } else {
+      return nil
+    }
   }
 
   func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
