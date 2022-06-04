@@ -852,87 +852,74 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         spot.dxPinId = filtered[0].dxPinId
         spot.updateAnnotationTitle(titles: filtered[0].dxAnnotationTitles)
         annotationExists = true
-        await updateAnnotation(dxPinId: spot.dxPinId, title: spot.dxPin.title!)
-       // annotationExists =  await !updateAnnotation(dxPinId: spot.dxPinId, title: spot.dxPin.title!)
+        updateAnnotation(dxPinId: spot.dxPinId, title: spot.dxPin.title!)
       }
-
-      // this may not be necessary anymore
-//      let dxTitles = await searchAnnotations(dxCall: spot.dxStation)
-//      if !dxTitles.isEmpty {
-//        spot.addAnnotationTitles(titles: dxTitles, annotationType: .dx)
-//      }
 
       addSpot(spot: spot, doInsert: true, found: annotationExists)
       manageTotalSpotCount()
     }
 
-  @MainActor func updateAnnotation(dxPinId: Int, title: String) async   {
+  func updateAnnotation(dxPinId: Int, title: String)   {
 
-    guard annotations.contains( where: {$0.hashValue == dxPinId} ) else {
-      assertionFailure("why is there not an annotation")
-      return
+    Task {
+      await MainActor.run {
+        guard annotations.contains( where: {$0.hashValue == dxPinId} ) else {
+          assertionFailure("why is there not an annotation")
+          return
+        }
+      }
     }
 
-    let result = annotations.filter( {$0.hashValue == dxPinId} )//.first
+    let result = annotations.filter( {$0.hashValue == dxPinId} )
     if result.count > 1 {
-      assertionFailure("too many annotations")
+      // temporary fix
+      for item in result {
+        deleteAnnotation(annotationId: item.hashValue)
+        print("deleted: \(item.hashValue)")
+      }
     }
 
     let annotation = result[0]
     annotation.updateAnnotationTitle(title: title)
 
     deleteAnnotation(annotationId: dxPinId)
-    annotations.append(annotation)
+    Task {
+      await MainActor.run {
+        annotations.append(annotation)
+      }
+    }
 
     return
   }
 
-  ///  Check if there is already a spot for this DX call, if so there must also be an annotation.
-  ///  Update the annotation title with the new title
+  /// Check if there is already an existing annotation for this DX call, if so replace it with one with an updated title.
   /// - Parameters:
-  ///   - call: String
-  ///   - spotter: Bool
-  /// - Returns: [String]]
-//  @MainActor func updateAnnotation(dxPinId: Int, title: String) async -> Bool  {
+  ///   - dxPinId: Int
+  ///   - title: String
+//  @MainActor func updateAnnotation(dxPinId: Int, title: String) async   {
 //
 //    guard annotations.contains( where: {$0.hashValue == dxPinId} ) else {
-//      return false
+//      assertionFailure("why is there not an annotation")
+//      return
 //    }
 //
-//    let annotation = annotations.filter( {$0.hashValue == dxPinId} ).first
-//    //print("Before: \(String(describing: annotation?.title))")
-//    annotation?.updateAnnotationTitle(title: title)
-//    //print("After: \(String(describing: annotation?.title))")
+//    let result = annotations.filter( {$0.hashValue == dxPinId} )
+//    if result.count > 1 {
+//      // temporary fix
+//      for item in result {
+//        deleteAnnotation(annotationId: item.hashValue)
+//        print("deleted: \(item.hashValue)")
+//      }
+//    }
+//
+//    let annotation = result[0]
+//    annotation.updateAnnotationTitle(title: title)
+//
 //    deleteAnnotation(annotationId: dxPinId)
-//    annotations.append(annotation!)
+//    annotations.append(annotation)
+//    print("annotation:\(annotation.hashValue)-\(dxPinId)")
 //
-//    return true
-//  }
-
-  ///  Check if there is already a spot for this DX call, if so there must also be an annotation.
-  ///  Get the annotationTitles to append to the new spot.
-  ///  Delete the existing annotation.
-  /// - Parameters:
-  ///   - call: String
-  ///   - spotter: Bool
-  /// - Returns: [String]]
-//  @MainActor func searchAnnotations(dxCall: String) async -> [String]  {
-//    var annotationTitles: [String] = []
-//    var pinIds: [Int] = []
-//
-//    guard displayedSpots.contains( where: {$0.dxStation == dxCall} ) else {
-//      return [String]()
-//    }
-//
-//    let filtered = displayedSpots.filter( {$0.dxStation == dxCall} )
-//    for spot in filtered {
-//          annotationTitles.append(contentsOf: spot.dxAnnotationTitles)
-//          pinIds.append(spot.dxPinId)
-//      //print("spot info 2: \(spot.spotter)-\(spot.dxStation)-\(spot.formattedFrequency)-\(spot.dxPinId)")
-//      //print("filtered counts: \(filtered.count)")
-//    }
-//
-//    return annotationTitles
+//    return
 //  }
 
   /// Delete a duplicate annotation
@@ -940,7 +927,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   func deleteAnnotation(annotationId: Int) {
     Task {
       await MainActor.run {
-        annotations.removeFirst(where: { $0.hashValue == annotationId })
+        annotations.removeAll(where: { $0.hashValue == annotationId })
       }
     }
   }
@@ -969,30 +956,59 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   }
 
   /// Limit the number of spots to the user selected limit.
+  /// Manage the associated overlays and annotations.
   func manageTotalSpotCount() {
     Task {
       await MainActor.run {
         if displayedSpots.count > maxNumberOfSpots {
           while displayedSpots.count > maxNumberOfSpots {
+            //get the last spot
             let spot = displayedSpots[displayedSpots.count - 1]
 
-            let overlay = overlays.filter( { $0.hashValue == spot.spotterPinId } ).first
-            overlay?.subtitle = "expired"
-            overlays.removeFirst(where: { $0.hashValue == spot.id })
-
-            var annotation = annotations.filter( { $0.hashValue == spot.spotterPinId } ).first
-            annotation?.subtitle = "expired"
-            annotation = annotations.filter( { $0.hashValue == spot.dxPinId } ).first
-            annotation?.subtitle = "expired"
-
+            // get the associated overlay
+            overlays.removeAll(where: { $0.hashValue == spot.id })
+            // delete the spotter annotation
             deleteAnnotation(annotationId: spot.spotterPinId)
-            deleteAnnotation(annotationId: spot.dxPinId)
-            displayedSpots.removeLast()
+            // delete the spot
+            displayedSpots.removeAll(where: {$0.id == spot.id} )
+
+            // only delete the dx annotation if there are no other spots associated
+            let spots = displayedSpots.filter( { $0.dxStation == spot.dxStation } )
+            if spots.count == 0 {
+              deleteAnnotation(annotationId: spot.dxPinId)
+            }
           }
         }
       }
     }
   }
+
+  /*
+   func manageTotalSpotCount() {
+     Task {
+       await MainActor.run {
+         if displayedSpots.count > maxNumberOfSpots {
+           while displayedSpots.count > maxNumberOfSpots {
+             let spot = displayedSpots[displayedSpots.count - 1]
+
+             let overlay = overlays.filter( { $0.hashValue == spot.spotterPinId } ).first
+             overlay?.subtitle = "expired"
+             overlays.removeFirst(where: { $0.hashValue == spot.id })
+
+             var annotation = annotations.filter( { $0.hashValue == spot.spotterPinId } ).first
+             annotation?.subtitle = "expired"
+             annotation = annotations.filter( { $0.hashValue == spot.dxPinId } ).first
+             annotation?.subtitle = "expired"
+
+             deleteAnnotation(annotationId: spot.spotterPinId)
+             deleteAnnotation(annotationId: spot.dxPinId)
+             displayedSpots.removeLast()
+           }
+         }
+       }
+     }
+   }
+   */
 
   // MARK: - Alerts
 

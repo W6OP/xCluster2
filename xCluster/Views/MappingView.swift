@@ -30,53 +30,11 @@ struct MapView: NSViewRepresentable {
 
   // https://medium.com/@mauvazquez/decoding-a-polyline-and-drawing-it-with-swiftui-mapkit-611952bd0ecb
   public func updateOverlays(from mapView: MKMapView) {
-
-        mapView.removeOverlays(mapView.overlays)
         mapView.addOverlays(overlays)
-
-
-
-//    for overlay in overlays {
-//      if overlay.subtitle != "expired" {
-//        mapView.addOverlay(overlay)
-//      } else {
-//        mapView.removeOverlay(overlay)
-//      }
-//    }
-
-    //print("overlays: \(overlays.count)-\(mapView.overlays.count)")
   }
 
   public func updateAnnotations(from mapView: MKMapView) {
-    var group = [String]()
-    mapView.removeAnnotations(mapView.annotations)
     mapView.addAnnotations(annotations)
-
-        for annotation in mapView.annotations {
-          let title: String = annotation.title!!
-          if title.count > 30 {
-            group.append(title)
-          }
-        }
-//    for annotation in annotations {
-//      let result = Bool((annotation.title?.contains("-updated"))!)
-//      if result {
-//        let title = annotation.title?.dropLast(8)
-//        mapView.removeAnnotation(annotation)
-//        let newTitle: String = String(title!)
-//        annotation.title = newTitle
-//        //mapView.addAnnotation(annotation)
-//        print("annotation updated: \(annotation.title)")
-//      } else {
-//        if annotation.subtitle != "expired" {
-//          mapView.addAnnotation(annotation)
-//        } else {
-//          mapView.removeAnnotation(annotation)
-//        }
-//      }
-//    }
-    //print("titles: \(group)")
-    //print("annotations: \(annotations.count)-\(mapView.annotations.count)")
   }
 
   func makeCoordinator() -> Coordinator {

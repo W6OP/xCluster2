@@ -32,9 +32,11 @@ struct StatusMessage: Identifiable, Hashable {
 extension MKPointAnnotation {
 
   func updateAnnotationTitle(title: String) {
-    let combinedTitle = "\r" + title// + "-updated"
+    let combinedTitle = "\r" + title
+    print("title: \(title)")
 
     self.title! += combinedTitle
+    print("self title: \(self.title!)")
   }
 
   func setExpired() {
@@ -235,13 +237,13 @@ struct ClusterSpot: Identifiable, Hashable {
       CLLocationCoordinate2D(latitude: dxCoordinates["latitude"] ?? 0,
                              longitude: dxCoordinates["longitude"] ?? 0)]
 
-    let polyline = MKGeodesicPolyline(coordinates: locations, count: locations.count)
-    polyline.title = String(band)
-    polyline.subtitle = mode
+    let overlay = MKGeodesicPolyline(coordinates: locations, count: locations.count)
+    overlay.title = String(band)
+    overlay.subtitle = mode
 
-    id = polyline.hashValue
+    id = overlay.hashValue
 
-    self.overlay = polyline
+    self.overlay = overlay
   }
 
   // MARK: - Annotations
@@ -305,14 +307,15 @@ struct ClusterSpot: Identifiable, Hashable {
   ///   - annotationType: AnnotationType
   mutating func updateAnnotationTitle(titles: [String]) {
     var combinedTitle = ""
-
-      for title in dxAnnotationTitles {
-        combinedTitle += (title + "\r")
-      }
-      dxPin.title = String(combinedTitle.dropLast(2))
-      if dxAnnotationTitles.count > maxNumberOfAnnotations {
-        dxAnnotationTitles.removeLast()
-      }
+    
+    for title in dxAnnotationTitles {
+      combinedTitle += (title + "\r")
+    }
+    dxPin.title = String(combinedTitle.dropLast(2))
+    
+    if dxAnnotationTitles.count > maxNumberOfAnnotations {
+      dxAnnotationTitles.removeLast()
+    }
   }
 
   // MARK: - Filters
