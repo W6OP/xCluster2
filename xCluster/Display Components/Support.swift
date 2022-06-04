@@ -262,7 +262,7 @@ struct ClusterSpot: Identifiable, Hashable {
       spotterPin.coordinate = CLLocationCoordinate2D(latitude: spotterCoordinates["latitude"] ?? 0,
                                                      longitude: spotterCoordinates["longitude"] ?? 0)
 
-      spotterPin.title = title //String(combinedTitle.dropLast(2))
+      spotterPin.title = title
       spotterPin.subtitle = country
       spotterPinId = spotterPin.hashValue
       
@@ -288,29 +288,22 @@ struct ClusterSpot: Identifiable, Hashable {
     self.dxPin = dxPin
   }
 
-
   /// Add a title to the annotationTitles array.
   /// - Parameters:
   ///   - titles: String
   ///   - annotationType: AnnotationType
-  mutating func addAnnotationTitles(titles: [String], annotationType: AnnotationType) {
+  mutating func addAnnotationTitles(titles: [String]) {
 
-  //  if annotationType == .dx {
       dxAnnotationTitles.append(contentsOf: titles)
       dxAnnotationTitles = dxAnnotationTitles.uniqued()
-      updateAnnotationTitle(titles: dxAnnotationTitles, annotationType: .dx)
-//    } else {
-//      spotterAnnotationTitles.append(contentsOf: titles)
-//      spotterAnnotationTitles = spotterAnnotationTitles.uniqued()
-//      updateAnnotationTitle(titles: spotterAnnotationTitles, annotationType: .spotter)
-//    }
+      updateAnnotationTitle(titles: dxAnnotationTitles)
   }
 
   /// Update the annotation titles.
   /// - Parameters:
   ///   - titles: [String]
   ///   - annotationType: AnnotationType
-  mutating func updateAnnotationTitle(titles: [String], annotationType: AnnotationType) {
+  mutating func updateAnnotationTitle(titles: [String]) {
     var combinedTitle = ""
 
       for title in dxAnnotationTitles {

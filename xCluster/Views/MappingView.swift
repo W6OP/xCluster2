@@ -25,14 +25,16 @@ struct MapView: NSViewRepresentable {
   func updateNSView(_ uiView: MKMapView, context: Context) {
     updateOverlays(from: uiView)
     updateAnnotations(from: uiView)
-    print("MapView Updated")
+    //print("MapView Updated")
   }
 
   // https://medium.com/@mauvazquez/decoding-a-polyline-and-drawing-it-with-swiftui-mapkit-611952bd0ecb
   public func updateOverlays(from mapView: MKMapView) {
 
-    mapView.removeOverlays(mapView.overlays)
-    mapView.addOverlays(overlays)
+        mapView.removeOverlays(mapView.overlays)
+        mapView.addOverlays(overlays)
+
+
 
 //    for overlay in overlays {
 //      if overlay.subtitle != "expired" {
@@ -42,7 +44,7 @@ struct MapView: NSViewRepresentable {
 //      }
 //    }
 
-    print("overlays: \(overlays.count)-\(mapView.overlays.count)")
+    //print("overlays: \(overlays.count)-\(mapView.overlays.count)")
   }
 
   public func updateAnnotations(from mapView: MKMapView) {
@@ -73,7 +75,7 @@ struct MapView: NSViewRepresentable {
 //        }
 //      }
 //    }
-    print("titles: \(group)")
+    //print("titles: \(group)")
     //print("annotations: \(annotations.count)-\(mapView.annotations.count)")
   }
 

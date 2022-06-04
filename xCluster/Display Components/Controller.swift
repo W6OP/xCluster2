@@ -165,11 +165,14 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       }
       
       Task {
-        await spotCache.clear()
-        await hitsCache.clear()
-        overlays.removeAll()
-        annotations.removeAll()
-        displayedSpots.removeAll()
+          await spotCache.clear()
+          await hitsCache.clear()
+
+          await MainActor.run {
+            overlays.removeAll()
+            annotations.removeAll()
+            displayedSpots.removeAll()
+        }
       }
       
       if !isReconnection {
@@ -629,10 +632,10 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     let hitPair = HitPair()
     await hitPair.addHits(hits: hits)
 
-    let spot = await spotCache.removeSpot(spotId: spotId)
+    let clusterSpot = await spotCache.removeSpot(spotId: spotId)
 
-    if spot != nil {
-      await self.processStationInformation(hitPair: hitPair, spot: spot!)
+    if clusterSpot != nil {
+      await self.processStationInformation(hitPair: hitPair, clusterSpot: clusterSpot!)
     }
   }
 
@@ -640,7 +643,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   /// - Parameters:
   ///   - hitPairs2: HitPair
   ///   - spot: ClusterSpot
-  func processStationInformation(hitPair: HitPair, spot: ClusterSpot) async {
+  func processStationInformation(hitPair: HitPair, clusterSpot: ClusterSpot) async {
 
     if await hitPair.hits.count < 2 {
       return
@@ -650,7 +653,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       for index in 0..<2 {
         group.addTask { [self] in
           return await populateStationInformation(hit: hitPair.hits[index],
-                                                    spotId: spot.id)
+                                                    spotId: clusterSpot.id)
         }
       }
 
@@ -659,11 +662,11 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
       for await stationInformation in group {
         callSignPairs = await stationInformationPairs.checkCallSignPair(
-          spotId: spot.id, stationInformation: stationInformation)
+          spotId: clusterSpot.id, stationInformation: stationInformation)
       }
 
       if callSignPairs.count == 2 {
-        combineHitInformation(spot: spot, callSignPair: callSignPairs)
+        combineHitInformation(clusterSpot: clusterSpot, callSignPair: callSignPairs)
       } else {
         // throw
       }
@@ -765,10 +768,10 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   /// - Parameters:
   ///   - spot: ClusterSpot
   ///   - callSignPair: [StationInformation]
-  func combineHitInformation(spot: ClusterSpot, callSignPair: [StationInformation]) {
+  func combineHitInformation(clusterSpot: ClusterSpot, callSignPair: [StationInformation]) {
 
     // don't process duplicates
-    guard !checkForDuplicateSpot(spot: spot) else {
+    guard !checkForDuplicateSpot(spot: clusterSpot) else {
       //print("spot is a duplicate: \(displayedSpots.count)")
       return
     }
@@ -799,7 +802,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     let stationInfoCombined = stationInformationCombined
     Task {
       await processCallSignData(stationInformationCombined:
-                          stationInfoCombined, spot: spot)
+                          stationInfoCombined, clusterSpot: clusterSpot)
     }
   }
 
@@ -828,12 +831,12 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   ///   - spot: ClusterSpot
   func processCallSignData(
     stationInformationCombined: StationInformationCombined,
-    spot: ClusterSpot) async {
+    clusterSpot: ClusterSpot) async {
 
       var annotationExists = false
 
       // need to make spot mutable
-      var spot = spot
+      var spot = clusterSpot
       if alertList.contains(spot.dxStation) {
         spot.isHighlighted = true
       }
@@ -846,15 +849,11 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       // to find the annotation later - only one annotation per dx
       let filtered = displayedSpots.filter( {$0.dxStation == spot.dxStation} )
       if filtered.count > 0 {
-        print("filtered count: \(filtered.count)-\(spot.dxStation)")
-//        for item in filtered {
-//          print("filtered: \(item.dxStation)-\(item.spotter)-\(item.dxPinId)")
-//          let annotation = annotations.filter( {$0.hashValue == item.dxPinId} ).first
-//          print("\(String(describing: annotation!.title))")
-//        }
         spot.dxPinId = filtered[0].dxPinId
-        //spot.updateAnnotationTitle(titles: filtered[0].dxAnnotationTitles, annotationType: .dx)
-        annotationExists =  await !updateAnnotation(dxPinId: spot.dxPinId, title: spot.dxPin.title!)
+        spot.updateAnnotationTitle(titles: filtered[0].dxAnnotationTitles)
+        annotationExists = true
+        await updateAnnotation(dxPinId: spot.dxPinId, title: spot.dxPin.title!)
+       // annotationExists =  await !updateAnnotation(dxPinId: spot.dxPinId, title: spot.dxPin.title!)
       }
 
       // this may not be necessary anymore
@@ -867,27 +866,48 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       manageTotalSpotCount()
     }
 
+  @MainActor func updateAnnotation(dxPinId: Int, title: String) async   {
+
+    guard annotations.contains( where: {$0.hashValue == dxPinId} ) else {
+      assertionFailure("why is there not an annotation")
+      return
+    }
+
+    let result = annotations.filter( {$0.hashValue == dxPinId} )//.first
+    if result.count > 1 {
+      assertionFailure("too many annotations")
+    }
+
+    let annotation = result[0]
+    annotation.updateAnnotationTitle(title: title)
+
+    deleteAnnotation(annotationId: dxPinId)
+    annotations.append(annotation)
+
+    return
+  }
+
   ///  Check if there is already a spot for this DX call, if so there must also be an annotation.
   ///  Update the annotation title with the new title
   /// - Parameters:
   ///   - call: String
   ///   - spotter: Bool
   /// - Returns: [String]]
-  @MainActor func updateAnnotation(dxPinId: Int, title: String) async -> Bool  {
-
-    guard annotations.contains( where: {$0.hashValue == dxPinId} ) else {
-      return false
-    }
-
-    let annotation = annotations.filter( {$0.hashValue == dxPinId} ).first
-    print("Before: \(String(describing: annotation?.title))")
-    annotation?.updateAnnotationTitle(title: title)
-    print("After: \(String(describing: annotation?.title))")
-    deleteAnnotation(annotationId: dxPinId)
-    annotations.append(annotation!)
-
-    return true
-  }
+//  @MainActor func updateAnnotation(dxPinId: Int, title: String) async -> Bool  {
+//
+//    guard annotations.contains( where: {$0.hashValue == dxPinId} ) else {
+//      return false
+//    }
+//
+//    let annotation = annotations.filter( {$0.hashValue == dxPinId} ).first
+//    //print("Before: \(String(describing: annotation?.title))")
+//    annotation?.updateAnnotationTitle(title: title)
+//    //print("After: \(String(describing: annotation?.title))")
+//    deleteAnnotation(annotationId: dxPinId)
+//    annotations.append(annotation!)
+//
+//    return true
+//  }
 
   ///  Check if there is already a spot for this DX call, if so there must also be an annotation.
   ///  Get the annotationTitles to append to the new spot.
