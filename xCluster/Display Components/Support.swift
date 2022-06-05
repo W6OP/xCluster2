@@ -29,19 +29,50 @@ struct StatusMessage: Identifiable, Hashable {
   }
 }
 
-extension MKPointAnnotation {
+//extension MKPointAnnotation {
+//
+//  func updateAnnotationTitle(title: String) {
+//    let combinedTitle = "\r" + title
+//    //print("title: \(title)")
+//
+//    self.title! += combinedTitle
+//    //print("self title: \(self.title!)")
+//  }
+//
+//  func setExpired() {
+//    self.subtitle = "expired"
+//  }
+//}
 
+enum PinType {
+  case DX
+  case Spotter
+  case Undefined
+}
+
+class ClusterPin: MKPointAnnotation {
+  var pinId: UUID
+  var pinType: PinType
+
+  override init () {
+    pinId = UUID()
+    pinType = .Undefined
+
+    super.init()
+  }
+
+
+  /// Update the title on the pin.
+  /// - Parameter title: String
   func updateAnnotationTitle(title: String) {
     let combinedTitle = "\r" + title
-    print("title: \(title)")
+    //print("title: \(title)")
 
     self.title! += combinedTitle
-    print("self title: \(self.title!)")
+    //print("self title: \(self.title!)")
   }
 
-  func setExpired() {
-    self.subtitle = "expired"
-  }
+
 }
 
 /// Definition of a ClusterSpot
@@ -311,7 +342,7 @@ struct ClusterSpot: Identifiable, Hashable {
     for title in dxAnnotationTitles {
       combinedTitle += (title + "\r")
     }
-    dxPin.title = String(combinedTitle.dropLast(2))
+    dxPin.title = String(combinedTitle.dropLast())
     
     if dxAnnotationTitles.count > maxNumberOfAnnotations {
       dxAnnotationTitles.removeLast()

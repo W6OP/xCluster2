@@ -851,24 +851,30 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       if filtered.count > 0 {
         spot.dxPinId = filtered[0].dxPinId
         spot.updateAnnotationTitle(titles: filtered[0].dxAnnotationTitles)
-        annotationExists = true
-        updateAnnotation(dxPinId: spot.dxPinId, title: spot.dxPin.title!)
+
+        // TRY THIS??? Update all the spot.dxPinId to this dxPinId
+        // WHY NOT... just delete all the associated annotations and create a new
+        // one with this spot
+
+
+
+        annotationExists = updateAnnotation(dxPinId: spot.dxPinId, title: spot.dxPin.title!)
       }
 
       addSpot(spot: spot, doInsert: true, found: annotationExists)
       manageTotalSpotCount()
     }
 
-  func updateAnnotation(dxPinId: Int, title: String)   {
+  func updateAnnotation(dxPinId: Int, title: String) -> Bool   {
 
-    Task {
-      await MainActor.run {
-        guard annotations.contains( where: {$0.hashValue == dxPinId} ) else {
-          assertionFailure("why is there not an annotation")
-          return
-        }
-      }
+    //Task {
+    //await MainActor.run {
+    guard annotations.contains( where: {$0.hashValue == dxPinId} ) else {
+      //assertionFailure("why is there not an annotation")
+      return false
     }
+    //}
+    //}
 
     let result = annotations.filter( {$0.hashValue == dxPinId} )
     if result.count > 1 {
@@ -876,20 +882,21 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       for item in result {
         deleteAnnotation(annotationId: item.hashValue)
         print("deleted: \(item.hashValue)")
+        assertionFailure("multiple dx annotations")
       }
     }
 
-    let annotation = result[0]
-    annotation.updateAnnotationTitle(title: title)
-
-    deleteAnnotation(annotationId: dxPinId)
     Task {
       await MainActor.run {
-        annotations.append(annotation)
+        let annotation = annotations.filter( {$0.hashValue == dxPinId} ).first
+        annotation?.updateAnnotationTitle(title: title)
+
+        deleteAnnotation(annotationId: dxPinId)
+        annotations.append(annotation!)
       }
     }
 
-    return
+    return true
   }
 
   /// Check if there is already an existing annotation for this DX call, if so replace it with one with an updated title.
