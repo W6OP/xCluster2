@@ -13,7 +13,7 @@ import Foundation
 struct MapView: NSViewRepresentable {
   typealias MapViewType = NSViewType
   var overlays: [MKPolyline]
-  var annotations: [MKPointAnnotation]
+  var annotations: [ClusterPinAnnotation]
 
   func makeNSView(context: Context) -> MKMapView {
     let mapView = MKMapView()
@@ -67,7 +67,7 @@ class Coordinator: NSObject, MKMapViewDelegate {
 
     if annotation is MKUserLocation {
       return nil
-    } else if annotation is MKPointAnnotation {
+    } else if annotation is ClusterPinAnnotation {
       annotationView.image =  NSImage(imageLiteralResourceName: identifier)
       return annotationView
     } else {
