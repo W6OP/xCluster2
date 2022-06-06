@@ -800,10 +800,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     }
 
     let stationInfoCombined = stationInformationCombined
-    Task {
-      await processCallSignData(stationInformationCombined:
+    processCallSignData(stationInformationCombined:
                           stationInfoCombined, clusterSpot: clusterSpot)
-    }
   }
 
 
@@ -831,7 +829,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   ///   - spot: ClusterSpot
   func processCallSignData(
     stationInformationCombined: StationInformationCombined,
-    clusterSpot: ClusterSpot) async {
+    clusterSpot: ClusterSpot) {
 
       var annotationExists = false
 
@@ -862,7 +860,12 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         let title = ("\(spot.dxStation)-\(spot.spotter)  \(spot.formattedFrequency)")
         // this is a copy - need to replace existing item in displayedSpots DO I NEED TO DO THIS?
         reference!.addAnnotationTitle(title: title)
-        displayedSpots[index!] = reference!
+        let reference2 = reference
+        Task {
+          await MainActor.run {
+            displayedSpots[index!] = reference2!
+          }
+        }
         logger.log("Spot replaced: \(reference!.dxPinId)-\(reference!.dxPin.title!)")
         annotationExists = updateExistingAnnotation(dxPinId: spot.dxPinId, title: reference!.dxPin.title!)
         logger.log("Annotation ignored: \(reference!.dxPinId)")

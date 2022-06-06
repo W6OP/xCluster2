@@ -317,7 +317,7 @@ struct ClusterSpot: Identifiable, Hashable {
                                               longitude: dxCoordinates["longitude"] ?? 0)
     dxPin.clusterPinType = .DX
     dxPin.title = title
-    dxPin.subtitle = dxCountry + ":" + String(dxPin.hashValue)
+    dxPin.subtitle = dxCountry + ":" + String(dxPin.hashValue).suffix(4)
     dxPinId = dxPin.hashValue
 
     self.dxPin = dxPin
