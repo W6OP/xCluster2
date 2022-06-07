@@ -12,8 +12,8 @@ import Foundation
 // MARK: - Map View
 struct MapView: NSViewRepresentable {
   typealias MapViewType = NSViewType
-  var overlays: [MKPolyline]
-  var annotations: [ClusterPinAnnotation]
+  var overlays: [MKGeodesicPolyline]
+  var annotations: [MKPointAnnotation]
 
   func makeNSView(context: Context) -> MKMapView {
     let mapView = MKMapView()
@@ -30,11 +30,34 @@ struct MapView: NSViewRepresentable {
 
   // https://medium.com/@mauvazquez/decoding-a-polyline-and-drawing-it-with-swiftui-mapkit-611952bd0ecb
   public func updateOverlays(from mapView: MKMapView) {
-        mapView.addOverlays(overlays)
+
+    mapView.addOverlays(overlays)
+
+    if !overlays.isEmpty {
+      for overlay in mapView.overlays {
+        //print("overlay title: \(overlay.title)")
+        if overlay.title == "isDeleted" {
+          //print("deleted mapview overlay")
+          mapView.removeOverlay(overlay)
+        }
+      }
+    }
+    print("overlay count: \(overlays.count)")
   }
 
   public func updateAnnotations(from mapView: MKMapView) {
+
     mapView.addAnnotations(annotations)
+
+    if !annotations.isEmpty {
+      for annotation in mapView.annotations {
+        print("annotation title: \(annotation.title)-\(annotation.subtitle)")
+        if annotation.title == "isDeleted" || annotation.subtitle == "isDeleted" {
+          print("deleted mapview annotation")
+          mapView.removeAnnotation(annotation)
+        }
+      }
+    }
   }
 
   func makeCoordinator() -> Coordinator {
@@ -67,7 +90,7 @@ class Coordinator: NSObject, MKMapViewDelegate {
 
     if annotation is MKUserLocation {
       return nil
-    } else if annotation is ClusterPinAnnotation {
+    } else if annotation is MKPointAnnotation {
       annotationView.image =  NSImage(imageLiteralResourceName: identifier)
       return annotationView
     } else {

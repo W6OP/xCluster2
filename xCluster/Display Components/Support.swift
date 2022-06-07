@@ -37,14 +37,15 @@ enum ClusterPinAnnotationType {
 }
 
 enum CreateDxPin {
-  case create
-  case ignore
+  case createAll
+  case ignoreDx
 }
 
 class ClusterPinAnnotation: MKPointAnnotation {
   var clusterPinId: UUID
   var clusterPinType: ClusterPinAnnotationType
   var clusterPinSequence = 0
+  var isDeleted = false
 
   override init () {
     clusterPinId = UUID()
@@ -66,7 +67,7 @@ class ClusterPinAnnotation: MKPointAnnotation {
 
   /// Set the annotation as expired and marked for deletion.
     func setExpired() {
-      self.subtitle = "expired"
+      self.subtitle = "isDeleted"
     }
   
 }
@@ -102,7 +103,7 @@ struct ClusterSpot: Identifiable, Hashable {
   var grid: String
   var spotterCountry: String
   var dxCountry: String
-  var overlay: MKPolyline!
+  var overlay: MKGeodesicPolyline!
   var spotterPin = ClusterPinAnnotation()
   var dxPin = ClusterPinAnnotation()
   var qrzInfoCombinedJSON = ""
@@ -117,7 +118,7 @@ struct ClusterSpot: Identifiable, Hashable {
   var isHighlighted = false
   var hasDxPin = false
 
-  let maxNumberOfAnnotations = 14
+  let maxNumberOfAnnotationTitles = 14
 
   private(set) var isFiltered: Bool
 
@@ -281,7 +282,7 @@ struct ClusterSpot: Identifiable, Hashable {
   // https://medium.com/macoclock/mapkit-map-pin-and-annotation-5c7d56439c66
   mutating func createAnnotations(createDxPin: CreateDxPin) {
     createSpotterAnnotation()
-    if createDxPin == .create {
+    if createDxPin == .createAll {
       createDXAnnotation()
     }
   }
@@ -317,7 +318,7 @@ struct ClusterSpot: Identifiable, Hashable {
                                               longitude: dxCoordinates["longitude"] ?? 0)
     dxPin.clusterPinType = .DX
     dxPin.title = title
-    dxPin.subtitle = dxCountry + ":" + String(dxPin.hashValue).suffix(4)
+    dxPin.subtitle = dxCountry//  + ":" + String(dxPin.hashValue).suffix(4)
     dxPinId = dxPin.hashValue
 
     self.dxPin = dxPin
@@ -327,12 +328,12 @@ struct ClusterSpot: Identifiable, Hashable {
   /// - Parameters:
   ///   - titles: String
   ///   - annotationType: AnnotationType
-  mutating func addAnnotationTitles(titles: [String]) {
-
-      dxAnnotationTitles.append(contentsOf: titles)
-      dxAnnotationTitles = dxAnnotationTitles.uniqued()
-      updateAnnotationTitle(titles: dxAnnotationTitles)
-  }
+//  mutating func addAnnotationTitles(titles: [String]) {
+//
+//      dxAnnotationTitles.append(contentsOf: titles)
+//      dxAnnotationTitles = dxAnnotationTitles.uniqued()
+//      updateAnnotationTitle(titles: dxAnnotationTitles)
+//  }
 
   /// Add a single title to the annotationTitles array.
   /// - Parameters:
@@ -345,13 +346,22 @@ struct ClusterSpot: Identifiable, Hashable {
       updateAnnotationTitle(titles: dxAnnotationTitles)
   }
 
+  mutating func addAnnotationTitle(dxStation: String, spotter: String, formattedFrequency: String) {
+
+    let title = ("\(dxStation)-\(spotter)  \(formattedFrequency)")
+
+      dxAnnotationTitles.append(title)
+      dxAnnotationTitles = dxAnnotationTitles.uniqued()
+      updateAnnotationTitle(titles: dxAnnotationTitles)
+  }
+
   /// Update the annotation titles.
   /// - Parameters:
   ///   - titles: [String]
   ///   - annotationType: AnnotationType
   mutating func updateAnnotationTitle(titles: [String]) {
     var combinedTitle = ""
-    
+
     for title in dxAnnotationTitles {
       combinedTitle += (title + "\r")
     }
@@ -359,8 +369,8 @@ struct ClusterSpot: Identifiable, Hashable {
     if hasDxPin {
       dxPin.title = String(combinedTitle.dropLast())
     }
-    
-    if dxAnnotationTitles.count > maxNumberOfAnnotations {
+
+    if dxAnnotationTitles.count > maxNumberOfAnnotationTitles {
       dxAnnotationTitles.removeLast()
     }
   }
@@ -402,6 +412,39 @@ struct ConnectedCluster: Identifiable, Hashable {
 }
 
 // MARK: - Actors
+
+actor SpotHistory {
+  var spots = [Int: (dxStation: String, spotter: String, frequency: String) ]()
+
+  func addToHistory(spotId: Int, description: (dxStation: String, spotter: String, frequency: String)) {
+    spots[spotId] = description
+  }
+
+  func searchHistory(description: (dxStation: String, spotter: String, frequency: String)) -> Bool {
+
+    let item = spots.first { key, value in
+      value.dxStation == description.dxStation &&
+      value.spotter == description.spotter &&
+      value.frequency == description.frequency
+      }
+
+      if item != nil {
+        return true
+      }
+
+    return false
+  }
+
+  func truncateHistory(amount: Int, fullDelete: Bool) {
+    switch fullDelete {
+    case true:
+      spots.removeAll()
+    default:
+      //spots.removeFirst(amount)
+      break
+    }
+  }
+}
 
 /// Array of Station Information
 actor StationInformationPairs {

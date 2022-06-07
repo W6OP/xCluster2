@@ -210,10 +210,11 @@ enum RequestError: Error {
  */
 /// Structure to return information from a call lookup.
 struct StationInformation: Identifiable {
-  var id = 0 //UUID()
+  var id = 0
   var call = ""
   var aliases = ""
   var country = ""
+  var province = ""
   var latitude: Double = 00
   var longitude: Double = 00
   var grid = ""
@@ -221,12 +222,14 @@ struct StationInformation: Identifiable {
   var error = false
   var isInitialized = false
   var position = 0
+  var isQRZData = false
 }
 
 /// StationInformation combined for the spotter and dx call.
 struct StationInformationCombined: Codable {
   var spotterCall = ""
   var spotterCountry = ""
+  var spotterProvince = ""
   var spotterLatitude: Double = 00
   var spotterLongitude: Double = 00
   var spotterGrid = ""
@@ -234,6 +237,7 @@ struct StationInformationCombined: Codable {
 
   var dxCall = ""
   var dxCountry = ""
+  var dxProvince = ""
   var dxLatitude: Double = 00
   var dxLongitude: Double = 00
   var dxGrid = ""
@@ -242,6 +246,7 @@ struct StationInformationCombined: Codable {
   var error = false
   var identifier = "0"
   var expired = false
+  var isQRZData = false
 
   var mode = ""
 
