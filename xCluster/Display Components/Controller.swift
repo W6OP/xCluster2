@@ -558,19 +558,27 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         return
       }
 
-      let mutatingSpot = spot
-      Task {
-        await MainActor.run {
-          // if spot already exists, don't add again
-          if displayedSpots.firstIndex(where: { $0.spotter == mutatingSpot.spotter &&
-            $0.dxStation == mutatingSpot.dxStation && $0.band == mutatingSpot.band
-          }) != nil {
-            logger.info("Duplicate Spot: \(mutatingSpot.spotter):\(mutatingSpot.dxStation)")
-            //throw (RequestError.duplicateSpot)
-            return
-          }
-        }
+      if deletedSpots.firstIndex(where: { $0.spotter == spot.spotter &&
+        $0.dxStation == spot.dxStation && $0.band == spot.band
+      }) != nil {
+        logger.info("Duplicate deleted spot found: \(spot.spotter)-\(spot.dxStation)")
+        //throw (RequestError.duplicateSpot)
+        return
       }
+
+      let mutatingSpot = spot
+//      Task {
+//        await MainActor.run {
+//          // if spot already exists, don't add again
+//          if displayedSpots.firstIndex(where: { $0.spotter == mutatingSpot.spotter &&
+//            $0.dxStation == mutatingSpot.dxStation && $0.band == mutatingSpot.band
+//          }) != nil {
+//            logger.info("Duplicate spot found: \(mutatingSpot.spotter):\(mutatingSpot.dxStation)")
+//            //throw (RequestError.duplicateSpot)
+//            return
+//          }
+//        }
+//      }
 
       Task {
         try await lookupCompletedSpot(spot: mutatingSpot)
@@ -752,7 +760,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
     // debugging only
     if stationInformation.longitude == 00 || stationInformation.longitude == 00 {
-      logger.info("Longitude/Lattitude error: \(stationInformation.call):\(stationInformation.country)")
+      logger.info("Longitude/Latitude error: \(stationInformation.call):\(stationInformation.country)")
     }
 
     return stationInformation
@@ -886,7 +894,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       case 0:
         spot.createAnnotations(createDxPin: .createAll)
         logger.log("Annotation created: \(spot.dxStation)-\(spot.spotter)-\(spot.dxPinId)")
-        break
       case 1:
         spot.createAnnotations(createDxPin: .ignoreDx)
         spot.dxPin = referenceSpot!.dxPin
@@ -899,9 +906,12 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         //annotationExists = updateExistingAnnotation(dxPinId: spot.dxPinId, title: reference!.dxPin.title!)
         annotationExists = true
         logger.log("Annotation updated: \(spot.dxStation)-\(spot.spotter)-\(referenceSpot!.dxPinId)")
-        break
       default:
-        assertionFailure("multiple spots with same annotation")
+        let multiple = matchingSpots.filter( { $0.hasDxPin == true } )
+        for multi in multiple {
+          logger.log("Multiple spots: \(multi.dxStation)-\(multi.spotter)-\(multi.dxPinId)")
+        }
+        assertionFailure("Multiple spots with same annotation")
       }
 
       addSpot(spot: spot, doInsert: true, annotationExists: annotationExists)
@@ -930,6 +940,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       await MainActor.run {
         if doInsert {
           displayedSpots.insert(spot!, at: 0)
+          deletedSpots.insert(spot!, at: 0)
           if spot!.isFiltered == false && spot!.overlayExists == false {
             overlays.append(spot!.overlay)
             annotations.append(spot!.spotterPin)
@@ -964,19 +975,21 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
             // delete the spotter annotation
             // deleteAnnotation(annotationId: spot.spotterPinId)
-            for annotation in annotations.filter( {$0.hashValue == spot.id }) {
+            for annotation in annotations.filter( {$0.hashValue == spot.spotterPinId }) {
               annotation.title = "isDeleted"
-              annotation.subtitle = "isDeleted"
             }
-            annotations.removeAll(where: { $0.hashValue == spot.id })
-
+            annotations.removeAll(where: { $0.hashValue == spot.spotterPinId })
             logger.log("deleted spotter annotation for: \(spot.dxStation)-\(spot.spotter)-\(spot.spotterPinId)")
 
             // only delete the dx annotation if there are no other spots associated
             let spots = displayedSpots.filter( { $0.dxPinId == spot.dxPinId } )
-            if spots.count == 0 {
-              deleteAnnotation(annotationId: spot.dxPinId)
-              logger.log("deleted spotter annotation for: \(spot.dxStation)-\(spot.spotter)-\(spot.dxPinId)")
+            if spots.count == 1 {
+              for annotation in annotations.filter( {$0.hashValue == spot.dxPinId }) {
+                annotation.title = "isDeleted"
+              }
+              annotations.removeAll(where: { $0.hashValue == spot.dxPinId })
+              //deleteAnnotation(annotationId: spot.dxPinId)
+              logger.log("deleted dx annotation for: \(spot.dxStation)-\(spot.spotter)-\(spot.dxPinId)")
             }
 
             let spotsToDelete = displayedSpots.filter( {$0.id == spot.id} )
@@ -986,7 +999,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
             logger.log("deleted spot for: \(spot.dxStation)-\(spot.spotter)-\(spot.id)")
 
             while deletedSpots.count > (maxNumberOfSpots + 50) {
-              deletedSpots.removeFirst()
+              deletedSpots.removeLast()
               logger.log("deleted spot cleanup")
             }
           }

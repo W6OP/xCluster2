@@ -51,9 +51,9 @@ struct MapView: NSViewRepresentable {
 
     if !annotations.isEmpty {
       for annotation in mapView.annotations {
-        print("annotation title: \(annotation.title)-\(annotation.subtitle)")
-        if annotation.title == "isDeleted" || annotation.subtitle == "isDeleted" {
-          print("deleted mapview annotation")
+        //print("annotation title: \(annotation.title)-\(annotation.subtitle)")
+        if annotation.title == "isDeleted" {
+          //print("deleted mapview annotation")
           mapView.removeAnnotation(annotation)
         }
       }
