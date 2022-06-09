@@ -48,6 +48,7 @@ class ClusterPinAnnotation: MKPointAnnotation {
   var isDeleted = false
   var isDxPin = false
   var annotationTitles: [String] = []
+  var station = ""
 
   let maxNumberOfAnnotationTitles = 14
 
@@ -76,6 +77,7 @@ class ClusterPinAnnotation: MKPointAnnotation {
   func addAnnotationTitle(dxStation: String, spotter: String, formattedFrequency: String) {
 
     let title = ("\(dxStation)-\(spotter)  \(formattedFrequency)")
+    //print("addAnnotationTitle: \(dxStation)-\(spotter)-\(formattedFrequency)")
 
       annotationTitles.append(title)
       annotationTitles = annotationTitles.uniqued()
@@ -93,9 +95,8 @@ class ClusterPinAnnotation: MKPointAnnotation {
       combinedTitle += (title + "\r")
     }
 
-    //if isDxPin {
-      self.title = String(combinedTitle.dropLast())
-    //}
+    self.title = String(combinedTitle.dropLast())
+    //print("updateAnnotationTitle: \(self.title ?? "")")
 
     if annotationTitles.count > maxNumberOfAnnotationTitles {
       annotationTitles.removeLast()
@@ -138,7 +139,6 @@ struct ClusterSpot: Identifiable, Hashable {
   var dxStation: String
   var frequency: String
   var formattedFrequency = ""
-  //var floatFrequency: Float = 0.0
   var band: Int
   var mode = ""
   var spotter: String
@@ -147,20 +147,13 @@ struct ClusterSpot: Identifiable, Hashable {
   var grid: String
   var spotterCountry: String
   var dxCountry: String
-  //var overlay: MKGeodesicPolyline!
-  //var spotterPin = ClusterPinAnnotation()
-  //var dxPin = ClusterPinAnnotation()
   var qrzInfoCombinedJSON = ""
   var filterReasons = [FilterReason]()
   var isInvalidSpot = true
-  //var overlayExists = false
   var isDigiMode = false
-  //var dxAnnotationTitles: [String] = []
-  //var spotterAnnotationTitles: [String] = []
   var spotterCoordinates: [String: Double] = ["": 0]
   var dxCoordinates: [String: Double] = ["": 0]
   var isHighlighted = false
-  var hasDxPin = false
 
   let maxNumberOfAnnotationTitles = 14
 
@@ -304,8 +297,6 @@ struct ClusterSpot: Identifiable, Hashable {
   /// - Parameter qrzInfoCombined: combined data of a pair of call signs - QRZ information.
   mutating func createOverlay() -> MKGeodesicPolyline {
 
-    //if overlayExists { return }
-
     let locations = [
       CLLocationCoordinate2D(latitude: spotterCoordinates["latitude"] ?? 0,
                              longitude: spotterCoordinates["longitude"] ?? 0),
@@ -318,20 +309,12 @@ struct ClusterSpot: Identifiable, Hashable {
 
     id = overlay.hashValue
 
-    //self.overlay = overlay
     return overlay
   }
 
   // MARK: - Annotations
 
   // https://medium.com/macoclock/mapkit-map-pin-and-annotation-5c7d56439c66
-//  mutating func createAnnotations(createDxPin: CreateDxPin) {
-//    createSpotterAnnotation()
-//    if createDxPin == .createAll {
-//      createDXAnnotation()
-//    }
-//  }
-
     /// Create the pin for the spotter and populate it's data.
     /// - Parameter stationInfoCombined: StationInformationCombined
     mutating func createSpotterAnnotation() -> ClusterPinAnnotation {
@@ -341,16 +324,15 @@ struct ClusterSpot: Identifiable, Hashable {
 
       spotterPin.coordinate = CLLocationCoordinate2D(latitude: spotterCoordinates["latitude"] ?? 0,
                                                      longitude: spotterCoordinates["longitude"] ?? 0)
-      spotterPin.clusterPinType = .Spotter
 
       // common
       spotterPin.addAnnotationTitle(title: title)
       spotterPin.addSubTitle(subTitle: spotterCountry)
+      spotterPin.station = spotter
 
+      spotterPin.clusterPinType = .Spotter
       spotterPinId = spotterPin.hashValue
 
-      // TODO: probably not necessary
-      //self.spotterPin = spotterPin
       return spotterPin
     }
 
@@ -366,58 +348,15 @@ struct ClusterSpot: Identifiable, Hashable {
     // common
     dxPin.addAnnotationTitle(title: title)
     dxPin.addSubTitle(subTitle: dxCountry)
-
-    hasDxPin = true
+    dxPin.station = dxStation
 
     dxPin.coordinate = CLLocationCoordinate2D(latitude: dxCoordinates["latitude"] ?? 0,
                                               longitude: dxCoordinates["longitude"] ?? 0)
     dxPin.clusterPinType = .DX
     dxPinId = dxPin.hashValue
 
-    // TODO: probably not necessary
-    //self.dxPin = dxPin
     return dxPin
   }
-
-  /// Add a single title to the annotationTitles array.
-  /// - Parameters:
-  ///   - titles: String
-  ///   - annotationType: AnnotationType
-//  mutating func addAnnotationTitle(title: String) {
-//
-//      dxAnnotationTitles.append(title)
-//      dxAnnotationTitles = dxAnnotationTitles.uniqued()
-//      updateAnnotationTitle(titles: dxAnnotationTitles)
-//  }
-
-//  mutating func addAnnotationTitle(dxStation: String, spotter: String, formattedFrequency: String) {
-//
-//    let title = ("\(dxStation)-\(spotter)  \(formattedFrequency)")
-//
-//      dxAnnotationTitles.append(title)
-//      dxAnnotationTitles = dxAnnotationTitles.uniqued()
-//      updateAnnotationTitle(titles: dxAnnotationTitles)
-//  }
-
-  /// Update the annotation titles.
-  /// - Parameters:
-  ///   - titles: [String]
-  ///   - annotationType: AnnotationType
-//  mutating func updateAnnotationTitle(titles: [String]) {
-//    var combinedTitle = ""
-//
-//    for title in dxAnnotationTitles {
-//      combinedTitle += (title + "\r")
-//    }
-//
-//    if hasDxPin {
-//      dxPin.title = String(combinedTitle.dropLast())
-//    }
-//
-//    if dxAnnotationTitles.count > maxNumberOfAnnotationTitles {
-//      dxAnnotationTitles.removeLast()
-//    }
-//  }
 
   // MARK: - Filters
 
