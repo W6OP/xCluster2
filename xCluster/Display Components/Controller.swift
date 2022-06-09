@@ -567,19 +567,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       }
 
       let mutatingSpot = spot
-//      Task {
-//        await MainActor.run {
-//          // if spot already exists, don't add again
-//          if displayedSpots.firstIndex(where: { $0.spotter == mutatingSpot.spotter &&
-//            $0.dxStation == mutatingSpot.dxStation && $0.band == mutatingSpot.band
-//          }) != nil {
-//            logger.info("Duplicate spot found: \(mutatingSpot.spotter):\(mutatingSpot.dxStation)")
-//            //throw (RequestError.duplicateSpot)
-//            return
-//          }
-//        }
-//      }
-
       Task {
         try await lookupCompletedSpot(spot: mutatingSpot)
       }
@@ -788,12 +775,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       return
     }
 
-//    Task {
-//      if await checkForDuplicateSpot(spot: clusterSpot) {
-//        return
-//      }
-//    }
-
     // need to sort here so spotter and dx is in correct order
     let callSignPair = sortCallSignPair(callSignPair: callSignPair)
 
@@ -840,19 +821,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   /// - Returns: Bool
   func checkForDuplicateSpot(spot: ClusterSpot) -> Bool {
 
-//    let description = (dxStation: spot.dxStation, spotter: spot.spotter, frequency: spot.formattedFrequency)
-//
-//    let searchTask = Task { () -> Bool in
-//      if await spotHistory.searchHistory(description: description) {
-//        return true
-//      } else {
-//        await spotHistory.addToHistory(spotId: spot.id, description: description)
-//      }
-//      let xx = await searchTask.result
-//      return try! Bool(xx.get())
-//      return xx
-//    }
-
     if displayedSpots.contains( where: {
       $0.dxStation == spot.dxStation &&
       $0.spotter == spot.spotter &&
@@ -874,48 +842,115 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     stationInformationCombined: StationInformationCombined,
     clusterSpot: ClusterSpot) {
 
-      var annotationExists = false
-
-      // need to make spot mutable
+     // need to make spot mutable
       var spot = clusterSpot
       if alertList.contains(spot.dxStation) {
         spot.isHighlighted = true
       }
 
       spot.populateSpotInformation(stationInformationCombined: stationInformationCombined)
-      spot.createOverlay()
+      let overlay = spot.createOverlay()
+      addOverlay(overlay: overlay)
 
-      // make all spots for a dx station use the same dxPinId
-      // to find the annotation later - only one annotation per dx
-      let matchingSpots = displayedSpots.filter( {$0.dxStation == spot.dxStation && $0.hasDxPin == true} )
-      var referenceSpot = matchingSpots.filter( { $0.hasDxPin == true } ).first
-
-      switch matchingSpots.count {
-      case 0:
-        spot.createAnnotations(createDxPin: .createAll)
-        logger.log("Annotation created: \(spot.dxStation)-\(spot.spotter)-\(spot.dxPinId)")
-      case 1:
-        spot.createAnnotations(createDxPin: .ignoreDx)
-        spot.dxPin = referenceSpot!.dxPin
-        spot.dxPinId = referenceSpot!.dxPinId
-        spot.hasDxPin = false
-        //spot.updateAnnotationTitle(titles: referenceSpot!.dxAnnotationTitles)
-        //let title = ("\(spot.dxStation)-\(spot.spotter)  \(spot.formattedFrequency)")
-        // this is a copy - need to replace existing item in displayedSpots DO I NEED TO DO THIS?
-        referenceSpot!.addAnnotationTitle(dxStation: spot.dxStation, spotter: spot.spotter,formattedFrequency: spot.formattedFrequency)
-        //annotationExists = updateExistingAnnotation(dxPinId: spot.dxPinId, title: reference!.dxPin.title!)
-        annotationExists = true
-        logger.log("Annotation updated: \(spot.dxStation)-\(spot.spotter)-\(referenceSpot!.dxPinId)")
-      default:
-        let multiple = matchingSpots.filter( { $0.hasDxPin == true } )
-        for multi in multiple {
-          logger.log("Multiple spots: \(multi.dxStation)-\(multi.spotter)-\(multi.dxPinId)")
-        }
-        assertionFailure("Multiple spots with same annotation")
+      //annotationExists = checkForExistingDxAnnotations(spot: &spot)
+      let pins  = checkForExistingDxAnnotations(spot: &spot)
+      for pin in pins {
+        addAnnotation(annotation: pin)
       }
 
-      addSpot(spot: spot, doInsert: true, annotationExists: annotationExists)
+      addSpot(spot: spot, doInsert: true)
     }
+
+  func addOverlay(overlay: MKGeodesicPolyline) {
+    Task {
+      await MainActor.run {
+        //if spot!.isFiltered == false { // && spot!.overlayExists == false
+          overlays.append(overlay)
+        //}
+      }
+    }
+  }
+
+
+  // TODO: - Does this work?
+  func addAnnotation(annotation: ClusterPinAnnotation) {
+    Task { @MainActor in
+      //await MainActor.run {
+      // TODO: fix filtering
+        //if spot!.isFiltered == false { // && spot!.overlayExists == false
+          annotations.append(annotation)
+        //}
+      //}
+    }
+  }
+
+  /// Insert and delete spots and overlays.
+  /// - Parameter spot: ClusterSpot
+  /// - Parameter doDelete: Bool
+  func addSpot(spot: ClusterSpot?, doInsert: Bool) {
+
+    Task {
+      await MainActor.run {
+        if doInsert {
+          displayedSpots.insert(spot!, at: 0)
+          deletedSpots.insert(spot!, at: 0)
+          // TODO: - This may need fixing
+          //if spot!.isFiltered == false { // && spot!.overlayExists == false
+            manageTotalSpotCount()
+//          }
+        }
+      }
+    }
+  }
+
+  /// make all spots for a dx station use the same dxPinId
+  /// to find the annotation later - only one annotation per dx
+  /// - Parameter spot: ClusterSpot
+  /// - Returns: Bool
+  func checkForExistingDxAnnotations(spot: inout ClusterSpot) -> [ClusterPinAnnotation] {
+    var pins: [ClusterPinAnnotation] = []
+    //var annotationExists = false
+
+    let matchingSpots = displayedSpots.filter( {$0.dxStation == spot.dxStation && $0.hasDxPin == true} )
+    let referenceSpot = matchingSpots.filter( { $0.hasDxPin == true } ).first
+
+    switch matchingSpots.count {
+    case 0:
+      //spot.createAnnotations(createDxPin: .createAll)
+      let spotterAnnotation = spot.createSpotterAnnotation()
+      pins.append(spotterAnnotation)
+      let dxAnnotation = spot.createDXAnnotation()
+      pins.append(dxAnnotation)
+
+      //logger.log("Annotation created: \(spot.dxStation)-\(spot.spotter)-\(spot.dxPinId)")
+    case 1:
+      // find the existing annotation
+      let annotation = annotations.filter( {$0.hashValue == referenceSpot?.dxPinId} ).first
+      annotation?.addAnnotationTitle(dxStation: spot.dxStation, spotter: spot.spotter,formattedFrequency: spot.formattedFrequency)
+      // get the title(s)
+      //referenceSpot!.addAnnotationTitle(dxStation: spot.dxStation, spotter: spot.spotter,formattedFrequency: spot.formattedFrequency)
+      //spot.createAnnotations(createDxPin: .ignoreDx)
+      let spotterAnnotation = spot.createSpotterAnnotation()
+      pins.append(spotterAnnotation)
+
+      //spot.dxPin = referenceSpot!.dxPin
+      spot.dxPinId = referenceSpot!.dxPinId
+      spot.hasDxPin = false
+      //logger.log("title: \(spot.dxPin.title)")
+      // this is a copy, should not have to do this
+      //referenceSpot!.addAnnotationTitle(dxStation: spot.dxStation, spotter: spot.spotter,formattedFrequency: spot.formattedFrequency)
+      //annotationExists = true
+      //logger.log("Annotation updated: \(spot.dxStation)-\(spot.spotter)-\(referenceSpot!.dxPinId)")
+    default:
+      let multiple = matchingSpots.filter( { $0.hasDxPin == true } )
+      for multi in multiple {
+        logger.log("Multiple spots: \(multi.dxStation)-\(multi.spotter)-\(multi.dxPinId)")
+      }
+      //assertionFailure("Multiple spots with same annotation")
+    }
+
+    return pins
+  }
 
   /// Delete a duplicate annotation
   /// - Parameter annotationId: Int
@@ -927,31 +962,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
           annotation.isDeleted = true
         }
         annotations.removeAll(where: { $0.hashValue == annotationId })
-      }
-    }
-  }
-
-  /// Insert and delete spots and overlays.
-  /// - Parameter spot: ClusterSpot
-  /// - Parameter doDelete: Bool
-  func addSpot(spot: ClusterSpot?, doInsert: Bool, annotationExists: Bool) {
-
-    Task {
-      await MainActor.run {
-        if doInsert {
-          displayedSpots.insert(spot!, at: 0)
-          deletedSpots.insert(spot!, at: 0)
-          if spot!.isFiltered == false && spot!.overlayExists == false {
-            overlays.append(spot!.overlay)
-            annotations.append(spot!.spotterPin)
-            if !annotationExists {
-              annotations.append(spot!.dxPin)
-            }
-            manageTotalSpotCount()
-          } else {
-            //print("____________________ DUPLICATE _____________________")
-          }
-        }
       }
     }
   }
@@ -1288,29 +1298,18 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     Task {
       await MainActor.run {
 
-        let unfilteredSpots = displayedSpots.filter({$0.isFiltered == false})
-        for spot in unfilteredSpots {
-          if overlays.first(where: {$0.hashValue == spot.id}) == nil {
-            overlays.append(spot.overlay!)
-          }
-        }
+//        let unfilteredSpots = displayedSpots.filter({$0.isFiltered == false})
+//        for spot in unfilteredSpots {
+          // TODO: - This needs fixing
+//          if overlays.first(where: {$0.hashValue == spot.id}) == nil {
+//            overlays.append(spot.overlay!)
+//          }
+//        }
 
         let filteredSpots = displayedSpots.filter({$0.isFiltered == true})
         for spot in filteredSpots {
             overlays.removeAll(where: { $0.hashValue == spot.id })
         }
-
-//        for spot in displayedSpots {
-//          if spot.isFiltered == false {
-//            if overlays.first(where: {$0.hashValue == spot.id}) == nil {
-//              overlays.append(spot.overlay!)
-//            }
-//          } else {
-//            //deleteOverlay(spotId: spot.id)
-//            overlays = overlays.filter({ $0.hashValue != spot.id })
-//            //overlays.removeAll(where: { $0.hashValue == spot.id })
-//          }
-//        }
       }
     }
   }
@@ -1335,11 +1334,12 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       await MainActor.run {
         for spot in displayedSpots {
           if spot.isFiltered == false {
+            // TODO: - Fix this
             if annotations.first(where: {$0.hashValue == spot.spotterPinId}) == nil {
-              annotations.append(spot.spotterPin)
-              if spot.hasDxPin {
-                annotations.append(spot.dxPin)
-              }
+//              annotations.append(spot.spotterPin)
+//              if spot.hasDxPin {
+//                annotations.append(spot.dxPin)
+//              }
             }
           } else {
             var annotation = annotations.filter( { $0.hashValue == spot.spotterPinId } ).first
