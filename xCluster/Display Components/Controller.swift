@@ -31,7 +31,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   @Published var annotations = [ClusterPinAnnotation]()
   @Published var displayedSpots = [ClusterSpot]()
   @Published var statusMessages = [StatusMessage]()
-  @Published var overlays = [MKGeodesicPolyline]()
+  @Published var overlays = [ClusterMKGeodesicPolyline]()
 
   @Published var bandFilter = (id: 0, state: false) {
     didSet {
@@ -907,7 +907,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   // MARK: - Add and Delete Overlays, Annotations and Spots
   /// Add an overlay or polyline to the published collection.
   /// - Parameter overlay: The polyline connecting the spotter to the dx station
-  func addOverlay(overlay: MKGeodesicPolyline) {
+  func addOverlay(overlay: ClusterMKGeodesicPolyline) {
     Task { @MainActor in
       // TODO: fix filtering
       //if spot!.isFiltered == false { // && spot!.overlayExists == false

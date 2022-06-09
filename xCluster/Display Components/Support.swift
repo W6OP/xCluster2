@@ -13,11 +13,6 @@ import Combine
 import os
 import CallParser
 
-enum AnnotationType {
-  case dx
-  case spotter
-}
-
 /// Status message definition
 struct StatusMessage: Identifiable, Hashable {
   var id = UUID()
@@ -28,12 +23,30 @@ struct StatusMessage: Identifiable, Hashable {
   }
 }
 
+// MARK: - Cluster Overlay
+
+class ClusterMKGeodesicPolyline: MKGeodesicPolyline {
+
+  var clusterOverlayId: UUID
+  var associatedSpotterPinId = 0
+  var associatedDxPinId = 0
+
+  override init() {
+    clusterOverlayId = UUID()
+
+    super.init()
+  }
+
+}
+
+
+
 // MARK: - Cluster Pin Annotation
 
 enum ClusterPinAnnotationType {
-  case DX
-  case Spotter
-  case Undefined
+  case dx
+  case spotter
+  case undefined
 }
 
 enum CreateDxPin {
@@ -41,20 +54,21 @@ enum CreateDxPin {
   case ignoreDx
 }
 
+
 class ClusterPinAnnotation: MKPointAnnotation {
   var clusterPinId: UUID
   var clusterPinType: ClusterPinAnnotationType
   var clusterPinSequence = 0
   var isDeleted = false
-  var isDxPin = false
+  var isFiltered = false
   var annotationTitles: [String] = []
   var station = ""
 
   let maxNumberOfAnnotationTitles = 14
 
-  override init () {
+  override init() {
     clusterPinId = UUID()
-    clusterPinType = .Undefined
+    clusterPinType = .undefined
 
     super.init()
   }
@@ -295,7 +309,7 @@ struct ClusterSpot: Identifiable, Hashable {
 
   /// Build the line (overlay) to display on the map.
   /// - Parameter qrzInfoCombined: combined data of a pair of call signs - QRZ information.
-  mutating func createOverlay() -> MKGeodesicPolyline {
+  mutating func createOverlay() -> ClusterMKGeodesicPolyline {
 
     let locations = [
       CLLocationCoordinate2D(latitude: spotterCoordinates["latitude"] ?? 0,
@@ -303,7 +317,7 @@ struct ClusterSpot: Identifiable, Hashable {
       CLLocationCoordinate2D(latitude: dxCoordinates["latitude"] ?? 0,
                              longitude: dxCoordinates["longitude"] ?? 0)]
 
-    let overlay = MKGeodesicPolyline(coordinates: locations, count: locations.count)
+    let overlay = ClusterMKGeodesicPolyline(coordinates: locations, count: locations.count)
     overlay.title = String(band)
     overlay.subtitle = mode
 
@@ -330,7 +344,7 @@ struct ClusterSpot: Identifiable, Hashable {
       spotterPin.addSubTitle(subTitle: spotterCountry)
       spotterPin.station = spotter
 
-      spotterPin.clusterPinType = .Spotter
+      spotterPin.clusterPinType = .spotter
       spotterPinId = spotterPin.hashValue
 
       return spotterPin
@@ -343,8 +357,6 @@ struct ClusterSpot: Identifiable, Hashable {
     let dxPin = ClusterPinAnnotation()
     let title = ("\(dxStation)-\(spotter)  \(formattedFrequency)")
 
-    dxPin.isDxPin = true
-
     // common
     dxPin.addAnnotationTitle(title: title)
     dxPin.addSubTitle(subTitle: dxCountry)
@@ -352,7 +364,7 @@ struct ClusterSpot: Identifiable, Hashable {
 
     dxPin.coordinate = CLLocationCoordinate2D(latitude: dxCoordinates["latitude"] ?? 0,
                                               longitude: dxCoordinates["longitude"] ?? 0)
-    dxPin.clusterPinType = .DX
+    dxPin.clusterPinType = .dx
     dxPinId = dxPin.hashValue
 
     return dxPin

@@ -12,7 +12,7 @@ import Foundation
 // MARK: - Map View
 struct MapView: NSViewRepresentable {
   typealias MapViewType = NSViewType
-  var overlays: [MKGeodesicPolyline]
+  var overlays: [ClusterMKGeodesicPolyline]
   var annotations: [ClusterPinAnnotation]
 
   func makeNSView(context: Context) -> MKMapView {
