@@ -34,13 +34,18 @@ struct BandViewToggle: View {
       //Spacer()
       ForEach(bands.indices, id: \.self) { item in
         Toggle(self.bands[item].band, isOn: self.$bands[item].isSelected.didSet { (state) in
+          var bandFilterState: BandFilterState = .isOff
+          if state {
+            bandFilterState = BandFilterState.isOn
+          }
+
           if self.bands[item].id != 0 {
-            self.controller.bandFilter = (self.bands[item].id, state)
+            self.controller.bandFilter = (self.bands[item].id, bandFilterState) // .isOn
           } else {
             for (index, band) in bands.enumerated() where band.id != 0 {
               self.bands[index].isSelected = self.bands[0].isSelected
             }
-            self.controller.bandFilter = (0, state)
+            self.controller.bandFilter = (0, bandFilterState) // .isOff
           }
         })
         .tag(self.bands[item].id)

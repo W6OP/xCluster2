@@ -183,9 +183,18 @@ enum SpotError: Error {
 }
 
 // move to utility ??
-enum BandFilterState: Int {
-  case isOn = 1
-  case isOff = 0
+enum BandFilterState {
+  case isOn
+  case isOff
+
+  var bool: Bool {
+         switch self {
+         case .isOn:
+             return true
+         default:
+             return false
+         }
+     }
 }
 
 enum ModeFilterState: Int {

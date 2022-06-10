@@ -30,6 +30,8 @@ class ClusterMKGeodesicPolyline: MKGeodesicPolyline {
   var clusterOverlayId: UUID
   var associatedSpotterPinId = 0
   var associatedDxPinId = 0
+  var band = 0
+  var isDeleted = false
 
   override init() {
     clusterOverlayId = UUID()
@@ -38,8 +40,6 @@ class ClusterMKGeodesicPolyline: MKGeodesicPolyline {
   }
 
 }
-
-
 
 // MARK: - Cluster Pin Annotation
 
@@ -54,7 +54,6 @@ enum CreateDxPin {
   case ignoreDx
 }
 
-
 class ClusterPinAnnotation: MKPointAnnotation {
   var clusterPinId: UUID
   var clusterPinType: ClusterPinAnnotationType
@@ -63,6 +62,7 @@ class ClusterPinAnnotation: MKPointAnnotation {
   var isFiltered = false
   var annotationTitles: [String] = []
   var station = ""
+  var band = [Int]()
 
   let maxNumberOfAnnotationTitles = 14
 
@@ -134,6 +134,7 @@ class ClusterPinAnnotation: MKPointAnnotation {
 // MARK: - Cluster Spot
 
 /// Definition of a ClusterSpot
+/// This spot has the id of the associated overlay and annotations.
 struct ClusterSpot: Identifiable, Hashable {
 
   enum FilterReason: Int {
@@ -147,7 +148,8 @@ struct ClusterSpot: Identifiable, Hashable {
     case none
   }
 
-  var id: Int // the spots own hash value initially
+  var id: Int
+  var overlayId: Int
   var spotterPinId: Int // spotterPin.hashValue
   var dxPinId: Int // dxPin.hashValue
   var dxStation: String
@@ -175,6 +177,7 @@ struct ClusterSpot: Identifiable, Hashable {
 
   init() {
     id = 0
+    overlayId = 0
     spotterPinId = 0
     dxPinId = 0
     dxStation = ""
@@ -320,8 +323,10 @@ struct ClusterSpot: Identifiable, Hashable {
     let overlay = ClusterMKGeodesicPolyline(coordinates: locations, count: locations.count)
     overlay.title = String(band)
     overlay.subtitle = mode
+    //overlay.band = band
 
     id = overlay.hashValue
+    overlayId = overlay.hashValue
 
     return overlay
   }
@@ -343,6 +348,7 @@ struct ClusterSpot: Identifiable, Hashable {
       spotterPin.addAnnotationTitle(title: title)
       spotterPin.addSubTitle(subTitle: spotterCountry)
       spotterPin.station = spotter
+      //spotterPin.band.append(band)
 
       spotterPin.clusterPinType = .spotter
       spotterPinId = spotterPin.hashValue
@@ -361,6 +367,7 @@ struct ClusterSpot: Identifiable, Hashable {
     dxPin.addAnnotationTitle(title: title)
     dxPin.addSubTitle(subTitle: dxCountry)
     dxPin.station = dxStation
+    //dxPin.band.append(band)
 
     dxPin.coordinate = CLLocationCoordinate2D(latitude: dxCoordinates["latitude"] ?? 0,
                                               longitude: dxCoordinates["longitude"] ?? 0)
@@ -378,13 +385,12 @@ struct ClusterSpot: Identifiable, Hashable {
 
     if filterReasons.contains(reason) {
       removeFilter(reason: reason)
-      //print("filter removed: \(self.formattedFrequency)")
+      print("filter removed: \(self.band)")
     } else {
       filterReasons.append(reason)
       self.isFiltered = true
-      //print("filter added: \(self.formattedFrequency)")
+      print("filter added: \(self.band)")
     }
-    //print("filter count: \(filterReasons.count)")
   }
 
   mutating func removeFilter(reason: FilterReason) {
