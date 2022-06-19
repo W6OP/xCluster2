@@ -676,18 +676,18 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   func applyFilters(_ spot: inout ClusterSpot) {
 
     if bandFilters[Int(spot.band)] == .isOn {
-      spot.manageFilters(reason: .band)
+      spot.manageFilters(filterType: .band)
     }
 
     if !callFilter.isEmpty {
       if spot.dxStation.prefix(callFilter.count) != callFilter {
-        spot.manageFilters(reason: .call)
+        spot.manageFilters(filterType: .call)
       }
     }
 
     if digiOnly {
       if !checkIsDigi(spot: spot) {
-        spot.manageFilters(reason: .notDigi)
+        spot.manageFilters(filterType: .notDigi)
       }
     }
   }
@@ -834,6 +834,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
   // MARK: - Create Overlays and Annotations
 
+
+  // TODO: - TRY TO FIND A USE FOR THE NEW CHARTS IN NEW SWIFTUI
+
   /// Have the spot create the overlay associated with it.
   /// - Parameters:
   ///   - stationInfoCombined: StationInformationCombined
@@ -941,43 +944,39 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
   func deleteOverlay(overlayId: Int) {
       logger.log("overlays deleted: \(overlayId)")
-    //Task { @MainActor in
       for overlay in overlays.filter( { $0.hashValue == overlayId }) {
         //overlay.isDeleted = true
         overlay.title = "isDeleted"
+        print("deleted overlay: \(overlayId)")
       }
       overlays.removeAll(where: { $0.hashValue == overlayId })
-    //}
   }
 
   /// Delete an annotation.
   /// - Parameter annotationId: Int
   func deleteAnnotation(annotationId: Int) {
-    //Task { @MainActor in
       logger.log("annotations deleted: \(annotationId)")
       for annotation in annotations.filter( { $0.hashValue == annotationId }) {
-        annotation.isDeleted = true
-        annotation.title = "isDeleted"
+        if annotation.referenceCount == 1 {
+          annotation.isDeleted = true
+          annotation.title = "isDeleted"
+        }
       }
       annotations.removeAll(where: { $0.hashValue == annotationId })
-    //}
   }
 
   /// Limit the number of spots to the user selected limit.
   /// Manage the associated overlays and annotations.
   func manageTotalSpotCount() {
-    logger.log("manage spots: \(self.displayedSpots.count)-\(self.maxNumberOfSpots)")
+    //logger.log("manage spots: \(self.displayedSpots.count)-\(self.maxNumberOfSpots)")
     if displayedSpots.count > maxNumberOfSpots {
       while displayedSpots.count > maxNumberOfSpots {
         //get the last spot
         let spot = displayedSpots[displayedSpots.count - 1]
-
         // delete the associated overlay
         deleteOverlay(overlayId: spot.overlayId)
-
         // delete the spotter annotation
         deleteAnnotation(annotationId: spot.spotterPinId)
-
         // only delete the dx annotation if there are no other spots associated
         let spots = displayedSpots.filter( { $0.dxPinId == spot.dxPinId } )
         if spots.count == 1 {
@@ -1060,6 +1059,10 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     updateAnnotations()
   }
 
+  // get index of item in array
+  // let i1 = arr.firstIndex(where: {$0 == "a" && spot.dxStation == callSign})
+
+
   /// Update the filter state on a spot.
   /// - Parameters:
   ///   - call: String
@@ -1069,13 +1072,13 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         if exactMatch {
           for (index, spot) in displayedSpots.enumerated() where spot.dxStation.prefix(call.count) != call {
             var mutatingSpot = spot
-            mutatingSpot.manageFilters(reason: .call)
+            mutatingSpot.manageFilters(filterType: .call)
             displayedSpots[index] = mutatingSpot
           }
         } else {
           for (index, spot) in displayedSpots.enumerated() where !spot.dxStation.starts(with: call) {
             var mutatingSpot = spot
-            mutatingSpot.manageFilters(reason: .call)
+            mutatingSpot.manageFilters(filterType: .call)
             displayedSpots[index] = mutatingSpot
           }
         }
@@ -1089,7 +1092,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       await MainActor.run {
         for (index, spot) in displayedSpots.enumerated() {
           var mutatingSpot = spot
-          mutatingSpot.removeFilter(reason: .call)
+          mutatingSpot.removeFilter(filterType: .call)
           displayedSpots[index] = mutatingSpot
         }
       }
@@ -1105,11 +1108,11 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
           var mutatingSpot = spot
           if filterState {
             if !checkIsDigi(spot: spot) {
-              mutatingSpot.manageFilters(reason: .notDigi)
+              mutatingSpot.manageFilters(filterType: .notDigi)
               displayedSpots[index] = mutatingSpot
             }
           } else {
-            mutatingSpot.removeFilter(reason: .notDigi)
+            mutatingSpot.removeFilter(filterType: .notDigi)
             displayedSpots[index] = mutatingSpot
           }
         }
@@ -1211,34 +1214,29 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     // TODO: only set filters here - call another function to mess with overlays and annotations
     switch state {
     case .isOn: // filter spots
-      print("isOn: \(band)")
       if band != 0 {
         bandFilters[Int(band)] = .isOn
+        //logger.info("Filter for \(band)m is on")
       } else {
         // turn off all bands
         bandFilters.keys.forEach { bandFilters[$0] = .isOn }
         resetAllBandSpotFilters()
-        //deleteExistingData(includeSpots: false)
+        deleteExistingData(includeSpots: false)
         return
       }
     case .isOff: // unfilter spots
-      print("isOff: \(band)")
       if band != 0 {
         bandFilters[Int(band)] = .isOff
+        //logger.info("Filter for \(band)m is off")
       } else {
         // turn on all bands
         bandFilters.keys.forEach { bandFilters[$0] = .isOff }
         resetAllBandSpotFilters()
-        //filterOverlays()
-        //updateAnnotations()
         return
       }
     }
 
     updateBandFilterState(band: band)
-
-    //filterOverlays()
-    //updateAnnotations()
   }
 
   /// Update the filter state on a spot.
@@ -1248,11 +1246,28 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   func updateBandFilterState(band: Int) {
     Task { @MainActor in
         for (index, spot) in displayedSpots.enumerated() where spot.band == band {
+
           var mutatingSpot = spot
-          mutatingSpot.manageFilters(reason: .band)
+          mutatingSpot.manageFilters(filterType: .band)
+
+          if mutatingSpot.isFiltered {
+            deleteAnnotation(annotationId: mutatingSpot.spotterPinId)
+            deleteOverlay(overlayId: mutatingSpot.id)
+            //logger.info("deleted overlay and spotter annotation for \(band)m")
+            // get the dx id and see if it has a reference count of one
+            deleteAnnotation(annotationId: mutatingSpot.dxPinId)
+          } else {
+          // need to regenerate overlays and annotations
+            logger.info("regenerated overlay and annotations for \(band)m")
+            let overlay = mutatingSpot.createOverlay()
+            addOverlay(overlay: overlay)
+            let spotterPin = mutatingSpot.createSpotterAnnotation()
+            addAnnotation(annotation: spotterPin)
+            let dxPin = mutatingSpot.createDXAnnotation()
+            addAnnotation(annotation: dxPin)
+          }
+          // this must be last or changes are not updated
           displayedSpots[index] = mutatingSpot
-          // TODO: need to regenerate overlays and annotations
-          deleteAnnotation(annotationId: spot.spotterPinId)
         }
       }
   }
@@ -1261,12 +1276,18 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   /// - Parameter setFilter: FilterState
   func resetAllBandSpotFilters() {
     Task { @MainActor in
+      logger.info("reset all band filters")
       for (index, spot) in displayedSpots.enumerated() where spot.isFiltered {
-          var mutatingSpot = spot
-          mutatingSpot.manageFilters(reason: .band)
-          displayedSpots[index] = mutatingSpot
-          // TODO: need to regenerate overlays and annotations
-        }
+        var mutatingSpot = spot
+        mutatingSpot.manageFilters(filterType: .band)
+        //let overlay = overlays.filter({$0.hashValue == spot.overlayId})
+        //print("count: \(overlay.count)")
+        deleteOverlay(overlayId: spot.overlayId)
+        deleteAnnotation(annotationId: spot.spotterPinId)
+        // TODO: need to check if it is ok to delete the dx annotation
+        deleteAnnotation(annotationId: spot.dxPinId)
+        displayedSpots[index] = mutatingSpot
+      }
     }
   }
 

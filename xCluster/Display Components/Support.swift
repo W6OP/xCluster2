@@ -35,6 +35,7 @@ class ClusterMKGeodesicPolyline: MKGeodesicPolyline {
 
   override init() {
     clusterOverlayId = UUID()
+    
 
     super.init()
   }
@@ -63,6 +64,9 @@ class ClusterPinAnnotation: MKPointAnnotation {
   var annotationTitles: [String] = []
   var station = ""
   var band = [Int]()
+  var referenceCount: Int {
+    get { annotationTitles.count }
+  }
 
   let maxNumberOfAnnotationTitles = 14
 
@@ -137,7 +141,7 @@ class ClusterPinAnnotation: MKPointAnnotation {
 /// This spot has the id of the associated overlay and annotations.
 struct ClusterSpot: Identifiable, Hashable {
 
-  enum FilterReason: Int {
+  enum FilterType: Int {
     case band
     case call
     case country
@@ -164,7 +168,7 @@ struct ClusterSpot: Identifiable, Hashable {
   var spotterCountry: String
   var dxCountry: String
   var qrzInfoCombinedJSON = ""
-  var filterReasons = [FilterReason]()
+  var filterReasons = [FilterType]()
   var isInvalidSpot = true
   var isDigiMode = false
   var spotterCoordinates: [String: Double] = ["": 0]
@@ -381,21 +385,28 @@ struct ClusterSpot: Identifiable, Hashable {
 
   /// Add or Reset a specific filter.
   /// - Parameter filterReason: FilterReason
-  mutating func manageFilters(reason: FilterReason) {
+  mutating func manageFilters(filterType: FilterType) {
 
-    if filterReasons.contains(reason) {
-      removeFilter(reason: reason)
+    //print("manageFilters called")
+    if filterReasons.contains(filterType) {
+      removeFilter(filterType: filterType)
       print("filter removed: \(self.band)")
     } else {
-      filterReasons.append(reason)
+      filterReasons.append(filterType)
       self.isFiltered = true
-      print("filter added: \(self.band)")
+      //print("filter added: \(self.band)")
     }
   }
 
-  mutating func removeFilter(reason: FilterReason) {
-    if filterReasons.contains(reason) {
-      let index = filterReasons.firstIndex(of: reason)!
+//  mutating func setFilter(filterType: FilterType) {
+//    filterReasons.append(filterType)
+//    self.isFiltered = true
+//    print("filter added: \(filterType)")
+//  }
+
+  mutating func removeFilter(filterType: FilterType) {
+    if filterReasons.contains(filterType) {
+      let index = filterReasons.firstIndex(of: filterType)!
       self.filterReasons.remove(at: index)
     }
 

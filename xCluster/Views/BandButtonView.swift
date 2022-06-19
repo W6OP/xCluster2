@@ -31,14 +31,13 @@ struct BandViewToggle: View {
 
   var body: some View {
     HStack {
-      //Spacer()
       ForEach(bands.indices, id: \.self) { item in
         Toggle(self.bands[item].band, isOn: self.$bands[item].isSelected.didSet { (state) in
           var bandFilterState: BandFilterState = .isOff
           if state {
             bandFilterState = BandFilterState.isOn
           }
-
+          
           if self.bands[item].id != 0 {
             self.controller.bandFilter = (self.bands[item].id, bandFilterState) // .isOn
           } else {
@@ -53,7 +52,6 @@ struct BandViewToggle: View {
         .toggleStyle(SwitchToggleStyle(tint: .mint))
         Divider()
       }
-      //Spacer()
     }
   }
 }

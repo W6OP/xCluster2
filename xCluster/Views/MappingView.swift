@@ -33,23 +33,23 @@ struct MapView: NSViewRepresentable {
 
     mapView.addOverlays(overlays)
 
-    if !overlays.isEmpty {
+    //if !overlays.isEmpty {
       for overlay in mapView.overlays {
         //print("overlay title: \(overlay.title)")
         if overlay.title == "isDeleted" {
           //print("deleted mapview overlay")
           mapView.removeOverlay(overlay)
         }
-      }
+      //}
     }
-    print("overlay count: \(overlays.count)")
+    //print("overlay count: \(overlays.count)")
   }
 
   public func updateAnnotations(from mapView: MKMapView) {
 
     mapView.addAnnotations(annotations)
 
-    if !annotations.isEmpty {
+    //if !annotations.isEmpty {
       for annotation in mapView.annotations {
         //print("annotation title: \(annotation.title)-\(annotation.subtitle)")
         if annotation.title == "isDeleted" {
@@ -57,7 +57,7 @@ struct MapView: NSViewRepresentable {
           mapView.removeAnnotation(annotation)
         }
       }
-    }
+    //}
   }
 
   func makeCoordinator() -> Coordinator {
