@@ -61,7 +61,8 @@ let bandData = [
     BandIdentifier(band: "15m", id: 15, isSelected: false),
     BandIdentifier(band: "12m", id: 12, isSelected: false),
     BandIdentifier(band: "10m", id: 10, isSelected: false),
-    BandIdentifier(band: "6m", id: 6, isSelected: false)
+    BandIdentifier(band: "6m", id: 6, isSelected: false),
+    BandIdentifier(band: "2m", id: 2, isSelected: false)
 ]
 
 // MARK: - Mode Definition

@@ -150,6 +150,7 @@ struct ClusterSpot: Identifiable, Hashable {
     case mode
     case time
     case none
+    case all
   }
 
   var id: Int
@@ -386,23 +387,23 @@ struct ClusterSpot: Identifiable, Hashable {
   /// Add or Reset a specific filter.
   /// - Parameter filterReason: FilterReason
   mutating func manageFilters(filterType: FilterType) {
-
-    //print("manageFilters called")
     if filterReasons.contains(filterType) {
       removeFilter(filterType: filterType)
-      print("filter removed: \(self.band)")
     } else {
       filterReasons.append(filterType)
       self.isFiltered = true
-      //print("filter added: \(self.band)")
     }
   }
 
-//  mutating func setFilter(filterType: FilterType) {
-//    filterReasons.append(filterType)
-//    self.isFiltered = true
-//    print("filter added: \(filterType)")
-//  }
+
+  /// Turn a filter on.
+  /// - Parameter filterType: FilterType
+  mutating func setFilterOn(filterType: FilterType) {
+    if !filterReasons.contains(filterType) {
+      filterReasons.append(filterType)
+    }
+    self.isFiltered = true
+  }
 
   mutating func removeFilter(filterType: FilterType) {
     if filterReasons.contains(filterType) {

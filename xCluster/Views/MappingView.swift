@@ -33,11 +33,13 @@ struct MapView: NSViewRepresentable {
 
     mapView.addOverlays(overlays)
 
+    print("updated mapview overlay")
+
     //if !overlays.isEmpty {
       for overlay in mapView.overlays {
         //print("overlay title: \(overlay.title)")
         if overlay.title == "isDeleted" {
-          //print("deleted mapview overlay")
+          print("deleted mapview overlay")
           mapView.removeOverlay(overlay)
         }
       //}
