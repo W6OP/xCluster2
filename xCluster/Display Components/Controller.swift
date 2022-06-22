@@ -115,13 +115,28 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
                      15: BandFilterState.isOff, 12: BandFilterState.isOff, 10: BandFilterState.isOff,
                      6: BandFilterState.isOff, 2: BandFilterState.isOff]
 
-  var callFilter = ""
+
   var alertList: [String] = []
   // these is set by the Checkbox views in the ContentView
   var exactMatch = false
+  var previousCallFilter = ""
+  var callToFilter = ""
+  {
+    didSet {
+      if callToFilter.isEmpty {
+        resetCallFilter(callToFilter: callToFilter)
+      } else {
+        setCallFilter(callToFilter: callToFilter.uppercased())
+      }
+    }
+  }
   var digiOnly = false {
     didSet {
-      setDigiFilter(filterState: digiOnly)
+      if digiOnly {
+        setDigiFilter()
+      } else {
+        resetDigiFilter()
+      }
     }
   }
 
@@ -231,7 +246,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   fileprivate func cleanupConnection(_ isReconnection: Bool, _ cluster: ClusterIdentifier) {
     deleteExistingData(includeSpots: true)
 
-    bandFilters.keys.forEach { bandFilters[$0] = .isOff }
+    //bandFilters.keys.forEach { bandFilters[$0] = .isOff }
     logger.info("Connecting to: \(cluster.name)")
   }
 
@@ -584,6 +599,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   func lookupCompletedSpot(spot: ClusterSpot) async throws {
     var spot = spot
 
+    // TODO: - WHY ARE THE BAND FILTERS OFF HERE FOR DXSUMMIT BUT OK FOR TELNET SPOTS
     applyFilters(&spot)
 
     await spotCache.addSpot(spot: spot)
@@ -671,22 +687,22 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     }
   }
 
+  // TODO: NEEDS WORK
   /// Check if the incoming spot needs to be filtered.
   /// - Parameter spot: ClusterSpot
   func applyFilters(_ spot: inout ClusterSpot) {
-
     if bandFilters[Int(spot.band)] == .isOn {
-      spot.manageFilters(filterType: .band)
+      spot.setFilterOn(filterType: .band)
     }
 
-    if !callFilter.isEmpty {
-      if spot.dxStation.prefix(callFilter.count) != callFilter {
+    if !callToFilter.isEmpty {
+      if spot.dxStation.prefix(callToFilter.count) != callToFilter {
         spot.manageFilters(filterType: .call)
       }
     }
 
     if digiOnly {
-      if !checkIsDigi(spot: spot) {
+      if checkIsNotDigi(spot: spot) {
         spot.manageFilters(filterType: .notDigi)
       }
     }
@@ -845,21 +861,25 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     stationInformationCombined: StationInformationCombined,
     clusterSpot: ClusterSpot) {
 
-     // need to make spot mutable
+      // need to make spot mutable
       var spot = clusterSpot
       if alertList.contains(spot.dxStation) {
         spot.isHighlighted = true
       }
 
-      // populate the spot and create the polyline
+      // populate the spot
       spot.populateSpotInformation(stationInformationCombined: stationInformationCombined)
-      let overlay = spot.createOverlay()
-      addOverlay(overlay: overlay)
 
-      // create the two annotations for the spot
-      let pins  = checkForExistingAnnotations(spot: &spot)
-      for pin in pins {
-        addAnnotation(annotation: pin)
+      // TODO: - This doesn't work, should not add overlay if spot is filtered
+      if !spot.isFiltered {
+        let overlay = spot.createOverlay()
+        addOverlay(overlay: overlay)
+
+        // create the two annotations for the spot
+        let pins  = checkForExistingAnnotations(spot: &spot)
+        for pin in pins {
+          addAnnotation(annotation: pin)
+        }
       }
 
       // add the spot to the collection
@@ -942,24 +962,32 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     }
   }
 
+  /// Delete an ovelay.
+  /// - Parameter overlayId: Int: hashValue of the overlay to be deleted.
   func deleteOverlay(overlayId: Int) {
-      logger.log("overlays deleted: \(overlayId)")
+      //logger.log("overlays deleted: \(overlayId)")
       for overlay in overlays.filter( { $0.hashValue == overlayId }) {
         //overlay.isDeleted = true
         overlay.title = "isDeleted"
-        print("deleted overlay: \(overlayId)")
+        //print("deleted overlay: \(overlayId)")
       }
       overlays.removeAll(where: { $0.hashValue == overlayId })
   }
 
   /// Delete an annotation.
-  /// - Parameter annotationId: Int
-  func deleteAnnotation(annotationId: Int) {
-      logger.log("annotations deleted: \(annotationId)")
+  /// - Parameter annotationId: Int: hashValue of the annotation to be deleted.
+  func deleteAnnotation(annotationId: Int, scope: Scope) {
+      //logger.log("annotations deleted: \(annotationId)")
       for annotation in annotations.filter( { $0.hashValue == annotationId }) {
-        if annotation.referenceCount == 1 {
+        switch scope {
+        case .all:
           annotation.isDeleted = true
           annotation.title = "isDeleted"
+        case .selective:
+          if annotation.referenceCount == 1 {
+            annotation.isDeleted = true
+            annotation.title = "isDeleted"
+          }
         }
       }
       annotations.removeAll(where: { $0.hashValue == annotationId })
@@ -976,11 +1004,11 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         // delete the associated overlay
         deleteOverlay(overlayId: spot.overlayId)
         // delete the spotter annotation
-        deleteAnnotation(annotationId: spot.spotterPinId)
+        deleteAnnotation(annotationId: spot.spotterPinId, scope: .selective)
         // only delete the dx annotation if there are no other spots associated
         let spots = displayedSpots.filter( { $0.dxPinId == spot.dxPinId } )
         if spots.count == 1 {
-          deleteAnnotation(annotationId: spot.dxPinId)
+          deleteAnnotation(annotationId: spot.dxPinId, scope: .selective)
         }
 
         let spotsToDelete = displayedSpots.filter( {$0.id == spot.id} )
@@ -1043,110 +1071,122 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
   // MARK: - Filter Call Signs
 
-  /// Remove overlays where the call sign does not match the filter.
-  /// - Parameter callSign: String
-  func setCallFilter(callSign: String) {
-
-    callFilter = callSign.uppercased()
-
-    resetAllCallFilters(filterState: false)
-
-    if !callSign.isEmpty {
-      updateCallFilterState(call: callSign, filterState: false)
-    }
-
-    filterOverlays()
-    updateAnnotations()
-  }
-
   // get index of item in array
   // let i1 = arr.firstIndex(where: {$0 == "a" && spot.dxStation == callSign})
 
+  /// Set the call filter on and filter spots that do not have the DX call in them.
+  /// - Parameter callToFilter: String: Call sign to filter.
+  func setCallFilter(callToFilter: String) {
 
-  /// Update the filter state on a spot.
-  /// - Parameters:
-  ///   - call: String
-  ///   - setFilter: Bool
-  func updateCallFilterState(call: String, filterState: Bool) {
-    Task { @MainActor in
-        if exactMatch {
-          for (index, spot) in displayedSpots.enumerated() where spot.dxStation.prefix(call.count) != call {
-            var mutatingSpot = spot
-            mutatingSpot.manageFilters(filterType: .call)
-            displayedSpots[index] = mutatingSpot
-          }
-        } else {
-          for (index, spot) in displayedSpots.enumerated() where !spot.dxStation.starts(with: call) {
-            var mutatingSpot = spot
-            mutatingSpot.manageFilters(filterType: .call)
-            displayedSpots[index] = mutatingSpot
-          }
-        }
+    logger.info("set call filter: \(callToFilter)")
+
+    if exactMatch {
+      for (index, spot) in displayedSpots.enumerated() where spot.dxStation.prefix(callToFilter.count) != callToFilter {
+        var mutatingSpot = spot
+        mutatingSpot.setFilterOn(filterType: .call)
+        deleteAnnotation(annotationId: mutatingSpot.spotterPinId, scope: .selective)
+        deleteOverlay(overlayId: mutatingSpot.id)
+        deleteAnnotation(annotationId: mutatingSpot.dxPinId, scope: .all)
+
+        displayedSpots[index] = mutatingSpot
+      }
+    } else {
+      for (index, spot) in displayedSpots.enumerated() where !spot.dxStation.starts(with: callToFilter) {
+        var mutatingSpot = spot
+        mutatingSpot.setFilterOn(filterType: .call)
+        deleteAnnotation(annotationId: mutatingSpot.spotterPinId, scope: .selective)
+        deleteOverlay(overlayId: mutatingSpot.id)
+        deleteAnnotation(annotationId: mutatingSpot.dxPinId, scope: .all)
+
+        displayedSpots[index] = mutatingSpot
+      }
+    }
+  }
+
+  func resetCallFilter(callToFilter: String) {
+    for (index, spot) in displayedSpots.enumerated() {
+      var mutatingSpot = spot
+      //let filterState = mutatingSpot.isFiltered
+      mutatingSpot.removeFilter(filterType: .call)
+      if !mutatingSpot.isFiltered {
+        regenerateOverlayAndAnnotations(spot: &mutatingSpot)
+      }
+      displayedSpots[index] = mutatingSpot
     }
   }
 
   /// Reset all the call filters to the same state.
   /// - Parameter setFilter: FilterState
-  func resetAllCallFilters(filterState: Bool) {
-    Task {
-      await MainActor.run {
-        for (index, spot) in displayedSpots.enumerated() {
-          var mutatingSpot = spot
-          mutatingSpot.removeFilter(filterType: .call)
-          displayedSpots[index] = mutatingSpot
+  func resetAllCallFilters() {
+
+    for (index, spot) in displayedSpots.enumerated() {
+      var mutatingSpot = spot
+      mutatingSpot.removeFilter(filterType: .call)
+      if mutatingSpot.isFiltered == false {
+        logger.info("regenerating overlays and annotations")
+        regenerateOverlayAndAnnotations(spot: &mutatingSpot)
+      }
+      displayedSpots[index] = mutatingSpot
+    }
+  }
+
+  // MARK: - Filter Digi QSOs
+
+  /// Set the filter on non digital spots.
+  func setDigiFilter() {
+    for (index, spot) in displayedSpots.enumerated() {
+      var mutatingSpot = spot
+      if checkIsNotDigi(spot: spot) {
+        if mutatingSpot.isFiltered == false { // could be band filtered
+          deleteAnnotation(annotationId: mutatingSpot.spotterPinId, scope: .selective)
+          deleteOverlay(overlayId: mutatingSpot.id)
+          // get the dx id and see if it has a reference count of one
+          deleteAnnotation(annotationId: mutatingSpot.dxPinId, scope: .selective)
         }
+        mutatingSpot.setFilterOn(filterType: .notDigi)
+        displayedSpots[index] = mutatingSpot
       }
     }
   }
 
-  // MARK: - Filter Digi
-
-  func setDigiFilter(filterState: Bool) {
-    Task {
-      await MainActor.run {
-        for (index, spot) in displayedSpots.enumerated() {
-          var mutatingSpot = spot
-          if filterState {
-            if !checkIsDigi(spot: spot) {
-              mutatingSpot.manageFilters(filterType: .notDigi)
-              displayedSpots[index] = mutatingSpot
-            }
-          } else {
-            mutatingSpot.removeFilter(filterType: .notDigi)
-            displayedSpots[index] = mutatingSpot
-          }
-        }
+  /// Reset the filter on non digital spots.
+  func resetDigiFilter() {
+    for (index, spot) in displayedSpots.enumerated() where spot.isFiltered {
+      var mutatingSpot = spot
+      mutatingSpot.removeFilter(filterType: .notDigi)
+      if mutatingSpot.isFiltered == false {
+        regenerateOverlayAndAnnotations(spot: &mutatingSpot)
       }
+      displayedSpots[index] = mutatingSpot
     }
-    filterOverlays()
-    updateAnnotations()
   }
 
   // MARK: - Digi Frequency Ranges
 
-  func checkIsDigi(spot: ClusterSpot) -> Bool {
+  func checkIsNotDigi(spot: ClusterSpot) -> Bool {
+    var isNotDigi = true
 
     guard let frequency = Float(spot.formattedFrequency) else { return false }
     //print("input: \(frequency.roundTo(places: 3))")
     switch Float(frequency.roundTo(places: 3)) {
     case 1.840...1.845:
-      return true
+      isNotDigi = false
     case 1.84...1.845:
-      return true
+      isNotDigi = false
 //    case 3.568...3.570:
 //      return true
 //    case 3.568...3.57:
 //      return true
     case 3.573...3.578:
-      return true
+      isNotDigi = false
     case 5.357:
-      return true
+      isNotDigi = false
 //    case 7.047...7.052:
 //      return true
 //    case 7.056...7.061:
 //      return true
     case 7.074...7.078:
-      return true
+      isNotDigi = false
 //    case 10.130...10.135:
 //      return true
 //    case 10.13...10.135:
@@ -1156,49 +1196,50 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 //    case 10.140...10.145:
 //      return true
     case 10.136...10.145:
-      return true
+      isNotDigi = false
     case 14.074...14.078:
-      return true
+      isNotDigi = false
     case 14.080...14.082:
-      return true
+      isNotDigi = false
     case 14.08...14.082:
-      return true
+      isNotDigi = false
 //    case 14.090...14.095:
 //      return true
 //    case 14.09...14.095:
 //      return true
     case 18.100...18.106:
-      return true
+      isNotDigi = false
     case 18.10...18.106:
-      return true
+      isNotDigi = false
     case 18.1...18.106:
-      return true
+      isNotDigi = false
 //    case 18.104...18.106:
 //      return true
     case 21.074...21.078:
-      return true
+      isNotDigi = false
 //    case 21.091...21.094:
 //      return true
     case 21.140...21.142:
-      return true
+      isNotDigi = false
     case 21.14...21.142:
-      return true
+      isNotDigi = false
     case 24.915...24.922:
-      return true
+      isNotDigi = false
     case 28.074...28.078:
-      return true
+      isNotDigi = false
     case 28.180...28.182:
-      return true
+      isNotDigi = false
     case 28.18...28.182:
-      return true
+      isNotDigi = false
     case 50.313...50.320:
-      return true
+      isNotDigi = false
     case 50.323...50.328:
-      return true
+      isNotDigi = false
     default:
-      //print("output: \(spot.formattedFrequency)")
-      return false
+      isNotDigi = true
     }
+
+    return isNotDigi
   }
 
   // MARK: - Filter Bands
@@ -1248,10 +1289,10 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
           mutatingSpot.manageFilters(filterType: .band)
 
           if mutatingSpot.isFiltered {
-            deleteAnnotation(annotationId: mutatingSpot.spotterPinId)
+            deleteAnnotation(annotationId: mutatingSpot.spotterPinId, scope: .selective)
             deleteOverlay(overlayId: mutatingSpot.id)
             // get the dx id and see if it has a reference count of one
-            deleteAnnotation(annotationId: mutatingSpot.dxPinId)
+            deleteAnnotation(annotationId: mutatingSpot.dxPinId, scope: .selective)
           } else {
             regenerateOverlayAndAnnotations(spot: &mutatingSpot)
           }
@@ -1282,8 +1323,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         var mutatingSpot = spot
         mutatingSpot.setFilterOn(filterType: .band)
         deleteOverlay(overlayId: spot.overlayId)
-        deleteAnnotation(annotationId: spot.spotterPinId)
-        deleteAnnotation(annotationId: spot.dxPinId)
+        deleteAnnotation(annotationId: spot.spotterPinId, scope: .selective)
+        deleteAnnotation(annotationId: spot.dxPinId, scope: .all)
 
         displayedSpots[index] = mutatingSpot
       }
@@ -1331,46 +1372,32 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     }
   }
 
-  /// Delete a duplicate annotation
-  /// - Parameter annotationId: Int
-//  func deleteOverlay(spotId: Int) {
-//    Task {
-//      await MainActor.run {
-//        for (index, overlay) in overlays.enumerated() where overlay.hashValue == spotId {
-//          overlays[index].subtitle = "isDeleted"
-//          overlays.remove(at: index)
+  /// Filter the annotations or flags at each end of an overlay.
+//  func updateAnnotations() {
+//    Task { @MainActor in
+//        for spot in displayedSpots {
+//          if spot.isFiltered == false {
+//            // TODO: - Fix this
+//            if annotations.first(where: {$0.hashValue == spot.spotterPinId}) == nil {
+////              annotations.append(spot.spotterPin)
+////              if spot.hasDxPin {
+////                annotations.append(spot.dxPin)
+////              }
+//            }
+//          } else {
+//            var annotation = annotations.filter( { $0.hashValue == spot.spotterPinId } ).first
+//            annotation?.subtitle = "expired"
+//            annotation = annotations.filter( { $0.hashValue == spot.dxPinId } ).first
+//            annotation?.subtitle = "expired"
+//            deleteAnnotation(annotationId: spot.spotterPinId, scope: .selective)
+//            // TODO: ???
+////            if spot.hasDxPin {
+////              deleteAnnotation(annotationId: spot.dxPinId)
+////            }
+//          }
 //        }
 //      }
-//    }
 //  }
-
-
-  /// Filter the annotations or flags at each end of an overlay.
-  func updateAnnotations() {
-    Task { @MainActor in
-        for spot in displayedSpots {
-          if spot.isFiltered == false {
-            // TODO: - Fix this
-            if annotations.first(where: {$0.hashValue == spot.spotterPinId}) == nil {
-//              annotations.append(spot.spotterPin)
-//              if spot.hasDxPin {
-//                annotations.append(spot.dxPin)
-//              }
-            }
-          } else {
-            var annotation = annotations.filter( { $0.hashValue == spot.spotterPinId } ).first
-            annotation?.subtitle = "expired"
-            annotation = annotations.filter( { $0.hashValue == spot.dxPinId } ).first
-            annotation?.subtitle = "expired"
-            deleteAnnotation(annotationId: spot.spotterPinId)
-            // TODO: ???
-//            if spot.hasDxPin {
-//              deleteAnnotation(annotationId: spot.dxPinId)
-//            }
-          }
-        }
-      }
-  }
 
   // MARK: - Keep Alive Timer
 

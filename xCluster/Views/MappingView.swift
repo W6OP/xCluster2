@@ -25,7 +25,6 @@ struct MapView: NSViewRepresentable {
   func updateNSView(_ uiView: MKMapView, context: Context) {
     updateOverlays(from: uiView)
     updateAnnotations(from: uiView)
-    //print("MapView Updated")
   }
 
   // https://medium.com/@mauvazquez/decoding-a-polyline-and-drawing-it-with-swiftui-mapkit-611952bd0ecb
@@ -33,33 +32,23 @@ struct MapView: NSViewRepresentable {
 
     mapView.addOverlays(overlays)
 
-    print("updated mapview overlay")
-
-    //if !overlays.isEmpty {
       for overlay in mapView.overlays {
         //print("overlay title: \(overlay.title)")
         if overlay.title == "isDeleted" {
-          print("deleted mapview overlay")
           mapView.removeOverlay(overlay)
         }
-      //}
     }
-    //print("overlay count: \(overlays.count)")
   }
 
   public func updateAnnotations(from mapView: MKMapView) {
 
     mapView.addAnnotations(annotations)
 
-    //if !annotations.isEmpty {
       for annotation in mapView.annotations {
-        //print("annotation title: \(annotation.title)-\(annotation.subtitle)")
         if annotation.title == "isDeleted" {
-          //print("deleted mapview annotation")
           mapView.removeAnnotation(annotation)
         }
       }
-    //}
   }
 
   func makeCoordinator() -> Coordinator {

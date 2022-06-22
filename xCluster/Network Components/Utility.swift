@@ -202,6 +202,20 @@ enum ModeFilterState: Int {
   case isOff = 0
 }
 
+enum Scope {
+  case all
+  case selective
+
+  var bool: Bool {
+         switch self {
+         case .all:
+             return true
+         default:
+             return false
+         }
+     }
+}
+
 enum RequestError: Error {
   case invalidCallSign
   case invalidLatitude

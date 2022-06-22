@@ -401,8 +401,8 @@ struct ClusterSpot: Identifiable, Hashable {
   mutating func setFilterOn(filterType: FilterType) {
     if !filterReasons.contains(filterType) {
       filterReasons.append(filterType)
+      self.isFiltered = true
     }
-    self.isFiltered = true
   }
 
   mutating func removeFilter(filterType: FilterType) {

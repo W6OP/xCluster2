@@ -14,7 +14,7 @@ struct ControlBarView: View {
 
   @Environment(\.openURL) var openURL
   @ObservedObject var userSettings = UserSettings()
-  @State private var callSignFilter = ""
+  @State private var callSignToFilter = ""
   @State private var showSpots = true
   @State private var filterByTime = false
   @State private var didTap: Bool = false
@@ -25,6 +25,7 @@ struct ControlBarView: View {
   let characterLimit = 10
 
   var body: some View {
+    //let _ = Self._printChanges()
     HStack {
       HStack {
         Divider()
@@ -44,19 +45,18 @@ struct ControlBarView: View {
 
         HStack {
         Image(systemName: "magnifyingglass")
-        TextField("Call Filter", text: $callSignFilter, onEditingChanged: { _ in
+        TextField("Call Filter", text: $callSignToFilter, onEditingChanged: { _ in
           // onEditingChanged
-          callSignFilter = callSignFilter.uppercased()
-          //print("editing changed \(callSignFilter)")
-          if callSignFilter.count > characterLimit {
-            callSignFilter = String(callSignFilter.prefix(characterLimit))
+          callSignToFilter = callSignToFilter.uppercased()
+          if callSignToFilter.count > characterLimit {
+            callSignToFilter = String(callSignToFilter.prefix(characterLimit))
           }
         }) {
           // onCommit
-          self.controller.setCallFilter(callSign: callSignFilter)
+          self.controller.callToFilter = callSignToFilter
         }
         .textFieldStyle(RoundedBorderTextFieldStyle())
-        .modifier(ClearButton(boundText: $callSignFilter))
+        .modifier(ClearButton(boundText: $callSignToFilter))
         .frame(maxWidth: 150)
         }
 
