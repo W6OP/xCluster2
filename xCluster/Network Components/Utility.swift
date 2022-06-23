@@ -9,6 +9,48 @@
 import Cocoa
 import os
 
+// https://stackoverflow.com/questions/39307800/how-to-check-current-thread-in-swift-3
+extension Thread {
+    var threadName: String {
+        if isMainThread {
+            return "main"
+        } else if let threadName = Thread.current.name, !threadName.isEmpty {
+            return threadName
+        } else {
+            return description
+        }
+    }
+
+    var queueName: String {
+        if let queueName = String(validatingUTF8: __dispatch_queue_get_label(nil)) {
+            return queueName
+        } else if let operationQueueName = OperationQueue.current?.name, !operationQueueName.isEmpty {
+            return operationQueueName
+        } else if let dispatchQueueName = OperationQueue.current?.underlyingQueue?.label, !dispatchQueueName.isEmpty {
+            return dispatchQueueName
+        } else {
+            return "n/a"
+        }
+    }
+}
+/*
+ Use cases:
+ print("Current thread: \(Thread.current.threadName)")
+
+ DispatchQueue.main.async {
+    print(Thread.current.threadName)
+    print(Thread.current.queueName)
+ }
+ // main
+ // com.apple.main-thread
+ DispatchQueue.global().async {
+    print(Thread.current.threadName)
+    print(Thread.current.queueName)
+ }
+ // <NSThread: 0x600001cd9d80>{number = 3, name = (null)}
+ // com.apple.root.default-qos
+ */
+
 // https://www.hackingwithswift.com/example-code/strings/how-to-remove-a-prefix-from-a-string
 extension String {
   func condenseWhitespace() -> String {

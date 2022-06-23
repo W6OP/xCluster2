@@ -13,6 +13,8 @@ import Combine
 import os
 import CallParser
 
+// MARK: - Status Message
+
 /// Status message definition
 struct StatusMessage: Identifiable, Hashable {
   var id = UUID()
@@ -25,6 +27,7 @@ struct StatusMessage: Identifiable, Hashable {
 
 // MARK: - Cluster Overlay
 
+/// Custom MKGeodesicPolyline.
 class ClusterMKGeodesicPolyline: MKGeodesicPolyline {
 
   var clusterOverlayId: UUID
@@ -44,17 +47,14 @@ class ClusterMKGeodesicPolyline: MKGeodesicPolyline {
 
 // MARK: - Cluster Pin Annotation
 
+/// Annotation Type for Cluster Pins.
 enum ClusterPinAnnotationType {
   case dx
   case spotter
   case undefined
 }
 
-enum CreateDxPin {
-  case createAll
-  case ignoreDx
-}
-
+/// Custom MKPointAnnotation.
 class ClusterPinAnnotation: MKPointAnnotation {
   var clusterPinId: UUID
   var clusterPinType: ClusterPinAnnotationType
@@ -79,23 +79,21 @@ class ClusterPinAnnotation: MKPointAnnotation {
 
   /// Add a single title to the annotationTitles array.
   /// - Parameters:
-  ///   - titles: String
-  ///   - annotationType: AnnotationType
+  ///   - titles: String: title of annotation.
   func addAnnotationTitle(title: String) {
     annotationTitles.append(title)
     annotationTitles = annotationTitles.uniqued()
     updateAnnotationTitle(titles: annotationTitles)
   }
 
-  /// Add a single title to the annotationTitles array.
+  /// Build a single title to add to the annotationTitles array.
   /// - Parameters:
-  ///   - dxStation: String
-  ///   - spotter: String
-  ///   - formattedFrequency: String
+  ///   - dxStation: String: DX station name.
+  ///   - spotter: String: Spotter station name.
+  ///   - formattedFrequency: String: Frequency formatted for display.
   func addAnnotationTitle(dxStation: String, spotter: String, formattedFrequency: String) {
 
     let title = ("\(dxStation)-\(spotter)  \(formattedFrequency)")
-    //print("addAnnotationTitle: \(dxStation)-\(spotter)-\(formattedFrequency)")
 
       annotationTitles.append(title)
       annotationTitles = annotationTitles.uniqued()
@@ -104,8 +102,7 @@ class ClusterPinAnnotation: MKPointAnnotation {
 
   /// Update the annotation titles.
   /// - Parameters:
-  ///   - titles: [String]
-  ///   - annotationType: AnnotationType
+  ///   - titles: [String]: One or more titles to add.
   func updateAnnotationTitle(titles: [String]) {
     var combinedTitle = ""
 
@@ -114,25 +111,17 @@ class ClusterPinAnnotation: MKPointAnnotation {
     }
 
     self.title = String(combinedTitle.dropLast())
-    //print("updateAnnotationTitle: \(self.title ?? "")")
 
     if annotationTitles.count > maxNumberOfAnnotationTitles {
       annotationTitles.removeLast()
     }
   }
 
-
-  /// Add the subtitle
-  /// - Parameter subTitle: String
+  /// Add the subtitle.
+  /// - Parameter subTitle: String: Subtitle to add.
   func addSubTitle(subTitle: String) {
     self.subtitle = subTitle
   }
-
-  /// Set the annotation as expired and marked for deletion.
-    func setExpired() {
-      self.subtitle = "isDeleted"
-    }
-  
 }
 
 // MARK: - Cluster Spot
@@ -222,10 +211,6 @@ struct ClusterSpot: Identifiable, Hashable {
     return false
   }
 
-//70154.7 shows as 70.154 correct
-  // 144174.0 shows as 44.174
-  
-  // swiftlint:disable cyclomatic_complexity
   /// Convert a frequency to a band.
   /// - Parameter frequency: String
   /// - Returns: Int
@@ -266,40 +251,41 @@ struct ClusterSpot: Identifiable, Hashable {
   /// Not currently used
   /// - Parameter frequency: Float
   /// - Returns: Int
-  func setBand(frequency: Float) -> Int {
-    switch frequency {
-    case 1.8...2.0:
-      return 160
-    case 3.5...4.0:
-      return 80
-    case 5.0...6.0:
-      return 60
-    case 7.0...7.3:
-      return 40
-    case 10.1...10.5:
-      return 30
-    case 14.0...14.350:
-      return 20
-    case 18.068...18.168:
-      return 17
-    case 21.0...21.450:
-      return 15
-    case 24.890...24.990:
-      return 12
-    case 28.0...29.7:
-      return 10
-    case 70.0...75.0:
-      return 4
-    case 50.0...54.0:
-      return 6
-    case 144.0...148.0:
-      return 2
-    default:
-      return 0
-    }
-  }
+//  func setBand(frequency: Float) -> Int {
+//    switch frequency {
+//    case 1.8...2.0:
+//      return 160
+//    case 3.5...4.0:
+//      return 80
+//    case 5.0...6.0:
+//      return 60
+//    case 7.0...7.3:
+//      return 40
+//    case 10.1...10.5:
+//      return 30
+//    case 14.0...14.350:
+//      return 20
+//    case 18.068...18.168:
+//      return 17
+//    case 21.0...21.450:
+//      return 15
+//    case 24.890...24.990:
+//      return 12
+//    case 28.0...29.7:
+//      return 10
+//    case 70.0...75.0:
+//      return 4
+//    case 50.0...54.0:
+//      return 6
+//    case 144.0...148.0:
+//      return 2
+//    default:
+//      return 0
+//    }
+//  }
 
   /// Populate the spot information from the stationInformationCombined.
+  /// - Parameter stationInformationCombined: StationInformationCombined: Struct
   mutating func populateSpotInformation(stationInformationCombined: StationInformationCombined) {
 
     spotterCountry = stationInformationCombined.spotterCountry
@@ -316,7 +302,6 @@ struct ClusterSpot: Identifiable, Hashable {
   // MARK: - Overlays
 
   /// Build the line (overlay) to display on the map.
-  /// - Parameter qrzInfoCombined: combined data of a pair of call signs - QRZ information.
   mutating func createOverlay() -> ClusterMKGeodesicPolyline {
 
     let locations = [
@@ -328,7 +313,6 @@ struct ClusterSpot: Identifiable, Hashable {
     let overlay = ClusterMKGeodesicPolyline(coordinates: locations, count: locations.count)
     overlay.title = String(band)
     overlay.subtitle = mode
-    //overlay.band = band
 
     id = overlay.hashValue
     overlayId = overlay.hashValue
@@ -340,7 +324,6 @@ struct ClusterSpot: Identifiable, Hashable {
 
   // https://medium.com/macoclock/mapkit-map-pin-and-annotation-5c7d56439c66
     /// Create the pin for the spotter and populate it's data.
-    /// - Parameter stationInfoCombined: StationInformationCombined
     mutating func createSpotterAnnotation() -> ClusterPinAnnotation {
 
       let spotterPin = ClusterPinAnnotation()
@@ -353,7 +336,6 @@ struct ClusterSpot: Identifiable, Hashable {
       spotterPin.addAnnotationTitle(title: title)
       spotterPin.addSubTitle(subTitle: spotterCountry)
       spotterPin.station = spotter
-      //spotterPin.band.append(band)
 
       spotterPin.clusterPinType = .spotter
       spotterPinId = spotterPin.hashValue
@@ -362,7 +344,6 @@ struct ClusterSpot: Identifiable, Hashable {
     }
 
    /// Create the pin for the DX station and populate it's data.
-   /// - Parameter stationInfoCombined: StationInformationCombined
   mutating func createDXAnnotation() -> ClusterPinAnnotation {
 
     let dxPin = ClusterPinAnnotation()
@@ -372,7 +353,6 @@ struct ClusterSpot: Identifiable, Hashable {
     dxPin.addAnnotationTitle(title: title)
     dxPin.addSubTitle(subTitle: dxCountry)
     dxPin.station = dxStation
-    //dxPin.band.append(band)
 
     dxPin.coordinate = CLLocationCoordinate2D(latitude: dxCoordinates["latitude"] ?? 0,
                                               longitude: dxCoordinates["longitude"] ?? 0)
@@ -385,7 +365,7 @@ struct ClusterSpot: Identifiable, Hashable {
   // MARK: - Filters
 
   /// Add or Reset a specific filter.
-  /// - Parameter filterReason: FilterReason
+  /// - Parameter filterReason: FilterReason: Type of filter to add or remove.
   mutating func manageFilters(filterType: FilterType) {
     if filterReasons.contains(filterType) {
       removeFilter(filterType: filterType)
@@ -395,9 +375,8 @@ struct ClusterSpot: Identifiable, Hashable {
     }
   }
 
-
   /// Turn a filter on.
-  /// - Parameter filterType: FilterType
+  /// - Parameter filterType: FilterType: Type of filter to set.
   mutating func setFilterOn(filterType: FilterType) {
     if !filterReasons.contains(filterType) {
       filterReasons.append(filterType)
@@ -405,6 +384,9 @@ struct ClusterSpot: Identifiable, Hashable {
     }
   }
 
+
+  /// Remove a filter.
+  /// - Parameter filterType: FilterType: Type of filter to remove.
   mutating func removeFilter(filterType: FilterType) {
     if filterReasons.contains(filterType) {
       let index = filterReasons.firstIndex(of: filterType)!
@@ -426,6 +408,8 @@ struct ConnectedCluster: Identifiable, Hashable {
 
 // MARK: - Actors
 
+
+/// Actor to save spots until they are combined.
 actor SpotHistory {
   var spots = [Int: (dxStation: String, spotter: String, frequency: String) ]()
 
@@ -601,7 +585,8 @@ actor SpotCache {
     spots[spot.id] = spot
   }
 
-  /// Retieve and remove a ClusterSpot by id.
+  /// Retr
+  /// ieve and remove a ClusterSpot by id.
   /// - Parameter spotId: Int
   func removeSpot(spotId: Int) -> ClusterSpot? {
     if spots[spotId] != nil {
