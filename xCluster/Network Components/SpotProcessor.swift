@@ -36,11 +36,11 @@ class SpotProcessor {
     var balance = rawSpot.dropFirst(6)
     var endIndex = balance.endIndex
 
-    spot.spotter = balance.components(separatedBy: " ").first!.condenseWhitespace()
-    spot.spotter = cleanCallSign(callSign: spot.spotter)
+    spot.spotterStation = balance.components(separatedBy: " ").first!.condenseWhitespace()
+    spot.spotterStation = cleanCallSign(callSign: spot.spotterStation)
 
-    if spot.spotter.filter({ $0.isLetter }).isEmpty ||
-        spot.spotter.filter({ $0.isNumber }).isEmpty {
+    if spot.spotterStation.filter({ $0.isLetter }).isEmpty ||
+        spot.spotterStation.filter({ $0.isNumber }).isEmpty {
       throw SpotError.spotError("processRawSpot: invalid spotter call sign: \(spot.dxStation)")
     }
 
@@ -61,7 +61,7 @@ class SpotProcessor {
 
     spot.dxStation = convertStringSliceToString(String(balance[balance.startIndex..<endIndex])).condenseWhitespace()
 
-    spot.dxStation = cleanCallSign(callSign: spot.dxStation)
+    spot.dxStation = "W6OP" //cleanCallSign(callSign: spot.dxStation) // KP3W KP3WP
 
     if spot.dxStation.filter({ $0.isLetter }).isEmpty ||
         spot.dxStation.filter({ $0.isNumber }).isEmpty {

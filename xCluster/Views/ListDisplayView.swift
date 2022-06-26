@@ -88,7 +88,7 @@ struct SpotterRowView: View {
 
   var body: some View {
     HStack {
-      Text(spot.spotter)
+      Text(spot.spotterStation)
         .padding(.leading, 5)
         .frame(width: 98, alignment: .leading)
       Divider()

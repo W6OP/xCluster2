@@ -48,10 +48,12 @@ class ClusterMKGeodesicPolyline: MKGeodesicPolyline {
 // MARK: - Cluster Pin Annotation
 
 /// Annotation Type for Cluster Pins.
-enum ClusterPinAnnotationType {
-  case dx
-  case spotter
-  case undefined
+enum ClusterPinAnnotationType: String {
+
+  case all = "all"
+  case dx = "dx"
+  case spotter = "spotter"
+  case undefined = "undefined"
 }
 
 /// Custom MKPointAnnotation.
@@ -64,6 +66,8 @@ class ClusterPinAnnotation: MKPointAnnotation {
   var annotationTitles: [String] = []
   var station = ""
   var band = [Int]()
+  var annotationType: ClusterPinAnnotationType = .spotter
+  var spotterReference: [String] = []
   var referenceCount: Int {
     get { annotationTitles.count }
   }
@@ -117,6 +121,18 @@ class ClusterPinAnnotation: MKPointAnnotation {
     }
   }
 
+
+  /// Remove a title when the spotter annotation is deleted.
+  /// - Parameter call: String: call sign to search for.
+  func removeAnnotationTitle(spotterStation: String) {
+    for (index, title) in annotationTitles.enumerated() {
+      if title.contains(spotterStation) {
+        annotationTitles.remove(at: index)
+      }
+    }
+    spotterReference.removeLast(where: {$0 == spotterStation} )
+  }
+
   /// Add the subtitle.
   /// - Parameter subTitle: String: Subtitle to add.
   func addSubTitle(subTitle: String) {
@@ -146,12 +162,12 @@ struct ClusterSpot: Identifiable, Hashable {
   var overlayId: Int
   var spotterPinId: Int // spotterPin.hashValue
   var dxPinId: Int // dxPin.hashValue
+  var spotterStation: String
   var dxStation: String
   var frequency: String
   var formattedFrequency = ""
   var band: Int
   var mode = ""
-  var spotter: String
   var timeUTC: String
   var comment: String
   var grid: String
@@ -177,7 +193,7 @@ struct ClusterSpot: Identifiable, Hashable {
     dxStation = ""
     frequency = ""
     band = 99
-    spotter = ""
+    spotterStation = ""
     timeUTC = ""
     comment = ""
     grid = ""
@@ -327,7 +343,7 @@ struct ClusterSpot: Identifiable, Hashable {
     mutating func createSpotterAnnotation() -> ClusterPinAnnotation {
 
       let spotterPin = ClusterPinAnnotation()
-      let title = ("\(spotter)-\(dxStation)  \(formattedFrequency)")
+      let title = ("\(spotterStation)-\(dxStation)  \(formattedFrequency)")
 
       spotterPin.coordinate = CLLocationCoordinate2D(latitude: spotterCoordinates["latitude"] ?? 0,
                                                      longitude: spotterCoordinates["longitude"] ?? 0)
@@ -335,7 +351,8 @@ struct ClusterSpot: Identifiable, Hashable {
       // common
       spotterPin.addAnnotationTitle(title: title)
       spotterPin.addSubTitle(subTitle: spotterCountry)
-      spotterPin.station = spotter
+      spotterPin.station = spotterStation
+      spotterPin.annotationType = .spotter
 
       spotterPin.clusterPinType = .spotter
       spotterPinId = spotterPin.hashValue
@@ -347,12 +364,13 @@ struct ClusterSpot: Identifiable, Hashable {
   mutating func createDXAnnotation() -> ClusterPinAnnotation {
 
     let dxPin = ClusterPinAnnotation()
-    let title = ("\(dxStation)-\(spotter)  \(formattedFrequency)")
+    let title = ("\(dxStation)-\(spotterStation)  \(formattedFrequency)")
 
     // common
     dxPin.addAnnotationTitle(title: title)
     dxPin.addSubTitle(subTitle: dxCountry)
     dxPin.station = dxStation
+    dxPin.annotationType = .dx
 
     dxPin.coordinate = CLLocationCoordinate2D(latitude: dxCoordinates["latitude"] ?? 0,
                                               longitude: dxCoordinates["longitude"] ?? 0)

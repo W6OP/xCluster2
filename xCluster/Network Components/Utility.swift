@@ -33,6 +33,8 @@ extension Thread {
         }
     }
 }
+
+//  Task { @MainActor in
 /*
  Use cases:
  print("Current thread: \(Thread.current.threadName)")
