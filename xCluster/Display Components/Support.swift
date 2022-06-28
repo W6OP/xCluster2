@@ -69,7 +69,7 @@ class ClusterPinAnnotation: MKPointAnnotation {
   var annotationType: ClusterPinAnnotationType = .spotter
   var spotterReference: [String] = []
   var referenceCount: Int {
-    get { annotationTitles.count }
+    get { spotterReference.count }
   }
 
   let maxNumberOfAnnotationTitles = 14
@@ -100,6 +100,7 @@ class ClusterPinAnnotation: MKPointAnnotation {
     let title = ("\(dxStation)-\(spotter)  \(formattedFrequency)")
 
       annotationTitles.append(title)
+      spotterReference.append(spotter)
       annotationTitles = annotationTitles.uniqued()
       updateAnnotationTitle(titles: annotationTitles)
   }
@@ -121,16 +122,13 @@ class ClusterPinAnnotation: MKPointAnnotation {
     }
   }
 
-
   /// Remove a title when the spotter annotation is deleted.
   /// - Parameter call: String: call sign to search for.
   func removeAnnotationTitle(spotterStation: String) {
-    for (index, title) in annotationTitles.enumerated() {
-      if title.contains(spotterStation) {
-        annotationTitles.remove(at: index)
-      }
-    }
-    spotterReference.removeLast(where: {$0 == spotterStation} )
+    print("removeAnnotationTitle before: \(spotterReference)")
+    //annotationTitles.removeAll(where: {$0.contains(spotterStation)} )
+    spotterReference.removeAll(where: {$0 == spotterStation} )
+    print("removeAnnotationTitle after: \(spotterReference)")
   }
 
   /// Add the subtitle.
@@ -370,6 +368,7 @@ struct ClusterSpot: Identifiable, Hashable {
     dxPin.addAnnotationTitle(title: title)
     dxPin.addSubTitle(subTitle: dxCountry)
     dxPin.station = dxStation
+    dxPin.spotterReference.append(spotterStation)
     dxPin.annotationType = .dx
 
     dxPin.coordinate = CLLocationCoordinate2D(latitude: dxCoordinates["latitude"] ?? 0,

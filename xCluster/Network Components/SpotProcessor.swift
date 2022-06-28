@@ -61,7 +61,7 @@ class SpotProcessor {
 
     spot.dxStation = convertStringSliceToString(String(balance[balance.startIndex..<endIndex])).condenseWhitespace()
 
-    spot.dxStation = "W6OP" //cleanCallSign(callSign: spot.dxStation) // KP3W KP3WP
+    spot.dxStation = cleanCallSign(callSign: spot.dxStation) // KP3W KP3WP
 
     if spot.dxStation.filter({ $0.isLetter }).isEmpty ||
         spot.dxStation.filter({ $0.isNumber }).isEmpty {
