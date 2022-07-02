@@ -1067,14 +1067,26 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     }
   }
 
+  // TODO: - If not a callsign look for country
   /// Mark a spot as highlighted.
   /// - Parameter callSign: Callsign to highlight.
   func highlightSpot(callSign: String) {
     for (index, spot) in displayedSpots.enumerated() {
-      if spot.dxStation == callSign {
-        var mutatingSpot = spot
+      var mutatingSpot = spot
+      switch spot.dxStation {
+      case _ where callSign.suffix(1) == ("*"):
+        let subs = callSign.prefix(callSign.count - 1)
+        print("subs: \(subs)")
+        if spot.dxStation.contains(subs) {
+          mutatingSpot.isHighlighted = true
+          displayedSpots[index] = mutatingSpot
+        }
+        break
+      case _ where spot.dxStation == callSign:
         mutatingSpot.isHighlighted = true
         displayedSpots[index] = mutatingSpot
+      default:
+        break
       }
     }
   }
