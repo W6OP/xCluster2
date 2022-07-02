@@ -30,17 +30,14 @@ struct StatusMessage: Identifiable, Hashable {
 /// Custom MKGeodesicPolyline.
 class ClusterMKGeodesicPolyline: MKGeodesicPolyline {
 
-  var clusterOverlayId: UUID
-  var associatedSpotterPinId = 0
-  var associatedDxPinId = 0
+  var clusterOverlayId: Int = 0
   var band = 0
   var isDeleted = false
 
   override init() {
-    clusterOverlayId = UUID()
-    
-
+    //clusterOverlayId = 0
     super.init()
+
   }
 
 }
@@ -58,9 +55,7 @@ enum ClusterPinAnnotationType: String {
 
 /// Custom MKPointAnnotation.
 class ClusterPinAnnotation: MKPointAnnotation {
-  var clusterPinId: UUID
-  var clusterPinType: ClusterPinAnnotationType
-  var clusterPinSequence = 0
+  var annotationId: UUID
   var isDeleted = false
   var isFiltered = false
   var annotationTitles: [String] = []
@@ -75,11 +70,23 @@ class ClusterPinAnnotation: MKPointAnnotation {
   let maxNumberOfAnnotationTitles = 14
 
   override init() {
-    clusterPinId = UUID()
-    clusterPinType = .undefined
+    annotationId = UUID()
+    annotationType = .undefined
 
     super.init()
   }
+
+  /// Set the relevant properties for the annotation.
+  /// - Parameters:
+  ///   - station: String: station name (call sign)
+  ///   - spotterStation: String: if this is a DX annotation, the spotterAnnotation associated with it.
+  ///   - annotationType: AnnotationType: type of this annotation.
+  func setProperties(station: String, spotterStation: String? = nil, annotationType: ClusterPinAnnotationType) {
+    self.station = station
+    self.annotationType = annotationType
+    self.spotterReference.append(spotterStation ?? "")
+  }
+
 
   /// Add a single title to the annotationTitles array.
   /// - Parameters:
@@ -124,11 +131,8 @@ class ClusterPinAnnotation: MKPointAnnotation {
 
   /// Remove a title when the spotter annotation is deleted.
   /// - Parameter call: String: call sign to search for.
-  func removeAnnotationTitle(spotterStation: String) {
-    print("removeAnnotationTitle before: \(spotterReference)")
-    //annotationTitles.removeAll(where: {$0.contains(spotterStation)} )
+  func removeAnnotationReference(spotterStation: String) {
     spotterReference.removeAll(where: {$0 == spotterStation} )
-    print("removeAnnotationTitle after: \(spotterReference)")
   }
 
   /// Add the subtitle.
@@ -158,8 +162,8 @@ struct ClusterSpot: Identifiable, Hashable {
 
   var id: Int
   var overlayId: Int
-  var spotterPinId: Int // spotterPin.hashValue
-  var dxPinId: Int // dxPin.hashValue
+  var spotterAnnotationId: UUID
+  var dxAnnotationId: UUID
   var spotterStation: String
   var dxStation: String
   var frequency: String
@@ -186,8 +190,8 @@ struct ClusterSpot: Identifiable, Hashable {
   init() {
     id = 0
     overlayId = 0
-    spotterPinId = 0
-    dxPinId = 0
+    spotterAnnotationId = UUID()
+    dxAnnotationId = UUID()
     dxStation = ""
     frequency = ""
     band = 99
@@ -318,6 +322,8 @@ struct ClusterSpot: Identifiable, Hashable {
   /// Build the line (overlay) to display on the map.
   mutating func createOverlay() -> ClusterMKGeodesicPolyline {
 
+    self.id = self.hashValue
+
     let locations = [
       CLLocationCoordinate2D(latitude: spotterCoordinates["latitude"] ?? 0,
                              longitude: spotterCoordinates["longitude"] ?? 0),
@@ -325,10 +331,10 @@ struct ClusterSpot: Identifiable, Hashable {
                              longitude: dxCoordinates["longitude"] ?? 0)]
 
     let overlay = ClusterMKGeodesicPolyline(coordinates: locations, count: locations.count)
+
     overlay.title = String(band)
     overlay.subtitle = mode
 
-    id = overlay.hashValue
     overlayId = overlay.hashValue
 
     return overlay
@@ -340,43 +346,37 @@ struct ClusterSpot: Identifiable, Hashable {
     /// Create the pin for the spotter and populate it's data.
     mutating func createSpotterAnnotation() -> ClusterPinAnnotation {
 
-      let spotterPin = ClusterPinAnnotation()
+      let spotterAnnotation = ClusterPinAnnotation()
       let title = ("\(spotterStation)-\(dxStation)  \(formattedFrequency)")
 
-      spotterPin.coordinate = CLLocationCoordinate2D(latitude: spotterCoordinates["latitude"] ?? 0,
+      spotterAnnotation.coordinate = CLLocationCoordinate2D(latitude: spotterCoordinates["latitude"] ?? 0,
                                                      longitude: spotterCoordinates["longitude"] ?? 0)
-
       // common
-      spotterPin.addAnnotationTitle(title: title)
-      spotterPin.addSubTitle(subTitle: spotterCountry)
-      spotterPin.station = spotterStation
-      spotterPin.annotationType = .spotter
+      spotterAnnotation.addAnnotationTitle(title: title)
+      spotterAnnotation.addSubTitle(subTitle: spotterCountry)
+      spotterAnnotation.setProperties(station: spotterStation, spotterStation: nil, annotationType: .spotter)
 
-      spotterPin.clusterPinType = .spotter
-      spotterPinId = spotterPin.hashValue
+      spotterAnnotationId = spotterAnnotation.annotationId
 
-      return spotterPin
+      return spotterAnnotation
     }
 
    /// Create the pin for the DX station and populate it's data.
   mutating func createDXAnnotation() -> ClusterPinAnnotation {
 
-    let dxPin = ClusterPinAnnotation()
+    let dxAnnotation = ClusterPinAnnotation()
     let title = ("\(dxStation)-\(spotterStation)  \(formattedFrequency)")
 
-    // common
-    dxPin.addAnnotationTitle(title: title)
-    dxPin.addSubTitle(subTitle: dxCountry)
-    dxPin.station = dxStation
-    dxPin.spotterReference.append(spotterStation)
-    dxPin.annotationType = .dx
-
-    dxPin.coordinate = CLLocationCoordinate2D(latitude: dxCoordinates["latitude"] ?? 0,
+    dxAnnotation.coordinate = CLLocationCoordinate2D(latitude: dxCoordinates["latitude"] ?? 0,
                                               longitude: dxCoordinates["longitude"] ?? 0)
-    dxPin.clusterPinType = .dx
-    dxPinId = dxPin.hashValue
+    // common
+    dxAnnotation.addAnnotationTitle(title: title)
+    dxAnnotation.addSubTitle(subTitle: dxCountry)
+    dxAnnotation.setProperties(station: dxStation, spotterStation: spotterStation, annotationType: .dx)
 
-    return dxPin
+    dxAnnotationId = dxAnnotation.annotationId
+
+    return dxAnnotation
   }
 
   // MARK: - Filters
@@ -392,19 +392,9 @@ struct ClusterSpot: Identifiable, Hashable {
     }
   }
 
-  /// Turn a filter on.
-  /// - Parameter filterType: FilterType: Type of filter to set.
-  mutating func setFilterOn(filterType: FilterType) {
-    if !filterReasons.contains(filterType) {
-      filterReasons.append(filterType)
-      self.isFiltered = true
-    }
-  }
-
-
   /// Remove a filter.
   /// - Parameter filterType: FilterType: Type of filter to remove.
-  mutating func removeFilter(filterType: FilterType) {
+  private mutating func removeFilter(filterType: FilterType) {
     if filterReasons.contains(filterType) {
       let index = filterReasons.firstIndex(of: filterType)!
       self.filterReasons.remove(at: index)
@@ -424,7 +414,6 @@ struct ConnectedCluster: Identifiable, Hashable {
 }
 
 // MARK: - Actors
-
 
 /// Actor to save spots until they are combined.
 actor SpotHistory {
