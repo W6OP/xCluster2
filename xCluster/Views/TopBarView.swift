@@ -10,7 +10,7 @@ import SwiftUI
 struct TopBarView: View {
   @Environment(\.openURL) var openURL
   @State private var showPreferences = false
-  @State private var alertCallSign = ""
+  @State private var alertLiteral = ""
 
   var controller: Controller
   var bands: [BandIdentifier] = bandData
@@ -47,18 +47,18 @@ struct TopBarView: View {
 
       HStack {
       Image(systemName: "magnifyingglass")
-      TextField("Find DX", text: $alertCallSign, onEditingChanged: { _ in
+      TextField("Find DX", text: $alertLiteral, onEditingChanged: { _ in
         // onEditingChanged
-        alertCallSign = alertCallSign.uppercased()
-        if alertCallSign.count > characterLimit {
-          alertCallSign = String(alertCallSign.prefix(characterLimit))
+        alertLiteral = alertLiteral.uppercased()
+        if alertLiteral.count > characterLimit {
+          alertLiteral = String(alertLiteral.prefix(characterLimit))
         }
       }) {
         // onCommit
-        self.controller.setAlert(callSign: alertCallSign)
+        self.controller.setAlert(callSignOrCountry: alertLiteral)
       }
       .textFieldStyle(RoundedBorderTextFieldStyle())
-      .modifier(ClearButton(boundText: $alertCallSign))
+      .modifier(ClearButton(boundText: $alertLiteral))
       .frame(maxWidth: 150)
       }
       Spacer()

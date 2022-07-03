@@ -586,6 +586,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
     // TODO: - WHY ARE THE BAND FILTERS OFF HERE FOR DXSUMMIT BUT OK FOR TELNET SPOTS
     applyFilters(&spot)
+    //await applyAlerts()
 
     await spotCache.addSpot(spot: spot)
 
@@ -938,14 +939,13 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   /// for multiple spots, DXSummit, show 25, show 50 commands.
   /// - Parameter spot: ClusterSpot
   /// - Parameter doDelete: Bool
-  func addSpot(spot: ClusterSpot?, doInsert: Bool) {
-    //Task { @MainActor in
+  @MainActor func addSpot(spot: ClusterSpot?, doInsert: Bool) {
       if doInsert {
         displayedSpots.insert(spot!, at: 0)
         deletedSpots.insert(spot!, at: 0)
         manageTotalSpotCount()
+        applyAlerts()
       }
-    //}
   }
 
   /// Delete an overlay.
@@ -1051,38 +1051,81 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
   // MARK: - Alerts
 
-  /// Highlight calls in the list. If an empty string is passed in clear existing highlights.
+  /// Add an entry to the alert list. If an empty string is passed in clear existing highlights.
   /// - Parameter callSign: Callsign to set alert on.
-  func setAlert(callSign: String) {
+  @MainActor func setAlert(callSignOrCountry: String) {
 
-    guard !callSign.isEmpty else {
+    guard !callSignOrCountry.isEmpty else {
       alertList.removeAll()
       clearHighlights()
       return
     }
 
-    alertList.append(callSign.uppercased())
-    for call in alertList {
-      highlightSpot(callSign: call)
+    if !alertList.contains(callSignOrCountry) {
+      alertList.append(callSignOrCountry)
+    }
+
+    applyAlerts()
+  }
+
+  /// Apply the alerts in the list.
+  @MainActor func applyAlerts() {
+    //print("Current thread: \(Thread.current.threadName)")
+    for literal in alertList {
+      switch literal { // must be in this order
+      case _ where literal.isLetters():
+        highlightCountry(country: literal)
+      case _ where literal.isAlphanumeric():
+        highlightCall(call: literal.uppercased())
+      case _ where literal.suffix(1) == ("*"):
+        if String(literal.prefix(literal.count - 1)).isLetters() {
+          highlightCountry(country: literal.uppercased())
+        } else {
+          highlightCall(call: literal.uppercased())
+        }
+      default:
+        break
+      }
     }
   }
 
-  // TODO: - If not a callsign look for country
-  /// Mark a spot as highlighted.
+  /// Mark a spot as highlighted using the call sign.
   /// - Parameter callSign: Callsign to highlight.
-  func highlightSpot(callSign: String) {
+  func highlightCall(call: String) {
     for (index, spot) in displayedSpots.enumerated() {
       var mutatingSpot = spot
-      switch spot.dxStation {
-      case _ where callSign.suffix(1) == ("*"):
-        let subs = callSign.prefix(callSign.count - 1)
-        print("subs: \(subs)")
-        if spot.dxStation.contains(subs) {
+      switch call {
+      case _ where call.suffix(1) == ("*"):
+        let callPrefix = call.prefix(call.count - 1)
+        if spot.dxStation.contains(callPrefix) {
           mutatingSpot.isHighlighted = true
           displayedSpots[index] = mutatingSpot
         }
         break
-      case _ where spot.dxStation == callSign:
+      case _ where spot.dxStation == call:
+        mutatingSpot.isHighlighted = true
+        displayedSpots[index] = mutatingSpot
+      default:
+        break
+      }
+    }
+  }
+
+  /// Mark a spot as highlighted using the country.
+  /// - Parameter callSign: Callsign to highlight.
+  func highlightCountry(country: String) {
+    for (index, spot) in displayedSpots.enumerated() {
+      var mutatingSpot = spot
+      let dxCountry = spot.dxCountry.uppercased()
+      switch country {
+      case _ where country.suffix(1) == ("*"):
+        let countryPrefix = country.prefix(country.count - 1).uppercased()
+        if dxCountry.contains(countryPrefix) {
+          mutatingSpot.isHighlighted = true
+          displayedSpots[index] = mutatingSpot
+        }
+        break
+      case _ where dxCountry == country.uppercased():
         mutatingSpot.isHighlighted = true
         displayedSpots[index] = mutatingSpot
       default:

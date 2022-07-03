@@ -86,12 +86,22 @@ extension String {
     }
   }
 
+  func isLetters() -> Bool { // self != "" cannot be .isEmpty
+    return self.rangeOfCharacter(from: CharacterSet.letters.inverted) == nil && self != ""
+    //return !(self.isEmpty) && self.allSatisfy { $0.isLetter }
+  }
+
+//  func isNumbersAndLetters() -> Bool {
+//    return true
+//  }
+
   func isAlphanumeric() -> Bool {
-    return self.rangeOfCharacter(from: CharacterSet.alphanumerics.inverted) == nil && self.isEmpty
+      return self.rangeOfCharacter(from: CharacterSet.alphanumerics.inverted) == nil && self != ""
   }
 
   func isNumeric() -> Bool {
-    return self.rangeOfCharacter(from: CharacterSet.decimalDigits) == nil && self.isEmpty
+    //return !(self.isEmpty) && self.allSatisfy { $0.isNumber }
+    return self.rangeOfCharacter(from: CharacterSet.decimalDigits.inverted) == nil && self != ""
   }
 }
 
