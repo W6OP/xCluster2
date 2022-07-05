@@ -34,25 +34,6 @@ extension Thread {
     }
 }
 
-//  Task { @MainActor in
-/*
- Use cases:
- print("Current thread: \(Thread.current.threadName)")
-
- DispatchQueue.main.async {
-    print(Thread.current.threadName)
-    print(Thread.current.queueName)
- }
- // main
- // com.apple.main-thread
- DispatchQueue.global().async {
-    print(Thread.current.threadName)
-    print(Thread.current.queueName)
- }
- // <NSThread: 0x600001cd9d80>{number = 3, name = (null)}
- // com.apple.root.default-qos
- */
-
 // https://www.hackingwithswift.com/example-code/strings/how-to-remove-a-prefix-from-a-string
 extension String {
   func condenseWhitespace() -> String {
