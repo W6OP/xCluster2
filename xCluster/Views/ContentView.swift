@@ -14,7 +14,7 @@ import Combine
 
 /// Main entry point
 struct ContentView: View {
-  @EnvironmentObject var controller: Controller
+  @ObservedObject var controller: Controller
 
   var bands: [BandIdentifier] = bandData
   var clusters: [ClusterIdentifier] = clusterData
@@ -76,7 +76,7 @@ struct ContentView: View {
 /// Main content preview
 struct ContentView_Previews: PreviewProvider {
   static var previews: some View {
-    ContentView()
-      .environmentObject(Controller())
+    ContentView(controller: Controller())
+      //.environmentObject(Controller())
   }
 }

@@ -32,14 +32,12 @@ class ClusterMKGeodesicPolyline: MKGeodesicPolyline {
 
   var clusterOverlayId: Int = 0
   var band = 0
-  var isDeleted = false
 
   override init() {
     //clusterOverlayId = 0
     super.init()
 
   }
-
 }
 
 // MARK: - Cluster Pin Annotation
@@ -62,9 +60,17 @@ class ClusterPinAnnotation: MKPointAnnotation {
   var station = ""
   var band = [Int]()
   var annotationType: ClusterPinAnnotationType = .spotter
-  var spotterReference: [String] = []
+  // TODO: - Rename after spotter annotations are implemented too - was spotterReference
+  var matchReference: [String] = [] {
+    didSet {
+      if matchReference.count == 0 {
+        setAsDeleted()
+      }
+    }
+  }
+
   var referenceCount: Int {
-    get { spotterReference.count }
+    get { matchReference.count }
   }
 
   let maxNumberOfAnnotationTitles = 14
@@ -84,7 +90,7 @@ class ClusterPinAnnotation: MKPointAnnotation {
   func setProperties(station: String, spotterStation: String? = nil, annotationType: ClusterPinAnnotationType) {
     self.station = station
     self.annotationType = annotationType
-    self.spotterReference.append(spotterStation ?? "")
+    self.matchReference.append(spotterStation ?? "")
   }
 
 
@@ -104,12 +110,18 @@ class ClusterPinAnnotation: MKPointAnnotation {
   ///   - formattedFrequency: String: Frequency formatted for display.
   func addAnnotationTitle(dxStation: String, spotter: String, formattedFrequency: String) {
 
-    let title = ("\(dxStation)-\(spotter)  \(formattedFrequency)")
+    var title = "unknown-unknown  0.0"
 
-      annotationTitles.append(title)
-      spotterReference.append(spotter)
-      annotationTitles = annotationTitles.uniqued()
-      updateAnnotationTitle(titles: annotationTitles)
+    if annotationType == .spotter {
+      title = ("\(spotter)-\(dxStation)  \(formattedFrequency)")
+    } else {
+      title = ("\(dxStation)-\(spotter)  \(formattedFrequency)")
+    }
+
+    annotationTitles.append(title)
+    matchReference.append(spotter)
+    annotationTitles = annotationTitles.uniqued()
+    updateAnnotationTitle(titles: annotationTitles)
   }
 
   /// Update the annotation titles.
@@ -131,14 +143,19 @@ class ClusterPinAnnotation: MKPointAnnotation {
 
   /// Remove a title when the spotter annotation is deleted.
   /// - Parameter call: String: call sign to search for.
-  func removeAnnotationReference(spotterStation: String) {
-    spotterReference.removeAll(where: {$0 == spotterStation} )
+  func removeAnnotationReference(station: String) {
+    matchReference.removeAll(where: {$0 == station} )
   }
 
   /// Add the subtitle.
   /// - Parameter subTitle: String: Subtitle to add.
   func addSubTitle(subTitle: String) {
     self.subtitle = subTitle
+  }
+
+  func setAsDeleted() {
+    isDeleted = true
+    title = "isDeleted"
   }
 }
 
@@ -354,7 +371,7 @@ struct ClusterSpot: Identifiable, Hashable {
       // common
       spotterAnnotation.addAnnotationTitle(title: title)
       spotterAnnotation.addSubTitle(subTitle: spotterCountry)
-      spotterAnnotation.setProperties(station: spotterStation, spotterStation: nil, annotationType: .spotter)
+      spotterAnnotation.setProperties(station: spotterStation, spotterStation: dxStation, annotationType: .spotter)
 
       spotterAnnotationId = spotterAnnotation.annotationId
 

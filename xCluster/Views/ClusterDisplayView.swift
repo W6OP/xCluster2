@@ -9,7 +9,7 @@
 import SwiftUI
 
 struct ClusterDisplayView: View {
-  @EnvironmentObject var controller: Controller
+  @ObservedObject var controller: Controller
   @State private var selectedTab = "Spots"
   
   var body: some View {
@@ -54,8 +54,8 @@ struct ClusterDisplayView: View {
 /// Preview of ClusterDisplayView
 struct ClusterDisplayView_Previews: PreviewProvider {
   static var previews: some View {
-    ClusterDisplayView()
-      .environmentObject(Controller())
+    ClusterDisplayView(controller: Controller())
+      //.environmentObject(Controller())
   }
 }
 

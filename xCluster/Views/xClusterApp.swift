@@ -15,11 +15,11 @@ struct XClusterApp: App {
 
     var body: some Scene {
         WindowGroup {
-          ContentView().environmentObject(controller)
+          ContentView(controller: controller)
         }
 
         WindowGroup("Spots") {
-          ClusterDisplayView().environmentObject(controller)
+          ClusterDisplayView(controller: controller)
         }
         .handlesExternalEvents(matching: Set(arrayLiteral: "*"))
     }

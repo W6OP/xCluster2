@@ -108,6 +108,10 @@ class Coordinator: NSObject, MKMapViewDelegate {
       renderer.strokeColor = .purple
     case "17":
       renderer.strokeColor = .darkGray
+    case "12":
+      renderer.strokeColor = .yellow
+    case "10":
+      renderer.strokeColor = .systemIndigo
     case "6":
       renderer.strokeColor = .orange
     default:
