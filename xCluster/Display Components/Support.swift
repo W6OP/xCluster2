@@ -87,20 +87,10 @@ class ClusterPinAnnotation: MKPointAnnotation {
   ///   - station: String: station name (call sign)
   ///   - spotterStation: String: if this is a DX annotation, the spotterAnnotation associated with it.
   ///   - annotationType: AnnotationType: type of this annotation.
-  func setProperties(station: String, spotterStation: String? = nil, annotationType: ClusterPinAnnotationType) {
+  func setProperties(station: String, matchStation: String? = nil, annotationType: ClusterPinAnnotationType) {
     self.station = station
     self.annotationType = annotationType
-    self.matchReference.append(spotterStation ?? "")
-  }
-
-
-  /// Add a single title to the annotationTitles array.
-  /// - Parameters:
-  ///   - titles: String: title of annotation.
-  func addAnnotationTitle(title: String) {
-    annotationTitles.append(title)
-    annotationTitles = annotationTitles.uniqued()
-    updateAnnotationTitle(titles: annotationTitles)
+    self.matchReference.append(matchStation ?? "")
   }
 
   /// Build a single title to add to the annotationTitles array.
@@ -108,26 +98,31 @@ class ClusterPinAnnotation: MKPointAnnotation {
   ///   - dxStation: String: DX station name.
   ///   - spotter: String: Spotter station name.
   ///   - formattedFrequency: String: Frequency formatted for display.
-  func addAnnotationTitle(dxStation: String, spotter: String, formattedFrequency: String) {
+  func addAnnotationTitle(dxStation: String, spotterStation: String, formattedFrequency: String) {
 
     var title = "unknown-unknown  0.0"
 
     if annotationType == .spotter {
-      title = ("\(spotter)-\(dxStation)  \(formattedFrequency)")
+      title = ("\(spotterStation)-\(dxStation)  \(formattedFrequency) s")
     } else {
-      title = ("\(dxStation)-\(spotter)  \(formattedFrequency)")
+      title = ("\(dxStation)-\(spotterStation)  \(formattedFrequency)")
+    }
+
+    if annotationType == .dx {
+      matchReference.append(spotterStation)
+    } else {
+      matchReference.append(dxStation)
     }
 
     annotationTitles.append(title)
-    matchReference.append(spotter)
     annotationTitles = annotationTitles.uniqued()
-    updateAnnotationTitle(titles: annotationTitles)
+    updateDisplayTitle(titles: annotationTitles)
   }
 
   /// Update the annotation titles.
   /// - Parameters:
   ///   - titles: [String]: One or more titles to add.
-  func updateAnnotationTitle(titles: [String]) {
+  func updateDisplayTitle(titles: [String]) {
     var combinedTitle = ""
 
     for title in annotationTitles {
@@ -364,14 +359,13 @@ struct ClusterSpot: Identifiable, Hashable {
     mutating func createSpotterAnnotation() -> ClusterPinAnnotation {
 
       let spotterAnnotation = ClusterPinAnnotation()
-      let title = ("\(spotterStation)-\(dxStation)  \(formattedFrequency)")
+      spotterAnnotation.setProperties(station: spotterStation, matchStation: dxStation, annotationType: .spotter)
 
       spotterAnnotation.coordinate = CLLocationCoordinate2D(latitude: spotterCoordinates["latitude"] ?? 0,
                                                      longitude: spotterCoordinates["longitude"] ?? 0)
       // common
-      spotterAnnotation.addAnnotationTitle(title: title)
+      spotterAnnotation.addAnnotationTitle(dxStation: dxStation, spotterStation: spotterStation, formattedFrequency: formattedFrequency)
       spotterAnnotation.addSubTitle(subTitle: spotterCountry)
-      spotterAnnotation.setProperties(station: spotterStation, spotterStation: dxStation, annotationType: .spotter)
 
       spotterAnnotationId = spotterAnnotation.annotationId
 
@@ -382,14 +376,13 @@ struct ClusterSpot: Identifiable, Hashable {
   mutating func createDXAnnotation() -> ClusterPinAnnotation {
 
     let dxAnnotation = ClusterPinAnnotation()
-    let title = ("\(dxStation)-\(spotterStation)  \(formattedFrequency)")
+    dxAnnotation.setProperties(station: dxStation, matchStation: spotterStation, annotationType: .dx)
 
     dxAnnotation.coordinate = CLLocationCoordinate2D(latitude: dxCoordinates["latitude"] ?? 0,
                                               longitude: dxCoordinates["longitude"] ?? 0)
     // common
-    dxAnnotation.addAnnotationTitle(title: title)
+    dxAnnotation.addAnnotationTitle(dxStation: dxStation, spotterStation: spotterStation, formattedFrequency: formattedFrequency)
     dxAnnotation.addSubTitle(subTitle: dxCountry)
-    dxAnnotation.setProperties(station: dxStation, spotterStation: spotterStation, annotationType: .dx)
 
     dxAnnotationId = dxAnnotation.annotationId
 

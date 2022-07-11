@@ -869,13 +869,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
           } else {
             updateAnnotation(spot: &spot, annotationType: .dx)
           }
-
-// WAS THIS THE PROBLEM TOO!!! should have been "if false"
-//          if checkForExistingAnnotations(dxStation: spot.dxStation) {
-//            buildAnnotation(spot: &spot, annotationType: .spotter)
-//          } else {
-//            buildAnnotation(spot: &spot, annotationType: .all)
-//          }
         }
 
         // add the spot to the collection
@@ -917,34 +910,26 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       let dxAnnotation = spot.createDXAnnotation()
       addAnnotation(annotation: dxAnnotation)
     default:
-      // find existing annotation
-      let matches = annotations.filter( {$0.station == spot.dxStation} )
-      if matches.count > 1 {
-        for match in matches {
-          print("match: \(spot.dxStation)-\(match.annotationTitles)-\(match.annotationType)")
-        }
-      }
-
-      // update the existing annotation
-      let matchingAnnotation = annotations.filter( {$0.station == spot.dxStation} ).first
-      matchingAnnotation?.addAnnotationTitle(dxStation: spot.dxStation, spotter: spot.spotterStation, formattedFrequency: spot.formattedFrequency)
-
-      // TODO: - could I do this better
-      spot.dxAnnotationId = matchingAnnotation!.annotationId
+      break
     }
   }
 
+
+  /// Update the annotation title with the new spot information.
+  /// - Parameters:
+  ///   - spot: ClusterSpot
+  ///   - annotationType: ClusterPinAnnotationType: the type of annotation.
   func updateAnnotation(spot: inout ClusterSpot, annotationType: ClusterPinAnnotationType) {
 
     switch annotationType {
     case .dx:
       let matchingAnnotation = annotations.filter( {$0.station == spot.dxStation} ).first
-      matchingAnnotation?.addAnnotationTitle(dxStation: spot.dxStation, spotter: spot.spotterStation, formattedFrequency: spot.formattedFrequency)
+      matchingAnnotation?.addAnnotationTitle(dxStation: spot.dxStation, spotterStation: spot.spotterStation, formattedFrequency: spot.formattedFrequency)
     case .spotter:
       let matchingAnnotation = annotations.filter( {$0.station == spot.spotterStation} ).first
-      matchingAnnotation?.addAnnotationTitle(dxStation: spot.dxStation, spotter: spot.spotterStation, formattedFrequency: spot.formattedFrequency)
+      matchingAnnotation?.addAnnotationTitle(dxStation: spot.dxStation, spotterStation: spot.spotterStation, formattedFrequency: spot.formattedFrequency)
     default:
-      assertionFailure("Too many annotations")
+      break
     }
   }
 
@@ -984,25 +969,11 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     overlays.removeAll(where: { $0.hash == overlayId })
   }
 
-
-  // TODO: - Almost need this recursive or multiple passes.
-  // scene: try to delete spotter but has dx references, then delete dx but now spotter doesn't get deleted
-  /// Delete an annotation.
-  /// - Parameter annotationId: Int: hashValue of the annotation to be deleted.
-//  func deleteSpotterAnnotation(annotationId: UUID, dxStation: String, scope: Scope) {
-//    for annotation in annotations.filter( { $0.annotationType == .spotter && $0.annotationId == annotationId }) {
-//
-//      annotation.setAsDeleted()
-//      //annotation.isDeleted = true
-//      //annotation.title = "isDeleted"
-//
-//      // TODO: - This needs to be implemented for spotters too
-//      let matchingDxAnnotation = annotations.first(where: {$0.matchReference.contains(annotation.station)})
-//      matchingDxAnnotation?.removeAnnotationReference(spotterStation: annotation.station)
-//    }
-//    annotations.removeAll(where: { $0.title == "isDeleted" })
-//  }
-
+  /// Delete a spotter annotation.
+  /// - Parameters:
+  ///   - annotationId: id of the annotation
+  ///   - dxStation: String
+  ///   - scope: Scope
   func deleteSpotterAnnotation(annotationId: UUID, dxStation: String, scope: Scope) {
 
     for annotation in annotations.filter( { $0.annotationType == .spotter && $0.annotationId == annotationId }) {
@@ -1011,22 +982,15 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         annotation.setAsDeleted()
       case .selective:
         updateMatchingAnnotations(station: annotation.station)
-        //let matchingDxAnnotation = annotations.first(where: {$0.matchReference.contains(annotation.station)})
-        //matchingDxAnnotation?.removeAnnotationReference(station: annotation.station)
-//        if annotation.referenceCount == 0 {
-//          annotation.setAsDeleted()
-//        } else {
-//          print("reference count: \(annotation.referenceCount)-\(annotation.station):\(annotationId)")
-//          return
-//        }
       }
-//      let matchingDxAnnotation = annotations.first(where: {$0.matchReference.contains(annotation.station)})
-//      matchingDxAnnotation?.removeAnnotationReference(station: annotation.station)
     }
 
     annotations.removeAll(where: { $0.title == "isDeleted" })
   }
 
+
+  /// Remove a reference to a deleted annotation.
+  /// - Parameter station: String: station name to remove.
   func updateMatchingAnnotations(station: String) {
     let matchingAnnotations = annotations.filter( {$0.matchReference.contains(station)})
     for annotation in matchingAnnotations {
@@ -1048,41 +1012,25 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         annotation.setAsDeleted()
       case .selective:
         updateMatchingAnnotations(station: annotation.station)
-        //let matchingSpotterAnnotation = annotations.first(where: {$0.matchReference.contains(annotation.station)})
-        //matchingSpotterAnnotation?.removeAnnotationReference(station: annotation.station)
-
-//        if annotation.referenceCount == 0 {
-//          annotation.setAsDeleted()
-//        } else {
-//          print("reference count: \(annotation.referenceCount)-\(annotation.station):\(annotationId)")
-//          return
-//        }
       }
-//      let matchingSpotterAnnotation = annotations.first(where: {$0.matchReference.contains(annotation.station)})
-//      matchingSpotterAnnotation?.removeAnnotationReference(station: annotation.station)
-
     }
     annotations.removeAll(where: { $0.title == "isDeleted" })
   }
-
-
 
   /// Delete all annotations.
   func deleteAllAnnotations() {
     for annotation in annotations {
       deleteAllAnnotationsById(annotationId: annotation.annotationId)
     }
+    annotations.removeAll(where: { $0.title == "isDeleted" })
   }
 
   /// Delete annotations by id.
   /// - Parameter annotationId: UUID:  annotation Id
   func deleteAllAnnotationsById(annotationId: UUID) {
     for annotation in annotations.filter( { $0.annotationId == annotationId }) {
-      //annotation.isDeleted = true
-      //annotation.title = "isDeleted"
       annotation.setAsDeleted()
     }
-    annotations.removeAll(where: { $0.annotationId == annotationId })
   }
 
   /// Mark all overlays as deleted.
@@ -1102,13 +1050,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
         // delete the associated overlay
         deleteOverlay(overlayId: spot.overlayId)
-
-        // delete the spotter annotation
-        //deleteSpotterAnnotation(annotationId: spot.spotterAnnotationId, dxStation: spot.dxStation, scope: .selective)
         updateMatchingAnnotations(station: spot.spotterStation)
-
-        // delete the dx annotation
-        //deleteDxAnnotation(annotationId: spot.dxAnnotationId, spotterStation: spot.spotterStation, scope: .selective)
         updateMatchingAnnotations(station: spot.dxStation)
 
         let spotsToDelete = displayedSpots.filter( {$0.id == spot.id} )
@@ -1220,16 +1162,12 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
   // MARK: - Filter Call Signs
 
-  // get index of item in array
-  // let i1 = arr.firstIndex(where: {$0 == "a" && spot.dxStation == callSign})
-
   /// Set the call filter on and filter spots that do not have the DX call in them.
   /// - Parameter callToFilter: String: Call sign to filter.
   func setCallFilter() {
     if exactMatch {
       for (index, spot) in displayedSpots.enumerated() where spot.dxStation.prefix(callToFilter.count) != callToFilter {
         var mutatingSpot = spot
-        //mutatingSpot.setFilterOn(filterType: .call)
         mutatingSpot.manageFilters(filterType: .call)
         if mutatingSpot.isFiltered {
           deleteOverlay(overlayId: mutatingSpot.overlayId)
@@ -1270,6 +1208,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   func setDigiFilter() {
     for (index, spot) in displayedSpots.enumerated() {
       var mutatingSpot = spot
+      // TODO: - put this check in the spot when it is created
       if checkIsNotDigi(spot: spot) {
         if mutatingSpot.isFiltered == false { // could be band filtered
           deleteOverlay(overlayId: spot.overlayId)
@@ -1420,12 +1359,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       mutatingSpot.manageFilters(filterType: .band)
 
       if mutatingSpot.isFiltered {
-//        deleteSpotterAnnotation(annotationId: spot.spotterAnnotationId, dxStation: spot.dxStation, scope: .selective)
         updateMatchingAnnotations(station: spot.dxStation)
         updateMatchingAnnotations(station: spot.spotterStation)
         deleteOverlay(overlayId: spot.overlayId)
-        //deleteDxAnnotation(annotationId: spot.dxAnnotationId, spotterStation: spot.spotterStation, scope: .selective)
-
       } else {
         regenerateOverlayAndAnnotations(spot: &mutatingSpot)
       }
@@ -1448,13 +1384,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     if !checkForExistingAnnotations(station: spot.dxStation) {
       buildAnnotation(spot: &spot, annotationType: .dx)
     }
-
-    // WAS THIS THE PROBLEM!!!
-//    if checkForExistingAnnotations(station: spot.dxStation) {
-//      buildAnnotation(spot: &spot, annotationType: .spotter)
-//    } else {
-//      buildAnnotation(spot: &spot, annotationType: .all)
-//    }
   }
 
   /// Set all band filters to an on state so no overlays or annotations are displayed.
@@ -1463,11 +1392,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       var mutatingSpot = spot
       mutatingSpot.manageFilters(filterType: .band)
       deleteOverlay(overlayId: mutatingSpot.overlayId)
-      deleteSpotterAnnotation(annotationId: mutatingSpot.spotterAnnotationId, dxStation: spot.dxStation, scope: .all)
-      deleteDxAnnotation(annotationId: mutatingSpot.dxAnnotationId, spotterStation: mutatingSpot.spotterStation, scope: .all)
-
       displayedSpots[index] = mutatingSpot
     }
+    deleteAllAnnotations()
   }
 
   /// Set all the band filters to off for all spots.
