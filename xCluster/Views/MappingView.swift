@@ -34,7 +34,7 @@ struct MapView: NSViewRepresentable {
 
       for overlay in mapView.overlays {
         //print("overlay title: \(overlay.title)")
-        if overlay.title == "isDeleted" {
+        if overlay.title == objectStatus.isDeleted.rawValue {
           mapView.removeOverlay(overlay)
         }
     }
@@ -45,7 +45,7 @@ struct MapView: NSViewRepresentable {
     mapView.addAnnotations(annotations)
 
       for annotation in mapView.annotations {
-        if annotation.title == "isDeleted" {
+        if annotation.title == objectStatus.isDeleted.rawValue {
           mapView.removeAnnotation(annotation)
         }
       }

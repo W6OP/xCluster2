@@ -30,13 +30,10 @@ struct StatusMessage: Identifiable, Hashable {
 /// Custom MKGeodesicPolyline.
 class ClusterMKGeodesicPolyline: MKGeodesicPolyline {
 
-  var clusterOverlayId: Int = 0
   var band = 0
 
   override init() {
-    //clusterOverlayId = 0
     super.init()
-
   }
 }
 
@@ -51,13 +48,17 @@ enum ClusterPinAnnotationType: String {
   case undefined = "undefined"
 }
 
+enum objectStatus: String {
+  case isDeleted = "isDeleted"
+}
+
 /// Custom MKPointAnnotation.
 class ClusterPinAnnotation: MKPointAnnotation {
   var annotationId: UUID
   var isDeleted = false
   var isFiltered = false
   var annotationTitles: [String] = []
-  var station = ""
+  var annotationStation = ""
   var band = [Int]()
   var annotationType: ClusterPinAnnotationType = .spotter
   // TODO: - Rename after spotter annotations are implemented too - was spotterReference
@@ -88,7 +89,7 @@ class ClusterPinAnnotation: MKPointAnnotation {
   ///   - spotterStation: String: if this is a DX annotation, the spotterAnnotation associated with it.
   ///   - annotationType: AnnotationType: type of this annotation.
   func setProperties(station: String, matchStation: String? = nil, annotationType: ClusterPinAnnotationType) {
-    self.station = station
+    self.annotationStation = station
     self.annotationType = annotationType
     self.matchReference.append(matchStation ?? "")
   }
@@ -102,16 +103,21 @@ class ClusterPinAnnotation: MKPointAnnotation {
 
     var title = "unknown-unknown  0.0"
 
-    if annotationType == .spotter {
-      title = ("\(spotterStation)-\(dxStation)  \(formattedFrequency) s")
-    } else {
+    switch annotationType {
+    case .dx:
+      //print("dx: \(dxStation)-\(spotterStation)")
       title = ("\(dxStation)-\(spotterStation)  \(formattedFrequency)")
-    }
-
-    if annotationType == .dx {
+      //print("dx title added: \(title)")
       matchReference.append(spotterStation)
-    } else {
+      //print("spotter reference added: \(spotterStation) for \(dxStation)")
+    case .spotter:
+      //print("spotter: \(spotterStation)-\(dxStation)")
+      title = ("\(spotterStation)-\(dxStation)  \(formattedFrequency)")
+      //print("spotter title added: \(title)")
       matchReference.append(dxStation)
+      //print("dx reference added: \(dxStation) for \(spotterStation)")
+    default:
+      print("missing annotation type: \(annotationType)")
     }
 
     annotationTitles.append(title)
@@ -136,9 +142,10 @@ class ClusterPinAnnotation: MKPointAnnotation {
     }
   }
 
-  /// Remove a title when the spotter annotation is deleted.
+  /// Remove a title when the station annotation is deleted.
   /// - Parameter call: String: call sign to search for.
   func removeAnnotationReference(station: String) {
+    //print("\(annotationType): reference removed: \(station) from \(annotationStation)")
     matchReference.removeAll(where: {$0 == station} )
   }
 
@@ -173,13 +180,17 @@ struct ClusterSpot: Identifiable, Hashable {
   }
 
   var id: Int
-  var overlayId: Int
+  var overlayId: ObjectIdentifier?
   var spotterAnnotationId: UUID
   var dxAnnotationId: UUID
   var spotterStation: String
   var dxStation: String
   var frequency: String
-  var formattedFrequency = ""
+  var formattedFrequency = "" {
+    didSet {
+      setDigiMode()
+    }
+  }
   var band: Int
   var mode = ""
   var timeUTC: String
@@ -201,7 +212,7 @@ struct ClusterSpot: Identifiable, Hashable {
 
   init() {
     id = 0
-    overlayId = 0
+    overlayId = nil
     spotterAnnotationId = UUID()
     dxAnnotationId = UUID()
     dxStation = ""
@@ -347,7 +358,7 @@ struct ClusterSpot: Identifiable, Hashable {
     overlay.title = String(band)
     overlay.subtitle = mode
 
-    overlayId = overlay.hashValue
+    overlayId = ObjectIdentifier(overlay)
 
     return overlay
   }
@@ -412,6 +423,84 @@ struct ClusterSpot: Identifiable, Hashable {
 
     if self.filterReasons.isEmpty {
       self.isFiltered = false
+    }
+  }
+
+  // MARK: - Digi Frequency Ranges
+
+  private mutating func setDigiMode() {
+
+    guard let frequency = Float(formattedFrequency) else { return }
+    //print("input: \(frequency.roundTo(places: 3))")
+    switch Float(frequency.roundTo(places: 3)) {
+    case 1.840...1.845:
+      isDigiMode = true
+    case 1.84...1.845:
+      isDigiMode = true
+      //    case 3.568...3.570:
+      //      return true
+      //    case 3.568...3.57:
+      //      return true
+    case 3.573...3.578:
+      isDigiMode = true
+    case 5.357:
+      isDigiMode = true
+      //    case 7.047...7.052:
+      //      return true
+      //    case 7.056...7.061:
+      //      return true
+    case 7.074...7.078:
+      isDigiMode = true
+      //    case 10.130...10.135:
+      //      return true
+      //    case 10.13...10.135:
+      //      return true
+      //    case 10.136...10.138:
+      //      return true
+      //    case 10.140...10.145:
+      //      return true
+    case 10.136...10.145:
+      isDigiMode = true
+    case 14.074...14.078:
+      isDigiMode = true
+    case 14.080...14.082:
+      isDigiMode = true
+    case 14.08...14.082:
+      isDigiMode = true
+      //    case 14.090...14.095:
+      //      return true
+      //    case 14.09...14.095:
+      //      return true
+    case 18.100...18.106:
+      isDigiMode = true
+    case 18.10...18.106:
+      isDigiMode = true
+    case 18.1...18.106:
+      isDigiMode = true
+      //    case 18.104...18.106:
+      //      return true
+    case 21.074...21.078:
+      isDigiMode = true
+      //    case 21.091...21.094:
+      //      return true
+    case 21.140...21.142:
+      isDigiMode = true
+    case 21.14...21.142:
+      isDigiMode = true
+    case 24.915...24.922:
+      isDigiMode = true
+    case 28.074...28.078:
+      isDigiMode = true
+    case 28.180...28.182:
+      isDigiMode = true
+    case 28.18...28.182:
+      isDigiMode = true
+    case 50.313...50.320:
+      isDigiMode = true
+    case 50.323...50.328:
+      isDigiMode = true
+    default:
+      isDigiMode = false
     }
   }
 } // end ClusterSpot
@@ -621,7 +710,7 @@ actor SpotCache {
   func getSpotCount() -> Int {
     return spots.count
   }
-}
+} // end spot cache
 
 // MARK: - Extensions
 
