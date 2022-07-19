@@ -105,17 +105,11 @@ class ClusterPinAnnotation: MKPointAnnotation {
 
     switch annotationType {
     case .dx:
-      //print("dx: \(dxStation)-\(spotterStation)")
       title = ("\(dxStation)-\(spotterStation)  \(formattedFrequency)")
-      //print("dx title added: \(title)")
       matchReference.append(spotterStation)
-      //print("spotter reference added: \(spotterStation) for \(dxStation)")
     case .spotter:
-      //print("spotter: \(spotterStation)-\(dxStation)")
       title = ("\(spotterStation)-\(dxStation)  \(formattedFrequency)")
-      //print("spotter title added: \(title)")
       matchReference.append(dxStation)
-      //print("dx reference added: \(dxStation) for \(spotterStation)")
     default:
       print("missing annotation type: \(annotationType)")
     }
@@ -142,11 +136,35 @@ class ClusterPinAnnotation: MKPointAnnotation {
     }
   }
 
+
+  /// Refresh the title when a match reference is removed.
+  func refreshDisplayTitle() {
+    var combinedTitle = ""
+
+    for title in annotationTitles {
+      combinedTitle += (title + "\r")
+    }
+
+    self.title = String(combinedTitle.dropLast())
+
+    // why should I have to do this?
+    if ((self.title?.isEmpty) != nil) {
+      title = "isDeleted"
+    }
+  }
+
   /// Remove a title when the station annotation is deleted.
   /// - Parameter call: String: call sign to search for.
   func removeAnnotationReference(station: String) {
-    //print("\(annotationType): reference removed: \(station) from \(annotationStation)")
+    print("\(annotationType): reference removed: \(station) from \(annotationStation)")
     matchReference.removeAll(where: {$0 == station} )
+
+    print("title before:\r \(title ?? "empty")")
+    if title != "isDeleted" {
+      annotationTitles.removeAll(where: { $0.contains(station) })
+      refreshDisplayTitle()
+    }
+    print("title after:\r \(title ?? "empty")")
   }
 
   /// Add the subtitle.
@@ -156,6 +174,7 @@ class ClusterPinAnnotation: MKPointAnnotation {
   }
 
   func setAsDeleted() {
+    print("set as deleted: \(annotationStation)")
     isDeleted = true
     title = "isDeleted"
   }
@@ -227,103 +246,7 @@ struct ClusterSpot: Identifiable, Hashable {
     isFiltered = false
   }
 
-  // need to convert 3.593.4 to 3.5934
-  mutating func setFrequency(frequency: String) {
-    self.frequency = frequency
-    let format = formatFrequency(frequency: frequency)
-    formattedFrequency = String(format: "%.3f", format)
-    band = convertFrequencyToBand(frequency: frequency)
-  }
-
-  func formatFrequency(frequency: String) -> Float {
-    let components = frequency.trimmingCharacters(in: .whitespaces).components(separatedBy: ".")
-    var suffix = ""
-
-    // truncate if more than 3 components ie. 14.074.1
-    let prefix = components[0]
-    suffix += components[1]
-
-    let result = Float(("\(prefix).\(suffix)"))?.roundTo(places: 4)
-
-    return result ?? 0.0
-  }
-
-  func isInDigiLimit() -> Bool {
-    return false
-  }
-
-  /// Convert a frequency to a band.
-  /// - Parameter frequency: String
-  /// - Returns: Int
-  func convertFrequencyToBand(frequency: String) -> Int {
-    var band: Int
-    let frequencyMajor = frequency.prefix(while: {$0 != "."})
-
-    switch frequencyMajor {
-    case "1":
-      band = 160
-    case "3", "4":
-      band = 80
-    case "5":
-      band = 60
-    case "7":
-      band = 40
-    case "10":
-      band = 30
-    case "14":
-      band = 20
-    case "18":
-      band = 17
-    case "21":
-      band = 15
-    case "24":
-      band = 12
-    case "28":
-      band = 10
-    case "50", "51", "52", "53", "54":
-      band = 6
-    default:
-      band = 99
-    }
-
-    return band
-  }
-
-  /// Not currently used
-  /// - Parameter frequency: Float
-  /// - Returns: Int
-//  func setBand(frequency: Float) -> Int {
-//    switch frequency {
-//    case 1.8...2.0:
-//      return 160
-//    case 3.5...4.0:
-//      return 80
-//    case 5.0...6.0:
-//      return 60
-//    case 7.0...7.3:
-//      return 40
-//    case 10.1...10.5:
-//      return 30
-//    case 14.0...14.350:
-//      return 20
-//    case 18.068...18.168:
-//      return 17
-//    case 21.0...21.450:
-//      return 15
-//    case 24.890...24.990:
-//      return 12
-//    case 28.0...29.7:
-//      return 10
-//    case 70.0...75.0:
-//      return 4
-//    case 50.0...54.0:
-//      return 6
-//    case 144.0...148.0:
-//      return 2
-//    default:
-//      return 0
-//    }
-//  }
+  // MARK: - Populate Spot
 
   /// Populate the spot information from the stationInformationCombined.
   /// - Parameter stationInformationCombined: StationInformationCombined: Struct
@@ -357,8 +280,9 @@ struct ClusterSpot: Identifiable, Hashable {
 
     overlay.title = String(band)
     overlay.subtitle = mode
-
     overlayId = ObjectIdentifier(overlay)
+
+    print("overlay created: \(spotterStation) to \(dxStation)")
 
     return overlay
   }
@@ -425,6 +349,106 @@ struct ClusterSpot: Identifiable, Hashable {
       self.isFiltered = false
     }
   }
+
+// MARK: - Frequency Set
+
+// need to convert 3.593.4 to 3.5934
+mutating func setFrequency(frequency: String) {
+  self.frequency = frequency
+  let format = formatFrequency(frequency: frequency)
+  formattedFrequency = String(format: "%.3f", format)
+  band = convertFrequencyToBand(frequency: frequency)
+}
+
+func formatFrequency(frequency: String) -> Float {
+  let components = frequency.trimmingCharacters(in: .whitespaces).components(separatedBy: ".")
+  var suffix = ""
+
+  // truncate if more than 3 components ie. 14.074.1
+  let prefix = components[0]
+  suffix += components[1]
+
+  let result = Float(("\(prefix).\(suffix)"))?.roundTo(places: 4)
+
+  return result ?? 0.0
+}
+
+func isInDigiLimit() -> Bool {
+  return false
+}
+
+/// Convert a frequency to a band.
+/// - Parameter frequency: String
+/// - Returns: Int
+func convertFrequencyToBand(frequency: String) -> Int {
+  var band: Int
+  let frequencyMajor = frequency.prefix(while: {$0 != "."})
+
+  switch frequencyMajor {
+  case "1":
+    band = 160
+  case "3", "4":
+    band = 80
+  case "5":
+    band = 60
+  case "7":
+    band = 40
+  case "10":
+    band = 30
+  case "14":
+    band = 20
+  case "18":
+    band = 17
+  case "21":
+    band = 15
+  case "24":
+    band = 12
+  case "28":
+    band = 10
+  case "50", "51", "52", "53", "54":
+    band = 6
+  default:
+    band = 99
+  }
+
+  return band
+}
+
+/// Not currently used
+/// - Parameter frequency: Float
+/// - Returns: Int
+//  func setBand(frequency: Float) -> Int {
+//    switch frequency {
+//    case 1.8...2.0:
+//      return 160
+//    case 3.5...4.0:
+//      return 80
+//    case 5.0...6.0:
+//      return 60
+//    case 7.0...7.3:
+//      return 40
+//    case 10.1...10.5:
+//      return 30
+//    case 14.0...14.350:
+//      return 20
+//    case 18.068...18.168:
+//      return 17
+//    case 21.0...21.450:
+//      return 15
+//    case 24.890...24.990:
+//      return 12
+//    case 28.0...29.7:
+//      return 10
+//    case 70.0...75.0:
+//      return 4
+//    case 50.0...54.0:
+//      return 6
+//    case 144.0...148.0:
+//      return 2
+//    default:
+//      return 0
+//    }
+//  }
 
   // MARK: - Digi Frequency Ranges
 

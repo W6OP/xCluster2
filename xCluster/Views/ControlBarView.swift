@@ -28,13 +28,14 @@ struct ControlBarView: View {
     //let _ = Self._printChanges()
     HStack {
       HStack {
-        Divider()
+        //Divider()
+        Button("Pause") {
+          controller.pause.toggle()
+        }
 
         Button("QRZ Logon") {
           self.didTap = true; controller.qrzLogon(userId: userSettings.username, password: userSettings.password)
         }
-        .selectButton()
-
         Divider()
         ClusterPickerView(controller: controller, clusters: clusters)
 
