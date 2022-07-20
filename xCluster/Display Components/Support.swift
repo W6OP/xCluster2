@@ -152,15 +152,12 @@ class ClusterPinAnnotation: MKPointAnnotation {
   /// Remove a title when the station annotation is deleted.
   /// - Parameter call: String: call sign to search for.
   func removeAnnotationReference(station: String) {
-    print("\(annotationType): reference removed: \(station) from \(annotationStation)")
     matchReference.removeAll(where: {$0 == station} )
 
-    print("title before: \(annotationStation)\r \(title ?? "empty")")
     if title != "isDeleted" {
       annotationTitles.removeAll(where: { $0.contains(station) })
       refreshDisplayTitle()
     }
-    print("title after: \(annotationStation) \r \(title ?? "empty")")
   }
 
   /// Add the subtitle.
@@ -170,7 +167,6 @@ class ClusterPinAnnotation: MKPointAnnotation {
   }
 
   func setAsDeleted() {
-    print("set as deleted: \(annotationStation)")
     isDeleted = true
     title = "isDeleted"
   }
@@ -277,8 +273,6 @@ struct ClusterSpot: Identifiable, Hashable {
     overlay.title = String(band)
     overlay.subtitle = mode
     overlayId = ObjectIdentifier(overlay)
-
-    print("overlay created: \(spotterStation) to \(dxStation)")
 
     return overlay
   }

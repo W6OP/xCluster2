@@ -864,7 +864,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         if !spot.isFiltered {
           let overlay = spot.createOverlay()
           addOverlay(overlay: overlay)
-          print("add overlay: \(spot.spotterStation)-\(spot.dxStation)")
 
           if !checkForExistingAnnotations(station: spot.spotterStation) {
             buildAnnotation(spot: &spot, annotationType: .spotter)
@@ -976,16 +975,11 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
     guard overlays.filter( { ObjectIdentifier($0) == overlayId }).count == 1 else {
       assertionFailure("overlay not found")
-      print("overlay id not found: \(log)-\(overlayId)")
       return
     }
 
     let overlay = overlays.filter( { ObjectIdentifier($0) == overlayId }).first
     overlay!.title = objectStatus.isDeleted.rawValue
-
-    //print("overlayById deleted: \(log)-\(ObjectIdentifier(overlay!))")
-
-    //overlays.removeAll(where: { $0.title == objectStatus.isDeleted.rawValue })
   }
 
   /// Delete a spotter annotation.
@@ -1012,10 +1006,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   /// Remove a reference to a deleted annotation.
   /// - Parameter station: String: station name to remove.
   func updateMatchingAnnotations(station: String) {
-    print("update matching annotation: \(station)")
     let matchingAnnotations = annotations.filter( {$0.matchReference.contains(station)})
     for annotation in matchingAnnotations {
-      print("removeAnnotationReference: \(station)")
       annotation.removeAnnotationReference(station: station)
     }
 
@@ -1023,7 +1015,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   }
 
   func updateMatchingAnnotations(spotter: String, dx: String, flag: String) {
-    print("update matching annotation: \(flag)")
 
     guard (annotations.filter( {$0.annotationStation == spotter}).count == 1) else {
       //assertionFailure("missing or excess annotation")
@@ -1032,9 +1023,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
     let matchingAnnotation = annotations.filter( {$0.annotationStation == spotter}).first
     matchingAnnotation?.removeAnnotationReference(station: dx)
-
-    // this can probably be moved to manageTotalSpots
-    //annotations.removeAll(where: { $0.title == objectStatus.isDeleted.rawValue })
   }
 
   /// Delete a dx annotation only if no other spotters reference it.
@@ -1053,7 +1041,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         updateMatchingAnnotations(station: annotation.annotationStation)
       }
     }
-    //annotations.removeAll(where: { $0.title == objectStatus.isDeleted.rawValue })
   }
 
   /// Delete all annotations.
@@ -1089,19 +1076,13 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       while displayedSpots.count > maxNumberOfSpots {
         //get the last spot
         let spot = displayedSpots[displayedSpots.count - 1]
-        print("find spot to delete: \(spot.spotterStation) to \(spot.dxStation)")
-
         deleteOverlayById(overlayId: spot.overlayId!, log: " \(spot.spotterStation) to \(spot.dxStation)")
-        print("delete the associated overlay: \(spot.spotterStation) to \(spot.dxStation)")
-
         updateMatchingAnnotations(spotter: spot.spotterStation, dx: spot.dxStation, flag: spot.spotterStation)
         updateMatchingAnnotations(spotter: spot.dxStation, dx: spot.spotterStation, flag: spot.dxStation)
 
         let spotToDelete = displayedSpots.filter( {$0.id == spot.id} ).first!
         deletedSpots.append(spotToDelete)
-
         displayedSpots.removeAll(where: {$0.id == spot.id} )
-        print("spot deleted: \(spot.spotterStation) to \(spot.dxStation)")
 
         // clean the deleted spots list
         while deletedSpots.count > (maxNumberOfSpots + 50) {
@@ -1112,14 +1093,6 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
     annotations.removeAll(where: { $0.title == objectStatus.isDeleted.rawValue })
     overlays.removeAll(where: { $0.title == objectStatus.isDeleted.rawValue })
-
-    // hack
-    //print("deleting overlays: \(overlays.filter( {$0.title == overlayStatus.isDeleted.rawValue} ).count)")
-//    guard overlays.filter( {$0.title == objectStatus.isDeleted.rawValue} ).count == 0 else {
-//      overlays.removeAll(where: {$0.title == objectStatus.isDeleted.rawValue} )
-//      assertionFailure("why does this happen")
-//      return
-//    }
   }
 
   // MARK: - Alerts
