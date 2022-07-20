@@ -61,17 +61,12 @@ class ClusterPinAnnotation: MKPointAnnotation {
   var annotationStation = ""
   var band = [Int]()
   var annotationType: ClusterPinAnnotationType = .spotter
-  // TODO: - Rename after spotter annotations are implemented too - was spotterReference
   var matchReference: [String] = [] {
     didSet {
       if matchReference.count == 0 {
         setAsDeleted()
       }
     }
-  }
-
-  var referenceCount: Int {
-    get { matchReference.count }
   }
 
   let maxNumberOfAnnotationTitles = 14
@@ -145,11 +140,12 @@ class ClusterPinAnnotation: MKPointAnnotation {
       combinedTitle += (title + "\r")
     }
 
-    self.title = String(combinedTitle.dropLast())
+    title = String(combinedTitle.dropLast())
 
     // why should I have to do this?
-    if ((self.title?.isEmpty) != nil) {
+    if (annotationTitles.count == 0) {
       title = "isDeleted"
+      print("empty title: \(annotationStation):\(matchReference.count)")
     }
   }
 
@@ -159,12 +155,12 @@ class ClusterPinAnnotation: MKPointAnnotation {
     print("\(annotationType): reference removed: \(station) from \(annotationStation)")
     matchReference.removeAll(where: {$0 == station} )
 
-    print("title before:\r \(title ?? "empty")")
+    print("title before: \(annotationStation)\r \(title ?? "empty")")
     if title != "isDeleted" {
       annotationTitles.removeAll(where: { $0.contains(station) })
       refreshDisplayTitle()
     }
-    print("title after:\r \(title ?? "empty")")
+    print("title after: \(annotationStation) \r \(title ?? "empty")")
   }
 
   /// Add the subtitle.

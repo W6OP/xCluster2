@@ -985,7 +985,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
     //print("overlayById deleted: \(log)-\(ObjectIdentifier(overlay!))")
 
-    overlays.removeAll(where: { $0.title == objectStatus.isDeleted.rawValue })
+    //overlays.removeAll(where: { $0.title == objectStatus.isDeleted.rawValue })
   }
 
   /// Delete a spotter annotation.
@@ -1022,8 +1022,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     annotations.removeAll(where: { $0.title == objectStatus.isDeleted.rawValue })
   }
 
-  func updateMatchingAnnotations(spotter: String, dx: String) {
-    print("update matching dx annotation: \(dx)")
+  func updateMatchingAnnotations(spotter: String, dx: String, flag: String) {
+    print("update matching annotation: \(flag)")
 
     guard (annotations.filter( {$0.annotationStation == spotter}).count == 1) else {
       //assertionFailure("missing or excess annotation")
@@ -1034,7 +1034,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     matchingAnnotation?.removeAnnotationReference(station: dx)
 
     // this can probably be moved to manageTotalSpots
-    annotations.removeAll(where: { $0.title == objectStatus.isDeleted.rawValue })
+    //annotations.removeAll(where: { $0.title == objectStatus.isDeleted.rawValue })
   }
 
   /// Delete a dx annotation only if no other spotters reference it.
@@ -1053,7 +1053,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         updateMatchingAnnotations(station: annotation.annotationStation)
       }
     }
-    annotations.removeAll(where: { $0.title == objectStatus.isDeleted.rawValue })
+    //annotations.removeAll(where: { $0.title == objectStatus.isDeleted.rawValue })
   }
 
   /// Delete all annotations.
@@ -1092,10 +1092,10 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         print("find spot to delete: \(spot.spotterStation) to \(spot.dxStation)")
 
         deleteOverlayById(overlayId: spot.overlayId!, log: " \(spot.spotterStation) to \(spot.dxStation)")
-        print("delete the associated overlay")
+        print("delete the associated overlay: \(spot.spotterStation) to \(spot.dxStation)")
 
-        updateMatchingAnnotations(spotter: spot.spotterStation, dx: spot.dxStation)
-        updateMatchingAnnotations(spotter: spot.dxStation, dx: spot.spotterStation)
+        updateMatchingAnnotations(spotter: spot.spotterStation, dx: spot.dxStation, flag: spot.spotterStation)
+        updateMatchingAnnotations(spotter: spot.dxStation, dx: spot.spotterStation, flag: spot.dxStation)
 
         let spotToDelete = displayedSpots.filter( {$0.id == spot.id} ).first!
         deletedSpots.append(spotToDelete)
@@ -1110,13 +1110,16 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       }
     }
 
+    annotations.removeAll(where: { $0.title == objectStatus.isDeleted.rawValue })
+    overlays.removeAll(where: { $0.title == objectStatus.isDeleted.rawValue })
+
     // hack
     //print("deleting overlays: \(overlays.filter( {$0.title == overlayStatus.isDeleted.rawValue} ).count)")
-    guard overlays.filter( {$0.title == objectStatus.isDeleted.rawValue} ).count == 0 else {
-      overlays.removeAll(where: {$0.title == objectStatus.isDeleted.rawValue} )
-      assertionFailure("why does this happen")
-      return
-    }
+//    guard overlays.filter( {$0.title == objectStatus.isDeleted.rawValue} ).count == 0 else {
+//      overlays.removeAll(where: {$0.title == objectStatus.isDeleted.rawValue} )
+//      assertionFailure("why does this happen")
+//      return
+//    }
   }
 
   // MARK: - Alerts
