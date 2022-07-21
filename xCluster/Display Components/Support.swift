@@ -228,7 +228,7 @@ struct ClusterSpot: Identifiable, Hashable {
     dxAnnotationId = UUID()
     dxStation = ""
     frequency = ""
-    band = 99
+    band = 00
     spotterStation = ""
     timeUTC = ""
     comment = ""
@@ -397,7 +397,10 @@ func convertFrequencyToBand(frequency: String) -> Int {
     band = 10
   case "50", "51", "52", "53", "54":
     band = 6
+//  case "70":
+//    band = 4
   default:
+    print("frequencyMajor: \(frequencyMajor)")
     band = 99
   }
 

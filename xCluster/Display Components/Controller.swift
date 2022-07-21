@@ -1008,10 +1008,12 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     removeDeletedObjects()
   }
 
-  /// Remove any annotations marked as deleted.
+  /// Remove overlays and annotations marked as deleted.
+  ///
+  /// Overlays are deleted first for cosmetic reasons.
   func removeDeletedObjects() {
-    annotations.removeAll(where: { $0.title == objectStatus.isDeleted.rawValue })
     overlays.removeAll(where: { $0.title == objectStatus.isDeleted.rawValue })
+    annotations.removeAll(where: { $0.title == objectStatus.isDeleted.rawValue })
   }
 
   /// Remove a reference from an annotation.
