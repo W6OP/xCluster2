@@ -55,7 +55,7 @@ struct TopBarView: View {
         }
       }) {
         // onCommit
-        self.controller.setAlert(callSignOrCountry: alertLiteral)
+        self.controller.setAlert(filter: alertLiteral)
       }
       .textFieldStyle(RoundedBorderTextFieldStyle())
       .modifier(ClearButton(boundText: $alertLiteral))
