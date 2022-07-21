@@ -43,12 +43,16 @@ class WebManager {
 
   /// Connect to the cluster server.
   /// - Parameter cluster: ClusterIdentifier
-  func connectAsync(cluster: ClusterIdentifier) async {
+  func connectAsync(cluster: ClusterIdentifier, count: Int) async {
 
     connectedHost = cluster
 
+    if cluster.name == "DXSummit" {
+      connectedHost.address = cluster.address.replacingOccurrences(of: "dx25.html", with: "dx\(count).html")
+    }
+
     if cluster.clusterProtocol == ClusterProtocol.html {
-        try? await createHttpSessionAsync(host: cluster)
+        try? await createHttpSessionAsync(host: connectedHost)
     } else {
       return
     }

@@ -126,6 +126,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
   let centerLongitude = -40.829444
   let keepAliveInterval = 300 // 5 minutes
   let dxSummitRefreshInterval = 60 // 1 minute
+  let usaLiteral = "United States"
 
   weak var keepAliveTimer: Timer!
   weak var webRefreshTimer: Timer!
@@ -185,12 +186,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       //print("Current thread 1: \(Thread.current.threadName)")
       
       Task {
-        //print("Current thread 2: \(Thread.current.threadName)")
         await spotCache.clear()
         await hitsCache.clear()
       }
-
-      //print("Current thread 3: \(Thread.current.threadName)")
 
         deleteAllAnnotations()
         deleteAllOverlays()
@@ -204,7 +202,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       if updateUserInformation() {
         if cluster.clusterProtocol == ClusterProtocol.html {
           Task {
-            await webManager.connectAsync(cluster: cluster)
+            await webManager.connectAsync(cluster: cluster, count: selectedNumberOfSpots.maxLines)
           }
         } else {
           // don't use QRZ.com for RBNs
@@ -483,7 +481,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
     if commandType == .refreshWeb {
       Task {
-        await webManager.connectAsync(cluster: connectedCluster)
+        await webManager.connectAsync(cluster: connectedCluster, count: selectedNumberOfSpots.maxLines)
       }
     } else {
       telnetManager.send(message, commandType: commandType)
@@ -500,7 +498,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     case .show20:
       if connectedCluster.clusterProtocol == ClusterProtocol.html {
         Task {
-          await webManager.connectAsync(cluster: connectedCluster)
+          await webManager.connectAsync(cluster: connectedCluster, count: selectedNumberOfSpots.maxLines)
         }
       } else {
         telnetManager.send(command.rawValue, commandType: .getDxSpots)
@@ -787,7 +785,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     stationInformationCombined.spotterCall = callSignPair[0].call.trimmingCharacters(in: .whitespacesAndNewlines)
     stationInformationCombined.spotterCountry = callSignPair[0].country
     stationInformationCombined.spotterProvince = callSignPair[0].province
-    if stationInformationCombined.spotterCountry.contains("United States") {
+    if stationInformationCombined.spotterCountry.contains(usaLiteral) {
       if callSignPair[0].province.count < 4 { // QRZ uses state code, callParser has multiple state codes
         stationInformationCombined.spotterCountry += (", " + callSignPair[0].province)
       }
@@ -801,7 +799,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     stationInformationCombined.dxCall = callSignPair[1].call.trimmingCharacters(in: .whitespacesAndNewlines)
     stationInformationCombined.dxCountry = callSignPair[1].country
     stationInformationCombined.dxProvince = callSignPair[1].province
-    if stationInformationCombined.dxCountry.contains("United States") {
+    if stationInformationCombined.dxCountry.contains(usaLiteral) {
       if callSignPair[1].province.count < 4 {
         stationInformationCombined.dxCountry += (", " + callSignPair[1].province)
       }
@@ -984,40 +982,45 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
   /// Delete a spotter annotation.
   ///
-  /// This is only used when applying filters
+  /// This is only used when applying filters.
   /// - Parameters:
   ///   - annotationId: id of the annotation
   ///   - dxStation: String
   ///   - scope: Scope
-  func deleteSpotterAnnotation(annotationId: UUID, dxStation: String, scope: Scope) {
-
+  func deleteSpotterAnnotation(annotationId: UUID, dxStation: String) {
     for annotation in annotations.filter( { $0.annotationType == .spotter && $0.annotationId == annotationId }) {
-      switch scope {
-      case .all:
         annotation.setAsDeleted()
-      case .selective:
-        updateMatchingAnnotations(station: annotation.annotationStation)
-      }
     }
-
-    annotations.removeAll(where: { $0.title == objectStatus.isDeleted.rawValue })
+    removeDeletedObjects()
   }
 
-  /// Remove a reference to a deleted annotation.
-  /// - Parameter station: String: station name to remove.
-  func updateMatchingAnnotations(station: String) {
-    let matchingAnnotations = annotations.filter( {$0.matchReference.contains(station)})
-    for annotation in matchingAnnotations {
-      annotation.removeAnnotationReference(station: station)
+  /// Delete a dx annotation only if no other spotters reference it.
+  ///
+  /// This is only used when applying filters.
+  /// - Parameters:
+  ///   - annotationId: Int: annotation.hashValue
+  ///   - spotterStation: String: spotter call sign.
+  ///   - scope: Scope: delete anyway or only if no other references.
+  func deleteDxAnnotation(annotationId: UUID, spotterStation: String) {
+    for annotation in annotations.filter( { $0.annotationType == .dx && $0.annotationId == annotationId }) {
+        annotation.setAsDeleted()
     }
-
-    annotations.removeAll(where: { $0.title == objectStatus.isDeleted.rawValue })
+    removeDeletedObjects()
   }
 
-  func updateMatchingAnnotations(spotter: String, dx: String, flag: String) {
+  /// Remove any annotations marked as deleted.
+  func removeDeletedObjects() {
+    annotations.removeAll(where: { $0.title == objectStatus.isDeleted.rawValue })
+    overlays.removeAll(where: { $0.title == objectStatus.isDeleted.rawValue })
+  }
+
+  /// Remove a reference from an annotation.
+  /// - Parameters:
+  ///   - spotter: String: spotter station to remove the reference from.
+  ///   - dx: String: dx station reference to remove.
+  func updateMatchingAnnotations(spotter: String, dx: String) {
 
     guard (annotations.filter( {$0.annotationStation == spotter}).count == 1) else {
-      //assertionFailure("missing or excess annotation")
       return
     }
 
@@ -1025,30 +1028,12 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     matchingAnnotation?.removeAnnotationReference(station: dx)
   }
 
-  /// Delete a dx annotation only if no other spotters reference it.
-  ///
-  /// This is only used when applying filters
-  /// - Parameters:
-  ///   - annotationId: Int: annotation.hashValue
-  ///   - spotterStation: String: spotter call sign.
-  ///   - scope: Scope: delete anyway or only if no other references.
-  func deleteDxAnnotation(annotationId: UUID, spotterStation: String, scope: Scope) {
-    for annotation in annotations.filter( { $0.annotationType == .dx && $0.annotationId == annotationId }) {
-      switch scope {
-      case .all:
-        annotation.setAsDeleted()
-      case .selective:
-        updateMatchingAnnotations(station: annotation.annotationStation)
-      }
-    }
-  }
-
   /// Delete all annotations.
   func deleteAllAnnotations() {
     for annotation in annotations {
       deleteAllAnnotationsById(annotationId: annotation.annotationId)
     }
-    annotations.removeAll(where: { $0.title == objectStatus.isDeleted.rawValue })
+    removeDeletedObjects()
   }
 
   /// Delete annotations by id.
@@ -1064,7 +1049,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
     for overlay in overlays {
       overlay.title = objectStatus.isDeleted.rawValue
     }
-    overlays.removeAll(where: { $0.title == objectStatus.isDeleted.rawValue })
+    removeDeletedObjects()
   }
 
   // MARK: - Manage Total Spot Count
@@ -1077,8 +1062,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         //get the last spot
         let spot = displayedSpots[displayedSpots.count - 1]
         deleteOverlayById(overlayId: spot.overlayId!, log: " \(spot.spotterStation) to \(spot.dxStation)")
-        updateMatchingAnnotations(spotter: spot.spotterStation, dx: spot.dxStation, flag: spot.spotterStation)
-        updateMatchingAnnotations(spotter: spot.dxStation, dx: spot.spotterStation, flag: spot.dxStation)
+        updateMatchingAnnotations(spotter: spot.spotterStation, dx: spot.dxStation)
+        updateMatchingAnnotations(spotter: spot.dxStation, dx: spot.spotterStation)
 
         let spotToDelete = displayedSpots.filter( {$0.id == spot.id} ).first!
         deletedSpots.append(spotToDelete)
@@ -1091,8 +1076,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       }
     }
 
-    annotations.removeAll(where: { $0.title == objectStatus.isDeleted.rawValue })
-    overlays.removeAll(where: { $0.title == objectStatus.isDeleted.rawValue })
+    removeDeletedObjects()
   }
 
   // MARK: - Alerts
@@ -1202,8 +1186,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         mutatingSpot.manageFilters(filterType: .call)
         if mutatingSpot.isFiltered {
           deleteOverlayById(overlayId: spot.overlayId!, log: " \(spot.spotterStation) to \(spot.dxStation)")
-          deleteSpotterAnnotation(annotationId: spot.spotterAnnotationId, dxStation: spot.dxStation, scope: .all)
-          deleteDxAnnotation(annotationId: spot.dxAnnotationId, spotterStation: spot.spotterStation, scope: .all)
+          deleteSpotterAnnotation(annotationId: spot.spotterAnnotationId, dxStation: spot.dxStation)
+          deleteDxAnnotation(annotationId: spot.dxAnnotationId, spotterStation: spot.spotterStation)
         }
         displayedSpots[index] = mutatingSpot
       }
@@ -1213,12 +1197,13 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
         mutatingSpot.manageFilters(filterType: .call)
         if mutatingSpot.isFiltered {
           deleteOverlayById(overlayId: spot.overlayId!, log: " \(spot.spotterStation) to \(spot.dxStation)")
-          deleteSpotterAnnotation(annotationId: spot.spotterAnnotationId, dxStation: spot.dxStation, scope: .all)
-          deleteDxAnnotation(annotationId: spot.dxAnnotationId, spotterStation: spot.spotterStation, scope: .all)
+          deleteSpotterAnnotation(annotationId: spot.spotterAnnotationId, dxStation: spot.dxStation)
+          deleteDxAnnotation(annotationId: spot.dxAnnotationId, spotterStation: spot.spotterStation)
         }
         displayedSpots[index] = mutatingSpot
       }
     }
+    removeDeletedObjects()
   }
 
   /// Remove the existing call filter.
@@ -1242,14 +1227,15 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       if !spot.isDigiMode {
         if mutatingSpot.isFiltered == false { // could be band filtered
           deleteOverlayById(overlayId: spot.overlayId!, log: " \(spot.spotterStation) to \(spot.dxStation)")
-          deleteSpotterAnnotation(annotationId: spot.spotterAnnotationId, dxStation: spot.dxStation, scope: .all)
-          // TODO: - Check this, what if DX is multi mode
-          deleteDxAnnotation(annotationId: mutatingSpot.dxAnnotationId, spotterStation: mutatingSpot.spotterStation, scope: .all)
+          deleteSpotterAnnotation(annotationId: spot.spotterAnnotationId, dxStation: spot.dxStation)
+          // TODO: - Check this, what if DX is multi mode UpdateAnnotation???
+          deleteDxAnnotation(annotationId: mutatingSpot.dxAnnotationId, spotterStation: mutatingSpot.spotterStation)
         }
         mutatingSpot.manageFilters(filterType: .notDigi)
         displayedSpots[index] = mutatingSpot
       }
     }
+    removeDeletedObjects()
   }
 
   /// Reset the filter on non digital spots.
@@ -1308,8 +1294,9 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       mutatingSpot.manageFilters(filterType: .band)
 
       if mutatingSpot.isFiltered {
-        updateMatchingAnnotations(station: spot.dxStation)
-        updateMatchingAnnotations(station: spot.spotterStation)
+        updateMatchingAnnotations(spotter: spot.dxStation, dx: spot.spotterStation)
+        updateMatchingAnnotations(spotter: spot.spotterStation, dx: spot.dxStation)
+
         deleteOverlayById(overlayId: spot.overlayId!, log: " \(spot.spotterStation) to \(spot.dxStation)")
       } else {
         regenerateOverlayAndAnnotations(spot: &mutatingSpot)
@@ -1317,6 +1304,7 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       // this must be last or changes are not updated
       displayedSpots[index] = mutatingSpot
     }
+    removeDeletedObjects()
   }
 
   /// Recreate the overlays and annotations that were deleted by a filter.

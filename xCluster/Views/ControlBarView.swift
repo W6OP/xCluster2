@@ -14,7 +14,7 @@ struct ControlBarView: View {
 
   @Environment(\.openURL) var openURL
   @ObservedObject var userSettings = UserSettings()
-  @State private var callSignToFilter = ""
+  
   @State private var showSpots = true
   @State private var filterByTime = false
   @State private var didTap: Bool = false
@@ -22,50 +22,33 @@ struct ControlBarView: View {
 
   var controller: Controller
   var clusters: [ClusterIdentifier]
-  let characterLimit = 10
+
 
   var body: some View {
     //let _ = Self._printChanges()
     HStack {
       HStack {
-        //Divider()
-        Button("Pause") {
-          controller.pause.toggle()
-        }
-
-        Button("QRZ Logon") {
-          self.didTap = true; controller.qrzLogon(userId: userSettings.username, password: userSettings.password)
-        }
         Divider()
+
+//        Button("Pause") {
+//          controller.pause.toggle()
+//        }
+
+        HStack {
+          Button("QRZ Logon") {
+            self.didTap = true
+            controller.qrzLogon(userId: userSettings.username, password: userSettings.password)
+          }
+          .background(didTap ? Color.green : Color.white)
+        }
+        .frame(width: 100, height: 25)
+        .background(.gray.opacity(0.5))
+
         ClusterPickerView(controller: controller, clusters: clusters)
 
-        Divider()
         NumberOfSpotsPickerView(controller: controller)
 
-        Divider()
-
-        HStack {
-        Image(systemName: "magnifyingglass")
-        TextField("Call Filter", text: $callSignToFilter, onEditingChanged: { _ in
-          // onEditingChanged
-          callSignToFilter = callSignToFilter.uppercased()
-          if callSignToFilter.count > characterLimit {
-            callSignToFilter = String(callSignToFilter.prefix(characterLimit))
-          }
-        }) {
-          // onCommit
-          self.controller.callToFilter = callSignToFilter
-        }
-        .textFieldStyle(RoundedBorderTextFieldStyle())
-        .modifier(ClearButton(boundText: $callSignToFilter))
-        .frame(maxWidth: 150)
-        }
-
-        HStack {
-          CheckBoxViewExact(controller: controller)
-          Divider()
-          CheckBoxViewFT8(controller: controller)
-        }
+        CallFilterView(controller: controller)
 
         CommandButtonsView(controller: controller)
       }
@@ -103,7 +86,7 @@ struct NumberOfSpotsPickerView: View {
         }
       }
     }
-    .border(.green)
+    //.border(.green)
   }
 }
 

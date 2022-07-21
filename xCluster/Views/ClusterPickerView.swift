@@ -16,6 +16,8 @@ struct ClusterPickerView: View {
   @State private var selectedCluster = clusterData[0]
 
   var body: some View {
+    Divider()
+
     HStack {
       Picker(selection: $selectedCluster.id, label: Text("")) {
         ForEach(clusters) { cluster in
@@ -32,7 +34,8 @@ struct ClusterPickerView: View {
         }
       }
     }
-    .border(.green)
+    //.border(.green)
+    Divider()
   }
 }
 
