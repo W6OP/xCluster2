@@ -1085,16 +1085,16 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
 
   /// Add an entry to the alert list. If an empty string is passed in clear existing highlights.
   /// - Parameter callSign: Callsign to set alert on.
-  @MainActor func setAlert(callSignOrCountry: String) {
+  @MainActor func setAlert(filter: String) {
 
-    guard !callSignOrCountry.isEmpty else {
+    guard !filter.isEmpty else {
       alertList.removeAll()
       clearHighlights()
       return
     }
 
-    if !alertList.contains(callSignOrCountry) {
-      alertList.append(callSignOrCountry)
+    if !alertList.contains(filter) {
+      alertList.append(filter)
     }
 
     applyAlerts()
@@ -1107,6 +1107,8 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       switch literal { // must be in this order
       case _ where literal.isLetters():
         highlightCountry(country: literal)
+      case _ where literal.isNumeric():
+        highlightFrequency(frequency: literal)
       case _ where literal.isAlphanumeric():
         highlightCall(call: literal.uppercased())
       case _ where literal.suffix(1) == ("*"):
@@ -1165,6 +1167,24 @@ public class  Controller: ObservableObject, TelnetManagerDelegate, WebManagerDel
       }
     }
   }
+
+  func highlightFrequency(frequency: String) {
+    for (index, spot) in displayedSpots.enumerated() {
+      let delimiter = "."
+      let frequencyPrefix = frequency.components(separatedBy: delimiter).first
+      let frequencyComponenet = spot.formattedFrequency.components(separatedBy: delimiter).first
+      var mutatingSpot = spot
+
+      switch frequencyComponenet {
+      case _ where frequencyComponenet == frequencyPrefix:
+        mutatingSpot.isHighlighted = true
+        displayedSpots[index] = mutatingSpot
+      default:
+        break
+      }
+    }
+  }
+
 
   /// Clear all the highlighted spots.
   func clearHighlights() {
